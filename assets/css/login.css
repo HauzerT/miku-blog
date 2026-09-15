@@ -1,0 +1,262 @@
+/* ==========================================================================
+   login.css · 门厅（login.html）
+   ---------------------------------------------------------------------------
+   整站只有这一页把青铺满整屏。别处的青藏在卷帘那扇暗窗里——门厅是例外，
+   因为它没有正文要读，只做一件事：让人选一颗键按下去。
+
+   这里的三块颜色一个都不是新写的，都能在 palette.css 的实测表里找到出处：
+     青地 + 黑字   --miku / --display   8.04:1  「音符块上的字」——整屏就是一块音符
+     粉键 + 黑字   --cuer / --display   5.03:1  「门厅：粉键上的字」这条为门厅新加
+     黑键 + 浅字   --key-black / --on-display  11.06:1  「黑键行的轨道名」
+   粉与青之间的色差只有 1.6:1，所以两颗键都描一条 2px 黑边：键的轮廓交给黑
+   （对青 8:1），不靠粉自己撑。
+
+   颜色一个都不许写在这个文件里：tools/tokens.mjs 会把 #rrggbb / rgba() 当错误
+   报出来，改颜色请改 content/palette.mjs。
+   ========================================================================== */
+
+/* 门厅的「地」不是纸，是青。 */
+body {
+  background: var(--miku);
+  color: var(--display);
+}
+
+/* 焦点环：base.css 那条是樱粉，粉对青只有 1.6:1，在门厅等于没有。
+   这里一律改用黑描边（对青 8.04:1）。只换颜色，粗细与位移仍归 base.css。 */
+:focus-visible { outline-color: var(--display); }
+
+/* ---------------------------------------------------------------- 门厅 */
+.gate {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: var(--s-6);
+  max-width: 62rem;
+  min-height: 100vh;
+  min-height: 100svh;
+  margin-inline: auto;
+  padding: var(--s-5) var(--gutter) var(--s-5);
+  padding-inline: max(var(--gutter), env(safe-area-inset-left)) max(var(--gutter), env(safe-area-inset-right));
+  padding-bottom: max(var(--s-5), env(safe-area-inset-bottom));
+}
+
+/* 铭牌：站点的名字，不指路——路在下面那两颗键上。 */
+.gate__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-4);
+}
+
+.gate__mark {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.gate__mark span {
+  font-family: var(--f-measure);
+  font-size: 0.875rem;
+  font-weight: 400;
+  letter-spacing: 0.16em;
+}
+
+.gate__body {
+  display: grid;
+  align-content: center;
+}
+
+.gate__panel {
+  max-width: 30rem;
+}
+
+.gate__title {
+  font-family: var(--f-read);
+  font-size: var(--t-hero);
+  font-weight: 700;
+  line-height: 1.02;
+  letter-spacing: 0.02em;
+}
+
+.gate__note {
+  margin-top: var(--s-4);
+  max-width: 28rem;
+  font-family: var(--f-read);
+  font-size: var(--t-body);
+  line-height: 1.9;
+  /* 中文不在词中间断行：这一页每句话里都有标点，够它换行了，
+     所以「启动」不会被拆成「启 / 动」 */
+  word-break: keep-all;
+}
+
+/* ---------------------------------------------------------------- 两颗键
+   访客那颗是粉的（此刻要按下的那一颗），站长那颗是黑的（黑键）。
+   两颗一样高、一样有黑边——等级差交给颜色，不交给尺寸。 */
+.gate__keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  margin-top: var(--s-5);
+}
+
+.gate-key {
+  display: inline-flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  min-width: 7.5rem;
+  min-height: 3.25rem;
+  padding: 0 var(--s-4);
+  font: inherit;
+  font-family: var(--f-ui);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-align: center;
+  border: 2px solid var(--display);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: filter 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
+}
+
+.gate-key--visitor {
+  background: var(--cuer);
+  color: var(--display);
+}
+.gate-key--visitor:hover { filter: brightness(0.94); }
+.gate-key--visitor:active { filter: brightness(0.86); }
+
+.gate-key--owner {
+  background: var(--key-black);
+  color: var(--on-display);
+}
+.gate-key--owner:hover { background: var(--key-black-hover); }
+.gate-key--owner:active { transform: translateY(1px); }
+
+/* ------------------------------------------------------------ 口令那一行
+   按下站长那颗键才出现。输入框是白的（纸是这一页唯一的白键），黑边给出轮廓。 */
+.gate__pass {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3);
+  max-width: 30rem;
+  margin-top: var(--s-5);
+}
+
+/* 自己的 display 会盖掉 [hidden] 的 display:none，得显式写一条 */
+.gate__pass[hidden] { display: none; }
+
+.gate__pass:not([hidden]) { animation: gate-in 0.18s ease-out; }
+
+@keyframes gate-in {
+  from { opacity: 0; transform: translateY(-0.35rem); }
+  to { opacity: 1; transform: none; }
+}
+
+.gate__label {
+  font-size: var(--t-ui);
+  letter-spacing: 0.08em;
+}
+
+.gate__input {
+  flex: 1 1 10rem;
+  min-width: 0;
+  min-height: 3.25rem;
+  padding: 0 var(--s-4);
+  font-family: var(--f-ui);
+  font-size: 1rem;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+  background: var(--card);
+  border: 2px solid var(--display);
+  border-radius: 2px;
+}
+
+.gate__input::placeholder {
+  color: var(--ink-soft);
+  letter-spacing: 0.02em;
+}
+
+/* 口令一行里的「进入」比别处窄一点：它跟输入框同排，不必再撑开 */
+.gate-key--go {
+  flex: 0 0 auto;
+  min-width: 5.5rem;
+  padding-inline: var(--s-4);
+}
+
+/* ------------------------------------------------------------ 说清楚为什么
+   进不去的时候给一块黑板（黑键的同族），不是转圈也不是红字：
+   青地上只有黑字读得动，红与粉都读不动。 */
+.gate__msg {
+  max-width: 30rem;
+  margin-top: var(--s-4);
+  font-size: var(--t-ui);
+  line-height: 1.75;
+  word-break: keep-all;
+}
+
+.gate__msg[hidden] { display: none; }
+
+.gate__msg--bad {
+  padding: var(--s-3) var(--s-4);
+  background: var(--display);
+  color: var(--on-display);
+  border-radius: 2px;
+}
+
+/* 这台浏览器已经记着口令时的一句话，外加一条退路 */
+.gate__status {
+  margin-top: var(--s-5);
+  font-size: var(--t-ui);
+  line-height: 1.75;
+  word-break: keep-all;
+}
+
+.gate__status[hidden] { display: none; }
+
+.gate__forget {
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  text-decoration: underline;
+  text-underline-offset: 0.22em;
+  cursor: pointer;
+}
+
+/* ---------------------------------------------------------------- 九音尺
+   页脚那把尺：九个音高名，与左侧轨道栏、首页卷帘是同一份数据。
+   它不指路（登录页不该摆九个链接），只说明这一页属于谁。 */
+.gate__foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--s-2) var(--s-4);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--display);
+  font-family: var(--f-measure);
+  font-size: var(--t-data);
+  letter-spacing: 0.12em;
+}
+
+/* ---------------------------------------------------------------- 响应式 */
+@media (max-width: 640px) {
+  .gate { gap: var(--s-5); }
+  .gate__title { font-size: clamp(2.4rem, 12vw, 3.25rem); }
+  .gate__foot { justify-content: flex-start; gap: var(--s-1) var(--s-3); font-size: 0.6875rem; }
+}
+
+/* 触摸设备没有「悬停」：手指点过之后 :hover 会一直粘着 */
+@media (hover: none) {
+  .gate-key--visitor:hover { filter: none; }
+  .gate-key--owner:hover { background: var(--key-black); }
+}
+
+/* ---------------------------------------------------------------- 打印 */
+@media print {
+  .gate { min-height: 0; }
+  body { background: var(--print-paper); color: var(--print-ink); }
+  .gate__keys,
+  .gate__pass,
+  .gate__msg { display: none; }
+}

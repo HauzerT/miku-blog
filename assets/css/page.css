@@ -240,6 +240,24 @@
 }
 .prose th { border-bottom-color: var(--ink); font-weight: 700; }
 
+/* 编辑页插进正文里的东西：图片、视频、音频。
+   视频坐在暗窗上（全站唯一的深色区域里再放一块深色，是它的老规矩）。 */
+.prose img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+}
+.prose video {
+  display: block;
+  width: 100%;
+  max-height: 72vh;
+  background: var(--display);
+  border-radius: 2px;
+}
+.prose audio { display: block; width: 100%; }
+
 .pager {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

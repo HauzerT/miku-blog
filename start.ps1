@@ -1,9 +1,32 @@
-# CV01 上传服务 · 启动脚本（PowerShell 版）
-# 用法：右键「使用 PowerShell 运行」，或者在终端里 ./start.ps1
-# 想换端口：./start.ps1 8080
+﻿# ============================================================================
+#  CV01 · 启动（上传服务 + 云村小服务）
+#  ---------------------------------------------------------------------------
+#  双击 start.cmd 就会走到这里；也可以直接 .\start.ps1
+#    .\start.ps1                上传服务默认 4321，同时把云村小服务也拉起来
+#    .\start.ps1 8080           换上传服务的端口
+#    .\start.ps1 -NoKumura      只要上传服务，不碰云村
+#  按 Ctrl+C 停止；窗口找不到了就双击 stop.cmd（两个服务它都会停）。
+#
+#  云村小服务的端口看环境变量 NCM_PORT，默认 3170 —— kumura.html 那边的
+#  assets/js/music.config.js 就是对着这个端口写的。端口已经在听就跳过，
+#  不会去抢一个正在跑的实例；这次由本脚本拉起来的那个，会在退出时一并收掉。
+#
+#  中文只写在 .ps1 里（存成带 BOM 的 UTF-8，PowerShell 5.1 才读得对），
+#  start.cmd / stop.cmd 保持纯 ASCII：cmd.exe 读含中文的 UTF-8 批处理
+#  会读错字节偏移，把后面几行命令咬掉半截。
+# ============================================================================
+
+param(
+  [switch]$NoKumura
+)
 
 $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $PSScriptRoot
+
+function Test-Port([int]$p) {
+  try { return @(Get-NetTCPConnection -LocalPort $p -State Listen -ErrorAction SilentlyContinue).Count -gt 0 }
+  catch { return $false }
+}
 
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
   Write-Host ''
@@ -13,9 +36,52 @@ if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
   exit 1
 }
 
+$ncmPort = 3170
+if ($env:NCM_PORT) {
+  try { $ncmPort = [int]$env:NCM_PORT } catch { $ncmPort = 3170 }
+}
+
 Write-Host ''
 Write-Host '  正在启动上传服务…… 终端里会打印一串上传口令。' -ForegroundColor Cyan
-Write-Host '  按 Ctrl+C 停止服务。'
+Write-Host '  按 Ctrl+C 停止；窗口找不到了就双击 stop.cmd（上传服务与云村小服务它都会停）。'
 Write-Host ''
 
+# ---------------------------------------------------------------- 云村小服务
+# kumura.html 要它才能扫码登录网易云。跟上传服务一起起来，省得多开一个窗口。
+$ncmId = 0
+if ($NoKumura) {
+  Write-Host '  -NoKumura：这次不启动云村小服务。' -ForegroundColor DarkGray
+  Write-Host ''
+} elseif (Test-Port $ncmPort) {
+  Write-Host "  云村小服务已经在跑（端口 $ncmPort），这次不重复启动。" -ForegroundColor DarkGray
+  Write-Host ''
+} else {
+  try {
+    $ncm = Start-Process -FilePath 'node' -ArgumentList 'tools/ncm-server.mjs' `
+      -WorkingDirectory $PSScriptRoot -NoNewWindow -PassThru
+    $ncmId = $ncm.Id
+    Start-Sleep -Milliseconds 700
+    if (Test-Port $ncmPort) {
+      Write-Host "  云村小服务已启动（端口 $ncmPort）：kumura.html 可以扫码登录了。" -ForegroundColor Cyan
+    } else {
+      Write-Host "  云村小服务没起来（端口 $ncmPort 没人在听）。上传服务不受影响，先继续。" -ForegroundColor Yellow
+    }
+  } catch {
+    Write-Host "  云村小服务启动失败：$($_.Exception.Message)" -ForegroundColor Yellow
+  }
+  Write-Host ''
+}
+
+# ---------------------------------------------------------------- 上传服务
 node server/server.mjs @args
+
+# 上传服务退出了：这次由本脚本拉起来的云村小服务也收掉
+# （Ctrl+C 时它一般已经跟着退了，这里是兜底；别人跑着的那份不动）
+if ($ncmId -and (Get-Process -Id $ncmId -ErrorAction SilentlyContinue)) {
+  Stop-Process -Id $ncmId -Force -ErrorAction SilentlyContinue
+  Write-Host '  云村小服务也停了。' -ForegroundColor Cyan
+}
+
+Write-Host ''
+Write-Host '  服务已经停了。' -ForegroundColor Cyan
+Write-Host ''

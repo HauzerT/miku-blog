@@ -1,7 +1,7 @@
 /* ==========================================================================
    audio.js · 调声
    ---------------------------------------------------------------------------
-   把卷帘上的九个音变成可以听见的东西。
+   把卷帘上的音变成可以听见的东西 —— 原生九个音，以及用界面新建板块时挑的任何一个音。
 
    默认关闭。没人喜欢的网站会自己出声。开启之后：
      · 点轨道名 / 点卷帘的轨道头 —— 先响一声，再切模块
@@ -16,15 +16,23 @@
   'use strict';
 
   var doc = document;
+  var cv01 = (window.cv01 = window.cv01 || {});
   var STORE = 'cv01-sound';
   var SWITCH_DELAY = 190;          // 切模块前让音符响多久（毫秒）。用真钢琴采样可以调大
   var EXTS = ['.mp3', '.wav', '.ogg'];
   var MASTER = 0.15;               // 总音量。想更响改这里，别改单个音符
 
-  var HZ = {
-    'A5': 880.00, 'F#5': 739.99, 'D5': 587.33, 'B4': 493.88, 'G4': 392.00,
-    'E4': 329.63, 'C4': 261.63, 'A3': 220.00, 'F#3': 185.00
-  };
+  /* 音高 → 频率：十二平均律，A4 = 440Hz。
+     以前这里是一张只有原生九个音的表，于是用界面新建的板块（比如 B5）点了是哑的
+     —— 表里查不到就 return 了。算出来的话，C2 到 B6 任何音都认，
+     采样文件（assets/audio/b5.mp3 这种）也才有机会被找出来。 */
+  var SEMITONE = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+  function hz(pitch) {
+    var m = /^([A-G])(#?)(-?\d)$/.exec(String(pitch || ''));
+    if (!m) return 0;
+    var midi = (Number(m[3]) + 1) * 12 + SEMITONE[m[1]] + (m[2] ? 1 : 0);   // MIDI 音高号
+    return 440 * Math.pow(2, (midi - 69) / 12);                            // A4 = 69 = 440Hz
+  }
 
   var btn = doc.querySelector('[data-sound-toggle]');
   var self = doc.currentScript;
@@ -81,7 +89,7 @@
     partials.forEach(function (p) {
       var osc = ctx.createOscillator();
       osc.type = 'sine';
-      osc.frequency.value = HZ[pitch] * p[0];
+      osc.frequency.value = hz(pitch) * p[0];
       var g = ctx.createGain();
       g.gain.value = p[1];
       osc.connect(g);
@@ -111,7 +119,7 @@
 
   /* ------------------------------------------------------------ 发声 */
   function play(pitch, short, force) {
-    if (!enabled || !HZ[pitch]) return;
+    if (!enabled || !hz(pitch)) return;
     var now = Date.now();
     if (!force && pitch === lastPitch && now - lastAt < 260) return;  // 掠过时不连响
     lastPitch = pitch;
@@ -174,12 +182,16 @@
     if (!link || link.target === '_blank' || link.hasAttribute('download')) return;
 
     var pitch = link.getAttribute('data-pitch');
-    if (!HZ[pitch]) return;
+    if (!hz(pitch)) return;
 
     e.preventDefault();
     play(pitch, true, true);
     var href = link.getAttribute('href');
-    window.setTimeout(function () { window.location.assign(href); }, SWITCH_DELAY);
+    /* 切模块也走 nav.js 的局部刷新，否则整页跳转会把这根 audio 一起销毁 */
+    window.setTimeout(function () {
+      if (cv01.go) cv01.go(href);
+      else window.location.assign(href);
+    }, SWITCH_DELAY);
   });
 
   /* 掠过音符块、键盘走到音符块 —— 试听 */

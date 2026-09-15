@@ -1,0 +1,142 @@
+/* ==========================================================================
+   palette.css · 由 content/palette.mjs 生成 —— 不要手改这个文件
+   生成命令：node tools/tokens.mjs        当前轮次：r3 第三轮 · 中性地面
+   当前这扇窗：cyan（青窗 —— 青底、白块音符、黑字）
+   ---------------------------------------------------------------------------
+   上一轮满屏饱和青做地面，正文吃力、照片发青，而且卷帘的音符块本身就是
+   #39C5BB —— 青底等于把青从音符手里抢走，只好把音符改成粉。
+   这一轮地面换成中性冷灰，等级差交给墨量（粗细、疏密、不透明度），不交给色相。
+
+   代价是青在地面上只剩 1.99:1，读不了字，于是「指认」整个交给了粉：
+   链接、序号、音高名、日期都成了粉。青退进唯一的暗窗（--display）里。
+   粉的深色档从来源色 #E12885 压深到 #D81B7A，才够地面上的 4.51:1。
+   ---------------------------------------------------------------------------
+   实测对比度。每次生成都重算：不够 AA 就直接报错、不写文件，
+   所以这张表不会和实际颜色对不上。
+
+   亮态
+     --ink                / --paper               12.43:1  ≥4.5  正文
+     --ink                / --card                13.27:1  ≥4.5  面板上的正文
+     --ink                / --paper-deep          11.20:1  ≥4.5  悬停底上的正文
+     --ink                / --mark                11.28:1  ≥4.5  选区里的字
+     --ink-soft           / --paper                5.11:1  ≥4.5  次要文本
+     --miku-deep          / --paper                4.51:1  ≥4.5  地面上被指认的东西：链接 / 序号 / 音高名
+     --miku-deep          / --card                 4.82:1  ≥4.5  面板上的链接
+     --cuer               / --paper                3.18:1  ≥3  焦点环与描边（UI 轮廓，3:1 即可）
+     --miku               / --display              8.04:1  ≥4.5  暗窗上的读数与音高
+     --miku               / --key-black            6.24:1  ≥4.5  黑键行的音高名
+     --display            / --miku                 8.04:1  ≥4.5  音符块上的字
+     --on-display         / --display             14.24:1  ≥4.5  暗窗正文
+     --on-display         / --display-soft        11.06:1  ≥4.5  暗窗里抬起一层上的字（音乐球的计数角标）
+     --on-display         / --key-black           11.06:1  ≥4.5  黑键行的轨道名
+     --on-display-soft    / --display              6.77:1  ≥4.5  暗窗里的次要文本
+     --display            / --cuer                 5.03:1  ≥4.5  门厅：粉键上的字（访客键）
+     --win-ink            / --win-ground           8.83:1  ≥4.5  窗里的正文（轨道名 / 读数）
+     --win-ink-soft       / --win-ground           4.73:1  ≥4.5  窗里的次要文本（标尺 / 篇数）
+     --win-accent         / --win-ground           8.83:1  ≥4.5  窗里被指认的东西
+     --win-cue            / --win-ground           8.83:1  ≥4.5  窗里的「此刻」（悬停读数）
+     --win-note-ink       / --win-note            17.58:1  ≥4.5  音符块上的字
+     --win-cursor         / --win-ground           8.83:1  ≥3  播放头（2px 的线，3:1 即可）
+     --win-ring           / --win-ground           8.83:1  ≥3  音符的悬停 / 焦点描边
+
+   暗态
+     --ink                / --paper               14.24:1  ≥4.5  正文
+     --ink                / --card                11.06:1  ≥4.5  面板上的正文
+     --ink                / --paper-deep          12.14:1  ≥4.5  悬停底上的正文
+     --ink                / --mark                11.25:1  ≥4.5  选区里的字
+     --ink-soft           / --paper                6.77:1  ≥4.5  次要文本
+     --miku-deep          / --paper                6.45:1  ≥4.5  地面上被指认的东西：链接 / 序号 / 音高名
+     --miku-deep          / --card                 5.01:1  ≥4.5  面板上的链接
+     --cuer               / --paper                6.45:1  ≥3  焦点环与描边（UI 轮廓，3:1 即可）
+     --miku               / --display              9.10:1  ≥4.5  暗窗上的读数与音高
+     --miku               / --key-black            8.83:1  ≥4.5  黑键行的音高名
+     --display            / --miku                 9.10:1  ≥4.5  音符块上的字
+     --on-display         / --display             16.11:1  ≥4.5  暗窗正文
+     --on-display         / --display-soft        11.06:1  ≥4.5  暗窗里抬起一层上的字（音乐球的计数角标）
+     --on-display         / --key-black           15.64:1  ≥4.5  黑键行的轨道名
+     --on-display-soft    / --display              7.67:1  ≥4.5  暗窗里的次要文本
+     --display            / --cuer                 7.30:1  ≥4.5  门厅：粉键上的字（访客键）
+     --win-ink            / --win-ground           8.83:1  ≥4.5  窗里的正文（轨道名 / 读数）
+     --win-ink-soft       / --win-ground           4.73:1  ≥4.5  窗里的次要文本（标尺 / 篇数）
+     --win-accent         / --win-ground           8.83:1  ≥4.5  窗里被指认的东西
+     --win-cue            / --win-ground           8.83:1  ≥4.5  窗里的「此刻」（悬停读数）
+     --win-note-ink       / --win-note            17.58:1  ≥4.5  音符块上的字
+     --win-cursor         / --win-ground           8.83:1  ≥3  播放头（2px 的线，3:1 即可）
+     --win-ring           / --win-ground           8.83:1  ≥3  音符的悬停 / 焦点描边
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+  --paper:              #f5f8f8;                   /* 地 */
+  --paper-deep:         rgba(19, 122, 127, 0.08);  /* 地 */
+  --card:               #ffffff;                   /* 地 */
+  --ink:                #2d3033;                   /* 墨 · 对 --paper 12.43:1 */
+  --ink-soft:           #666a6d;                   /* 墨 · 对 --paper 5.11:1 */
+  --miku-deep:          #d81b7a;                   /* 签 · 对 --paper 4.51:1 */
+  --miku:               #39c5bb;                   /* 签 · 对 --display 8.04:1 */
+  --display:            #1a1c1e;                   /* 地 · 对 --miku 8.04:1 */
+  --display-soft:       #2d3033;                   /* 地 */
+  --cuer:               #ff3399;                   /* 示 · 对 --paper 3.18:1 */
+  --cuer-glow:          rgba(255, 51, 153, 0.5);   /* 示 */
+  --rule:               #bec8d1;                   /* 线 */
+  --rule-soft:          rgba(190, 200, 209, 0.55); /* 线 */
+  --mark:               #ffe6f2;                   /* 地 */
+  --key-black:          #2d3033;                   /* 地 */
+  --key-black-hover:    #3a4046;                   /* 地 */
+  --on-display:         #e6ebef;                   /* 墨 · 对 --display 14.24:1 */
+  --on-display-soft:    #9da4aa;                   /* 墨 · 对 --display 6.77:1 */
+  --tap:                rgba(255, 51, 153, 0.22);  /* 线 */
+  --scrim:              rgba(10, 11, 12, 0.55);    /* 地 */
+  --roll-line:          rgba(16, 18, 20, 0.22);    /* 窗 */
+  --roll-line-strong:   rgba(16, 18, 20, 0.3);     /* 窗 */
+  --roll-lane:          rgba(16, 18, 20, 0.15);    /* 窗 */
+  --roll-beat:          rgba(16, 18, 20, 0.26);    /* 窗 */
+  --roll-tick:          rgba(16, 18, 20, 0.1);     /* 窗 */
+  --roll-band:          rgba(245, 248, 248, 0.07); /* 窗 */
+  --roll-thumb:         rgba(16, 18, 20, 0.32);    /* 窗 */
+  --roll-cap:           rgba(245, 248, 248, 0.88); /* 窗 */
+  --roll-cap-line:      rgba(16, 18, 20, 0.45);    /* 窗 */
+  --roll-cap-black:     #101214;                   /* 窗 */
+  --roll-lane-black:    rgba(16, 18, 20, 0.1);     /* 窗 */
+  --note-ring:          rgba(16, 18, 20, 0.22);    /* 窗 */
+  --km-seam:            #14313a;                   /* 窗 */
+  --km-raise:           #1d3538;                   /* 窗 */
+  --qr-ink:             #071316;                   /* 静 */
+  --qr-face:            #ffffff;                   /* 静 */
+  --qr-veil:            rgba(255, 255, 255, 0.74); /* 静 */
+  --qr-soft:            #666a6d;                   /* 静 */
+  --print-ink:          #000000;                   /* 静 */
+  --print-paper:        #ffffff;                   /* 静 */
+  --win-ground:         #39c5bb;                   /* 窗·地 */
+  --win-ink:            #101214;                   /* 窗·墨 · 对 --win-ground 8.83:1 */
+  --win-ink-soft:       #20484a;                   /* 窗·次墨 · 对 --win-ground 4.73:1 */
+  --win-accent:         #101214;                   /* 窗·签 · 对 --win-ground 8.83:1 */
+  --win-cue:            #101214;                   /* 窗·示 · 对 --win-ground 8.83:1 */
+  --win-note:           #f5f8f8;                   /* 窗·音符块 */
+  --win-note-ink:       #101214;                   /* 窗·块上的字 · 对 --win-note 17.58:1 */
+  --win-note-idle:      #101214;                   /* 窗·未点亮 */
+  --win-ghost:          #101214;                   /* 窗·定位条的幽灵音符 */
+  --win-ring:           #101214;                   /* 窗·描边 · 对 --win-ground 8.83:1 */
+  --win-cursor:         #101214;                   /* 窗·播放头 · 对 --win-ground 8.83:1 */
+  --win-cursor-glow:    rgba(16, 18, 20, 0);       /* 窗·播放头的辉光 */
+}
+
+/* 夜间：另配的一套，不是反相。只列出与亮态不同的那些。 */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper:              #1a1c1e;                   /* 地 */
+  --paper-deep:         rgba(134, 206, 203, 0.08); /* 地 */
+  --card:               #2d3033;                   /* 地 */
+  --ink:                #e6ebef;                   /* 墨 · 对 --paper 14.24:1 */
+  --ink-soft:           #9da4aa;                   /* 墨 · 对 --paper 6.77:1 */
+  --miku-deep:          #ff69b4;                   /* 签 · 对 --paper 6.45:1 */
+  --display:            #0c0e10;                   /* 地 · 对 --miku 9.10:1 */
+  --cuer:               #ff69b4;                   /* 示 · 对 --paper 6.45:1 */
+  --cuer-glow:          rgba(255, 105, 180, 0.5);  /* 示 */
+  --rule:               #44494d;                   /* 线 */
+  --rule-soft:          rgba(68, 73, 77, 0.6);     /* 线 */
+  --mark:               #4a2038;                   /* 地 */
+  --key-black:          #101214;                   /* 地 */
+  --key-black-hover:    #1c2024;                   /* 地 */
+  --tap:                rgba(255, 105, 180, 0.22); /* 线 */
+}

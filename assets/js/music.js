@@ -5,8 +5,12 @@
    进页面自动尝试播放：浏览器拦下来（没有用户手势）就在悬浮球上点一颗琥珀色的灯，
    并且这一次点击、滚动、按键都算手势，一有手势就接着放。
 
-   面板里：播放/上一首/下一首/列表循环/单曲循环、拖动进度、音量、
-   以及上传 mp3 / m4a（拖进去也行）、改名、删除。
+   面板里：播放/上一首/下一首/列表循环/单曲循环、拖动进度、音量、把某一首设成
+   「进页面自动放的那一首」。这一颗球是公开的——谁都能听、能选、能设默认。
+
+   写文件的那几件事（传新歌、换歌、改名、删歌）不在这里：
+   传歌搬到了站长工具箱（owner.js），换 / 改名 / 删只在输入过口令的浏览器里显示。
+
    选中的曲目和音量记在 localStorage，下次进站接着放。
    ========================================================================== */
 (function () {
@@ -173,9 +177,11 @@
      点行 = 现在就放，点「设默认」= 下次进页面先放它。 */
   function listMarkup() {
     if (!state.tracks.length) {
-      return '<p class="mp-empty">曲库是空的。把 mp3 / m4a 拖到上面的框里，或者点「选择文件」。</p>';
+      return '<p class="mp-empty">曲库是空的。右下角那颗站长球里可以传 mp3 / m4a 进来。</p>';
     }
     var pinned = state.defaultIndex;
+    /* 换 / 改名 / 删要口令，没输过就不摆出来 */
+    var owner = cv01.key && cv01.key() ? '' : ' hidden';
     return state.tracks
       .map(function (t, i) {
         var isCurrent = i === state.index;
@@ -193,9 +199,10 @@
           '<button class="mp-item__act' + (i === pinned ? ' is-on' : '') + '" type="button" data-pin="' + i +
           '" aria-pressed="' + (i === pinned ? 'true' : 'false') +
           '" title="设为进页面自动播放的那一首">' + (i === pinned ? '默认' : '设默认') + '</button>' +
-          '<button class="mp-item__act" type="button" data-swap="' + i + '" title="用本机另一个文件替换这一首">换</button>' +
-          '<button class="mp-item__act" type="button" data-rename="' + i + '">改名</button>' +
-          '<button class="mp-item__act mp-item__act--del" type="button" data-del="' + i + '" aria-label="删除 ' + esc(t.title) + '">删</button>' +
+          '<button class="mp-item__act" type="button" data-swap="' + i + '"' + owner + ' title="用本机另一个文件替换这一首">换</button>' +
+          '<button class="mp-item__act" type="button" data-rename="' + i + '"' + owner + '>改名</button>' +
+          '<button class="mp-item__act mp-item__act--del" type="button" data-del="' + i + '"' + owner +
+          ' aria-label="删除 ' + esc(t.title) + '">删</button>' +
           '</span>' +
           '</li>';
       })
@@ -227,19 +234,12 @@
       '    <span class="mp__vol-label">音量</span>' +
       '    <input class="mp__vol-range" type="range" min="0" max="100" value="' + Math.round(audio.volume * 100) + '" aria-label="音量" data-vol>' +
       '  </div>' +
-      '  <div class="mp__drop" data-drop>' +
-      '    <b class="mp__drop-title">上传 BGM</b>' +
-      '    把 MP3 / M4A 拖到这里，或者 <button class="mp__pick" type="button" data-pick>选择文件</button>' +
-      '    <input class="mp__file" type="file" accept="audio/mpeg,audio/mp4,audio/x-m4a,.mp3,.m4a,.mp4,.wav,.ogg,.flac" multiple hidden data-file>' +
-      '    <input class="mp__file" type="file" accept="audio/mpeg,audio/mp4,audio/x-m4a,.mp3,.m4a,.mp4" hidden data-swap-file>' +
-      '    <span class="mp__up" data-up hidden><i data-up-bar></i><b data-up-text>上传中 0%</b></span>' +
-      '  </div>' +
       '  <ul class="mp__list" data-list>' + listMarkup() + '</ul>' +
-      '  <div class="mp__foot">' +
-      '    <button class="mp__btn mp__btn--upload" type="button" data-upload>上传 BGM</button>' +
-      '    <span class="mp__foot-note">支持 MP3 / M4A</span>' +
-      '  </div>' +
-      '  <p class="mp__note">曲库存在 <code>media/music/</code>，直接把文件丢进那个文件夹也会被认出来（刷新页面即可）。「默认」那一首就是每次进页面自动放的那一首；浏览器不允许没交互就出声，所以第一次可能要你点一下。</p>' +
+      /* 换歌时用的进度条：平时藏着，只有站长按了「换」才会亮 */
+      '  <span class="mp__up" data-up hidden><i data-up-bar></i><b data-up-text></b></span>' +
+      '  <p class="mp__note">曲库存在 <code>media/music/</code>，直接把文件丢进那个文件夹也会被认出来（刷新页面即可）。「默认」那一首就是每次进页面自动放的那一首；浏览器不允许没交互就出声，所以第一次可能要你点一下。传新歌、换歌、删歌在右下角那颗<b>站长球</b>里。</p>' +
+      /* 换歌用的隐藏输入框：按钮在列表里，文件选择器留在这儿 */
+      '  <input class="mp__file" type="file" accept="audio/mpeg,audio/mp4,audio/x-m4a,.mp3,.m4a,.mp4" hidden data-swap-file>' +
       '</div>';
   }
 
@@ -282,8 +282,6 @@
 
   function bind() {
     var seek = panel.querySelector('[data-seek]');
-    var drop = panel.querySelector('[data-drop]');
-    var file = panel.querySelector('[data-file]');
 
     panel.querySelector('[data-toggle]').addEventListener('click', toggle);
     panel.querySelector('[data-prev]').addEventListener('click', function () { step(-1); });
@@ -298,21 +296,6 @@
       if (!audio.duration || !isFinite(audio.duration)) return;
       audio.currentTime = (Number(e.target.value) / 1000) * audio.duration;
       paintProgress();
-    });
-
-    panel.querySelector('[data-pick]').addEventListener('click', function () { file.click(); });
-    panel.querySelector('[data-upload]').addEventListener('click', function () { file.click(); });
-    file.addEventListener('change', function () { if (file.files.length) upload(file.files); file.value = ''; });
-
-    ['dragenter', 'dragover'].forEach(function (type) {
-      drop.addEventListener(type, function (e) { e.preventDefault(); drop.classList.add('is-over'); });
-    });
-    ['dragleave', 'drop'].forEach(function (type) {
-      drop.addEventListener(type, function (e) { e.preventDefault(); drop.classList.remove('is-over'); });
-    });
-    drop.addEventListener('drop', function (e) {
-      var files = e.dataTransfer && e.dataTransfer.files;
-      if (files && files.length) upload(files);
     });
 
     panel.addEventListener('click', function (e) {
@@ -338,41 +321,68 @@
   }
 
   /* ------------------------------------------------------------ 上传 */
-  function upload(files) {
+  /* scope 是「哪块面板里在传」：站长球里的上传面板，或者（理论上）别处 */
+  function upload(files, scope) {
+    var box0 = scope || panel;
     var list = Array.prototype.slice.call(files);
     var audioFiles = list.filter(function (f) { return /\.(mp3|m4a|wav|ogg|oga|opus|flac|aac)$/i.test(f.name) || /^audio\//.test(f.type); });
     if (!audioFiles.length) return cv01.toast('只认音频文件（mp3 / m4a / wav / ogg / flac）', true);
 
-    var box = panel.querySelector('[data-up]');
-    var bar = panel.querySelector('[data-up-bar]');
-    var text = panel.querySelector('[data-up-text]');
+    var box = box0.querySelector('[data-up]');
+    var bar = box0.querySelector('[data-up-bar]');
+    var text = box0.querySelector('[data-up-text]');
+    var done = box0.querySelector('[data-done]');
     box.hidden = false;
 
-    var done = 0;
+    var audioCount = 0;
     var form = new FormData();
     audioFiles.forEach(function (f) { form.append('file', f, f.name); });
 
     cv01.withKey(function () {
       return cv01.upload(cv01.api + 'music', form, function (ratio) {
-        var overall = (done + ratio) / audioFiles.length;
+        var overall = (audioCount + ratio) / audioFiles.length;
         bar.style.width = Math.round(overall * 100) + '%';
         text.textContent = '上传中 ' + Math.round(overall * 100) + '%（' + fmtSize(sum(audioFiles)) + '）';
       });
     })
       .then(function (data) {
         (data.tracks || []).forEach(function (t) { state.tracks.push(t); });
-        done = audioFiles.length;
+        audioCount = audioFiles.length;
         bar.style.width = '100%';
         text.textContent = '传好了，' + (data.tracks || []).length + ' 首';
-        cv01.toast('已加入音乐盒：' + (data.tracks || []).map(function (t) { return t.title; }).join('、'));
+        var names = (data.tracks || []).map(function (t) { return t.title; });
+        cv01.toast('已加入音乐盒：' + names.join('、'));
+        if (done) { done.hidden = false; done.textContent = '刚传进来：' + names.join('、'); }
         var wasEmpty = state.index === -1;
         /* 曲库本来是空的：新传的这首自动成为「进页面自动播」的那一首 */
         if (wasEmpty) state.defaultIndex = 0;
         paint();
+        paintBall();
         if (wasEmpty) play(0);
         window.setTimeout(function () { box.hidden = true; bar.style.width = '0'; }, 1600);
       })
       .catch(function (err) { box.hidden = true; cv01.error(err); });
+  }
+
+  /* 站长球里那一块：拖进来 / 选择文件 / 进度 / 刚传了哪几首 */
+  function bindUpload(box) {
+    var drop = box.querySelector('[data-drop]');
+    var file = box.querySelector('[data-file]');
+    box.querySelector('[data-pick]').addEventListener('click', function () { file.click(); });
+    file.addEventListener('change', function () {
+      if (file.files.length) upload(file.files, box);
+      file.value = '';
+    });
+    ['dragenter', 'dragover'].forEach(function (type) {
+      drop.addEventListener(type, function (e) { e.preventDefault(); drop.classList.add('is-over'); });
+    });
+    ['dragleave', 'drop'].forEach(function (type) {
+      drop.addEventListener(type, function (e) { e.preventDefault(); drop.classList.remove('is-over'); });
+    });
+    drop.addEventListener('drop', function (e) {
+      var files = e.dataTransfer && e.dataTransfer.files;
+      if (files && files.length) upload(files, box);
+    });
   }
 
   /* 用本机另一个文件替换曲库里的某一首：位置、名字都不动，只换声音。
@@ -513,6 +523,39 @@
       paint();
       paintProgress();
     },
+    /* 站长球里的「上传音乐盒的音乐」：只渲染那一块 */
+    uploadPanel: function (host) {
+      var box = doc.createElement('div');
+      box.className = 'mp-wrap';
+      box.innerHTML = '' +
+        '<div class="mp">' +
+        '  <div class="mp__head">' +
+        '    <p class="mp__eyebrow">上传音乐</p>' +
+        '    <p class="mp__hint">传进来的曲子直接进音乐盒的曲库，进页面自动播放的就是它。</p>' +
+        '  </div>' +
+        '  <div class="mp__drop" data-drop>' +
+        '    <b class="mp__drop-title">上传 BGM</b>' +
+        '    把 MP3 / M4A 拖到这里，或者 <button class="mp__pick" type="button" data-pick>选择文件</button>' +
+        '    <input class="mp__file" type="file" accept="audio/mpeg,audio/mp4,audio/x-m4a,.mp3,.m4a,.mp4,.wav,.ogg,.flac" multiple hidden data-file>' +
+        '    <span class="mp__up" data-up hidden><i data-up-bar></i><b data-up-text>上传中 0%</b></span>' +
+        '  </div>' +
+        '  <p class="mp__done" data-done hidden></p>' +
+        '  <p class="mp__note">文件落在 <code>media/music/</code>，文件名会规整成「日期-随机名」，原名只留在记录里。想改名、想换、想删，去音乐盒面板（那几颗按钮只对输入过口令的浏览器显示）。</p>' +
+        '</div>';
+      host.appendChild(box);
+      bindUpload(box);
+    },
+    /* 传完之后让音乐盒面板（如果开着）跟上；也给别人一个手动刷新的口子 */
+    reload: function () {
+      return cv01.fetchJSON(cv01.api + 'music').then(function (data) {
+        state.tracks = data.tracks || [];
+        state.settings = Object.assign(state.settings, data.settings || {});
+        if (state.index >= state.tracks.length) state.index = state.tracks.length - 1;
+        if (state.defaultIndex >= state.tracks.length) state.defaultIndex = state.tracks.length - 1;
+        paint();
+        paintBall();
+      }).catch(function () { /* 服务没在跑就算了 */ });
+    },
     play: play,
     pause: function () { audio.pause(); },
     toggle: toggle,
@@ -533,6 +576,9 @@
       };
     },
   };
+
+  /* 口令一到手，「换 / 改名 / 删」就该出现 */
+  doc.addEventListener('cv01:key', function () { paint(); });
 
   /* ------------------------------------------------------------ 小工具 */
   function esc(s) {

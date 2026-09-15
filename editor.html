@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<!-- 首帧的地址栏颜色。真正的那一份由 assets/js/palette.js 按当前配色覆盖 -->
+<meta name="theme-color" content="#f5f8f8">
+<title>写博客 · 初音ミク CV01</title>
+<meta name="description" content="快速写一篇博客：Markdown 正文 + 图片 / 视频 / 音乐上传。">
+<link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/css/palette.css">
+<link rel="stylesheet" href="assets/css/tokens.css">
+<link rel="stylesheet" href="assets/css/base.css">
+<link rel="stylesheet" href="assets/css/page.css">
+<link rel="stylesheet" href="assets/css/studio.css">
+<link rel="stylesheet" href="assets/css/editor.css">
+<script>
+/* 先于首屏决定主题与动效，避免闪烁 */
+(function(){var r=document.documentElement,s=null;
+try{s=localStorage.getItem('cv01-theme')}catch(e){}
+if(s==='dark'||s==='light'){r.setAttribute('data-theme',s)}
+else if(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches){r.setAttribute('data-theme','dark')}
+if(!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)){r.classList.add('js')}})();
+</script>
+<script src="assets/js/palette.js"></script>
+</head>
+<body>
+<a class="skip" href="#main">跳到正文</a>
+<header class="bar">
+  <a class="bar__id" href="index.html">初音ミク <span>CV01</span></a>
+  <nav class="bar__nav" aria-label="站点">
+    <a href="editor.html" aria-current="page">写博客</a>
+    <a href="index.html">回站点</a>
+  </nav>
+  <button class="bar__theme" type="button" data-theme-toggle hidden>夜间调声</button>
+</header>
+
+<main class="ed" id="main">
+  <header class="ed__head">
+    <div class="ed__headline">
+      <p class="ed__eyebrow">编辑页</p>
+      <h1 class="ed__title" data-heading>写一篇博客</h1>
+      <p class="ed__state" data-state role="status">正在看看这台机器上有没有口令…</p>
+    </div>
+    <div class="ed__acts">
+      <button class="ed__btn" type="button" data-new hidden>写新的一篇</button>
+      <button class="ed__btn" type="button" data-preview>刷新预览</button>
+      <button class="ed__btn ed__btn--main" type="button" data-save>保存并发布</button>
+    </div>
+  </header>
+
+  <div class="ed__grid">
+    <section class="ed__col ed__col--form">
+      <label class="ed__field ed__field--wide">
+        <span class="ed__label">标题</span>
+        <input class="ed__input" type="text" maxlength="120" data-title placeholder="比如：唐师父的一盘炒肉">
+      </label>
+
+      <div class="ed__row">
+        <label class="ed__field">
+          <span class="ed__label">板块</span>
+          <select class="ed__select" data-section></select>
+        </label>
+        <label class="ed__field">
+          <span class="ed__label">子板块</span>
+          <select class="ed__select" data-sub></select>
+        </label>
+      </div>
+
+      <div class="ed__row ed__row--three">
+        <label class="ed__field">
+          <span class="ed__label">日期</span>
+          <input class="ed__input" type="text" data-date placeholder="2026.09.16">
+        </label>
+        <label class="ed__field">
+          <span class="ed__label">阅读分钟</span>
+          <input class="ed__input" type="number" min="1" max="120" data-min value="4">
+        </label>
+        <label class="ed__field">
+          <span class="ed__label">短标签（≤6 字）</span>
+          <input class="ed__input" type="text" maxlength="6" data-short placeholder="音符块上那四个字">
+        </label>
+      </div>
+
+      <label class="ed__field ed__field--wide">
+        <span class="ed__label">一句话简介</span>
+        <input class="ed__input" type="text" maxlength="140" data-blurb placeholder="出现在索引、归档和文章列表里">
+      </label>
+
+      <div class="ed__tools">
+        <span class="ed__tools-label">往正文里插</span>
+        <button class="ed__tool" type="button" data-add="image">图片</button>
+        <button class="ed__tool" type="button" data-add="video">视频</button>
+        <button class="ed__tool" type="button" data-add="audio">音乐</button>
+        <span class="ed__tools-note">也可以把文件拖进下面的正文框，或者 <code>Ctrl+V</code> 直接粘截图</span>
+        <input type="file" accept="image/*" multiple hidden data-file="image">
+        <input type="file" accept="video/*" multiple hidden data-file="video">
+        <input type="file" accept="audio/*" multiple hidden data-file="audio">
+      </div>
+
+      <textarea class="ed__text" data-source rows="18" placeholder="正文。空行分段；## 小标题；- 列表；&gt; 引用；三个反引号包代码块。"></textarea>
+
+      <p class="ed__tips">
+        <b>##</b> 小标题 · <b>-</b> 列表 · <b>&gt;</b> 引用 · 三个反引号包代码块 · <b>**粗体**</b> · <b>*斜体*</b> ·
+        <b>`代码`</b> · <b>[文字](链接)</b> · 图片用 <b>![说明](地址)</b>。
+        一行以 <code>&lt;</code> 开头就整块原样放行——视频、音频就是靠它插进去的。
+      </p>
+
+      <ul class="ed__att" data-att hidden></ul>
+    </section>
+
+    <aside class="ed__col ed__col--side">
+      <div class="ed__block">
+        <p class="ed__sidelabel">预览</p>
+        <div class="prose ed__preview" data-previewbox>
+          <p class="ed__empty">写点什么，这边就跟着显示。</p>
+        </div>
+      </div>
+      <div class="ed__block">
+        <p class="ed__sidelabel">我写的（存在服务里）</p>
+        <ol class="ed__list" data-list></ol>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<!-- 悬浮球：音乐盒 + 站长工具箱。这一页是手写的，球与脚本那几行要和
+     server/lib/shell.mjs 的 studio() 保持一致 —— 改那边时记得改这里。 -->
+<div class="studio" data-studio data-base="" hidden>
+  <div class="studio__panel" data-studio-panel hidden></div>
+  <div class="studio__dock">
+    <button class="ball ball--music" type="button" data-ball="music" aria-expanded="false" aria-label="音乐盒">
+      <span class="ball__glyph" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 18V6l10-2v12"></path><circle cx="6.5" cy="18" r="2.5"></circle><circle cx="16.5" cy="16" r="2.5"></circle>
+        </svg>
+      </span>
+      <span class="ball__dot" aria-hidden="true"></span>
+    </button>
+    <button class="ball ball--owner" type="button" data-ball="owner" aria-expanded="false" aria-label="站长工具箱（需要口令）">
+      <span class="ball__glyph" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="8.5" cy="15.5" r="4.2"></circle><path d="M11.6 12.4 20 4M17.2 4.6l2.6 2.6M14.4 7.4l2.6 2.6"></path>
+        </svg>
+      </span>
+    </button>
+  </div>
+  <audio data-bgm preload="metadata"></audio>
+</div>
+
+<script src="assets/js/site.js" defer></script>
+<script src="assets/js/music.js" defer></script>
+<script src="assets/js/sections.js" defer></script>
+<script src="assets/js/owner.js" defer></script>
+<script src="assets/js/studio.js" defer></script>
+<script src="assets/js/editor.js" defer></script>
+</body>
+</html>

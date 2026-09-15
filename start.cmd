@@ -1,25 +1,20 @@
 @echo off
 chcp 65001 >nul
-title CV01 · 上传服务
+title CV01 - start upload service
 cd /d "%~dp0"
 
-where node >nul 2>nul
-if errorlevel 1 (
-  echo.
-  echo   没找到 node。先装一个 Node.js ^(18 以上^)，再回来双击这个文件。
-  echo   https://nodejs.org/
-  echo.
-  pause
-  exit /b 1
-)
+rem Double-click this file to start the upload service AND the kumura helper
+rem (both at once, so kumura.html works right away).
+rem   change the upload port:   start.cmd 8080
+rem   upload service only:      start.cmd -NoKumura
+rem   stop both:                stop.cmd
+rem
+rem All messages live in start.ps1. This file stays pure ASCII on purpose:
+rem cmd.exe mis-reads a UTF-8 batch file containing non-ASCII bytes and then
+rem drops bytes from the following lines - which used to break the very line
+rem that launched node.
+
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0start.ps1" %*
 
 echo.
-echo   正在启动上传服务…… 终端里会打印一串上传口令。
-echo   关掉这个窗口就是停止服务。
-echo.
-
-node server/server.mjs %*
-
-echo.
-echo   服务已经停了。
 pause

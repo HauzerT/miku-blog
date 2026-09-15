@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f5f8f8">
+<title>黑键白键之间 · 二次生命 · 初音ミク CV01</title>
+<meta name="description" content="二次生命 的子板块：黑键白键之间">
+<link rel="icon" href="../../assets/img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../assets/css/palette.css">
+<link rel="stylesheet" href="../../assets/css/tokens.css">
+<link rel="stylesheet" href="../../assets/css/base.css">
+<link rel="stylesheet" href="../../assets/css/roll.css">
+<link rel="stylesheet" href="../../assets/css/page.css">
+<link rel="stylesheet" href="../../assets/css/studio.css">
+
+<script>
+/* 先于首屏决定主题与动效，避免闪烁 */
+(function(){var r=document.documentElement,s=null;
+try{s=localStorage.getItem('cv01-theme')}catch(e){}
+if(s==='dark'||s==='light'){r.setAttribute('data-theme',s)}
+else if(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches){r.setAttribute('data-theme','dark')}
+/* 手机浏览器地址栏的颜色紧接着由 assets/js/palette.js 按当前配色算，这里不再写死 */
+if(!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)){r.classList.add('js')}})();
+</script>
+<script src="../../assets/js/palette.js"></script>
+</head>
+<body>
+<a class="skip" href="#main">跳到正文</a>
+<aside class="epigraph" aria-label="每日一句">
+  <div class="epigraph__inner">
+    <a class="epigraph__label" href="../../sections/suiyu.html">胡盐乱雨集</a>
+    <span class="epigraph__text" data-excerpt title="每 24 小时换一句，全站同一天同一句">雨没有改变任何结果，它只是把结果推迟到我能承受的时候。</span>
+    <span class="epigraph__note">每日一句</span>
+  </div>
+</aside>
+<header class="bar">
+  <a class="bar__id" href="../../index.html">初音ミク <span>CV01</span></a>
+  <nav class="bar__nav" aria-label="站点">
+    <a href="../../index.html">首页</a>
+    <a href="../../kumura.html">云村</a>
+    <a href="../../archive.html">归档</a>
+    <a href="../../about.html">关于</a>
+  </nav>
+  <button class="bar__theme" type="button" data-theme-toggle hidden>夜间调声</button>
+  <button class="bar__sound" type="button" data-sound-toggle hidden>开启音效</button>
+</header>
+<div class="shell">
+<nav class="rail" aria-label="板块轨道">
+  <p class="rail__label">轨道 · 九个音</p>
+  <a class="key" data-pitch="A5" href="../../sections/niji.html" aria-current="page"><span class="key__pitch">A5</span><span class="key__name">二次生命</span></a>
+  <a class="key" data-pitch="F#5" href="../../sections/tongxue.html"><span class="key__pitch">F#5</span><span class="key__name">恰同学少年</span></a>
+  <a class="key" data-pitch="D5" href="../../sections/suiyu.html"><span class="key__pitch">D5</span><span class="key__name">胡盐乱雨集</span></a>
+  <a class="key" data-pitch="B4" href="../../sections/worlds.html"><span class="key__pitch">B4</span><span class="key__name">千千千世界</span></a>
+  <a class="key" data-pitch="G4" href="../../sections/cloud.html"><span class="key__pitch">G4</span><span class="key__name">生活在云上</span></a>
+  <a class="key" data-pitch="E4" href="../../sections/editing.html"><span class="key__pitch">E4</span><span class="key__name">剪剪又辑辑</span></a>
+  <a class="key" data-pitch="C4" href="../../sections/fries.html"><span class="key__pitch">C4</span><span class="key__name">整点薯条</span></a>
+  <a class="key" data-pitch="A3" href="../../sections/prisoner.html"><span class="key__pitch">A3</span><span class="key__name">网上囚徒</span></a>
+  <a class="key key--black" data-pitch="F#3" href="../../sections/zuoti.html"><span class="key__pitch">F#3</span><span class="key__name">做题区doge</span></a>
+</nav>
+  <main class="main sect-main" id="main">
+    <header class="sect-head">
+      <p class="sect-head__pitch"><a href="../../sections/niji.html">A5 二次生命</a> · 子板块 · 0 篇</p>
+      <h1 class="sect-head__name">黑键白键之间</h1>
+    </header>
+    <p class="empty">这个板块还没有文章。点右下角的站长球，用「快速写一篇博客」写第一篇。</p>
+  </main>
+<footer class="foot">
+  <p class="foot__line">初音ミク CV01 · 用卷帘当目录的个人博客骨架</p>
+  <p class="foot__meta">STATIC HTML · ZERO DEPENDENCIES · 2025</p>
+</footer>
+</div>
+<div class="studio" data-studio data-base="../../" hidden>
+  <div class="studio__panel" data-studio-panel hidden></div>
+  <div class="studio__dock">
+    <button class="ball ball--music" type="button" data-ball="music" aria-expanded="false" aria-label="音乐盒">
+      <span class="ball__glyph" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 18V6l10-2v12"></path><circle cx="6.5" cy="18" r="2.5"></circle><circle cx="16.5" cy="16" r="2.5"></circle>
+        </svg>
+      </span>
+      <span class="ball__dot" aria-hidden="true"></span>
+    </button>
+    <button class="ball ball--owner" type="button" data-ball="owner" aria-expanded="false" aria-label="站长工具箱（需要口令）">
+      <span class="ball__glyph" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="8.5" cy="15.5" r="4.2"></circle><path d="M11.6 12.4 20 4M17.2 4.6l2.6 2.6M14.4 7.4l2.6 2.6"></path>
+        </svg>
+      </span>
+    </button>
+  </div>
+  <audio data-bgm preload="metadata"></audio>
+</div>
+<script src="../../assets/js/excerpts.js" defer></script>
+<script src="../../assets/js/audio.js" defer></script>
+<script src="../../assets/js/site.js" defer></script>
+<script src="../../assets/js/music.js" defer></script>
+<script src="../../assets/js/sections.js" defer></script>
+<script src="../../assets/js/owner.js" defer></script>
+<script src="../../assets/js/studio.js" defer></script>
+<script src="../../assets/js/nav.js" defer></script>
+
+</body>
+</html>

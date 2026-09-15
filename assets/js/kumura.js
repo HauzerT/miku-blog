@@ -150,7 +150,10 @@
     try {
       var qr = window.CV01QR.encode(url);
       var wrap = make('div', 'km-login__code');
-      wrap.innerHTML = window.CV01QR.toSvg(qr, { dark: '#1a1c1e', light: '#ffffff' });
+      /* 二维码的墨色来自配色文件（--qr-ink），不跟主题走：白底黑块是功能不是风格。
+         qr.js 自己有兜底默认值，取不到就交给它。 */
+      var ink = (window.CV01_PALETTE && window.CV01_PALETTE.fixed.qr) || {};
+      wrap.innerHTML = window.CV01QR.toSvg(qr, { dark: ink.ink, light: ink.face });
       el.qrBox.appendChild(wrap);
     } catch (err) {
       el.qrBox.appendChild(make('p', 'km-login__fallback', '二维码生成失败，刷新重试。'));

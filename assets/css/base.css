@@ -35,7 +35,7 @@ a {
 /* 触摸：点下去是樱粉色的一闪，而不是系统默认的灰蓝框；
    manipulation 去掉双击缩放那 300ms 的等待，点音量按钮不会顺带把页面放大。 */
 a,
-button { -webkit-tap-highlight-color: rgba(255, 51, 153, 0.22); touch-action: manipulation; }
+button { -webkit-tap-highlight-color: var(--tap); touch-action: manipulation; }
 
 /* 焦点：樱粉描边，永不裁掉。对浅地面 3.2:1，够 WCAG 2.2 要求的那 3:1——
    上一轮那条琥珀在青底上只有 1.05:1，其实一直是隐形的。 */
@@ -382,10 +382,10 @@ button { -webkit-tap-highlight-color: rgba(255, 51, 153, 0.22); touch-action: ma
   .foot { padding-top: var(--s-6); }
 }
 
-/* 窄机：站点的顶级页面涨到五个（首页/说说/云村/归档/关于）之后，
-   「铭牌 + 五个导航 + 两个开关」在一行里放不下了 —— 320px 下光算宽度就差 70px。
-   所以命令栏在手机上折成两行：上行铭牌与两个开关，下行五个导航平分整宽。
-   顺带把每个导航的点击格子撑到 57×44 以上，比挤在一行里的小字好点得多。 */
+/* 窄机：命令栏在手机上折成两行——上行铭牌与两个开关，下行四个导航平分整宽。
+   顶级页面是四个（首页/云村/归档/关于），320px 下「铭牌 + 四个导航 + 两个开关」
+   一行仍然挤不下。顺带把每个导航的点击格子撑到 57×44 以上，
+   比挤在一行里的小字好点得多。 */
 @media (max-width: 480px) {
   :root {
     --gutter: clamp(1rem, 3.6vw, 3.5rem);   /* 手机上两边各留 16px 就够 */
@@ -501,6 +501,6 @@ button { -webkit-tap-highlight-color: rgba(255, 51, 153, 0.22); touch-action: ma
   .bar, .rail, .skip, .foot { display: none; }
   .shell { display: block; }
   .roll { display: none; }
-  body { background: #fff; color: #000; }
+  body { background: var(--print-paper); color: var(--print-ink); }
   a { text-decoration: underline; }
 }

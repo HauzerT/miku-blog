@@ -1,9 +1,9 @@
 /* ==========================================================================
    server/lib/store.mjs · 数据层
    ---------------------------------------------------------------------------
-   上传的内容全部落在 data/ 下的三个 JSON 里，媒体文件落在 media/ 下：
+   上传的内容全部落在 data/ 下的几个 JSON 里，媒体文件落在 media/ 下：
      data/sections.json  板块与子板块（第一次启动时从 content/posts.mjs 播种）
-     data/posts.json     说说（文字 / 图片 / 视频 / 表情）
+     data/articles.json  用编辑页写的文章（正文、元信息、附件清单）
      data/music.json     音乐盒曲目
      data/settings.json  音量、循环、是否新建板块时自动分配音高
    写文件用「临时文件 + rename」，中途断电不会写出半个 JSON。
@@ -20,7 +20,6 @@ export const MEDIA = join(ROOT, 'media');
 
 export const MEDIA_DIRS = {
   images: join(MEDIA, 'images'),
-  stickers: join(MEDIA, 'stickers'),
   videos: join(MEDIA, 'videos'),
   music: join(MEDIA, 'music'),
 };
@@ -65,6 +64,11 @@ export function pitchName(value) {
   const names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
   const octave = Math.floor(value / 12) - 1;
   return names[((value % 12) + 12) % 12] + octave;
+}
+
+/* 高音在上：轨道栏、首页索引、卷帘都按这个顺序排 */
+export function sortByPitch(list) {
+  return list.slice().sort((a, b) => pitchValue(b.pitch) - pitchValue(a.pitch));
 }
 
 export function suggestPitch(sections) {
@@ -134,16 +138,19 @@ export function findSub(section, subId) {
   return (section.subs || []).find((s) => s.id === subId) || null;
 }
 
-/* ------------------------------------------------------------------ 说说 */
-const POSTS_FILE = join(DATA, 'posts.json');
+/* ------------------------------------------------------------------ 文章
+   用编辑页写出来的文章。和 content/posts.mjs 那批不是一回事：
+   那批是「源头」，由 tools/build.mjs 生成静态页；这批只在服务里活着，
+   页面由服务运行时渲染，前端再把它并进板块页 / 归档 / 首页索引与卷帘。 */
+const ARTICLES_FILE = join(DATA, 'articles.json');
 
-export function loadPosts() {
-  const raw = readJson(POSTS_FILE, []);
+export function loadArticles() {
+  const raw = readJson(ARTICLES_FILE, []);
   return Array.isArray(raw) ? raw : [];
 }
 
-export function savePosts(posts) {
-  writeJson(POSTS_FILE, posts);
+export function saveArticles(list) {
+  writeJson(ARTICLES_FILE, list);
 }
 
 /* ------------------------------------------------------------------ 音乐 */

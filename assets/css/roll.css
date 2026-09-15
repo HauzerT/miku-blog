@@ -1,22 +1,27 @@
 /* ==========================================================================
-   roll.css · 钢琴卷帘：本站的主导航，也是唯一的深色暗窗
+   roll.css · 钢琴卷帘：本站的主导航，也是全站唯一的"另一个地方"
    七条轨道 = 七个板块；音符块 = 文章；播放头 = 此刻。
    音高由低到高排列（低音在下），与任何一台合成器的卷帘一致。
+
+   这里的颜色全部走 --win-* ——窗自己的一套（见 content/palette.mjs 的 windows）。
+   窗是墨的（暗色，跟着页面轮次走）还是青的（青底白块黑字，两种主题下一样），
+   由那个文件的一行决定，本文件不用改。原来直接写 --display / --miku 的地方
+   现在都指向窗，这样换窗不会牵动代码块、视频屏那些同样是深色的地方。
    ========================================================================== */
 
 .roll {
   --lane-h: var(--lane);
   --ruler: 1.125rem;
   position: relative;
-  background: var(--display);
-  color: var(--on-display);
+  background: var(--win-ground);
+  color: var(--win-ink);
 }
 
 /* 通栏出血：从轨道栏右缘一路到视口右缘 */
 .roll--bleed { margin-inline: calc(var(--gutter) * -1); }
 
 /* 暗色主题下暗窗不再靠明暗对比取胜，改用一道青绿细边维持"窗口"的身份 */
-:root[data-theme="dark"] .roll { border-block: 1px solid rgba(134, 206, 203, 0.16); }
+:root[data-theme="dark"] .roll { border-block: 1px solid var(--roll-line); }
 
 /* 切换主题时才存在的过渡，避免全站常驻 transition */
 :root.is-theming,
@@ -29,32 +34,32 @@
   align-items: baseline;
   gap: var(--s-5);
   padding: var(--s-4) var(--gutter) var(--s-3);
-  border-bottom: 1px solid rgba(134, 206, 203, 0.22);
+  border-bottom: 1px solid var(--roll-line-strong);
 }
 .roll__caption {
   font-size: var(--t-data);
   letter-spacing: 0.1em;
-  color: var(--on-display-soft);
+  color: var(--win-ink-soft);
   white-space: nowrap;
 }
 .roll__live {
   flex: 1 1 auto;
   min-width: 0;
   font-size: var(--t-ui);
-  color: var(--on-display-soft);
+  color: var(--win-ink-soft);
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-.roll__live.is-live { color: var(--cuer); }
+.roll__live.is-live { color: var(--win-cue); }
 .roll__readout {
   font-family: var(--f-measure);
   font-size: 0.875rem;
   letter-spacing: 0.16em;
-  color: var(--on-display-soft);
+  color: var(--win-ink-soft);
   white-space: nowrap;
 }
-.roll__readout b { font-weight: 700; color: var(--miku); }
+.roll__readout b { font-weight: 700; color: var(--win-accent); }
 
 .roll__scroller {
   overflow-x: auto;
@@ -62,7 +67,7 @@
   -webkit-overflow-scrolling: touch;
 }
 .roll__scroller::-webkit-scrollbar { height: 6px; }
-.roll__scroller::-webkit-scrollbar-thumb { background: rgba(157, 164, 170, 0.35); }
+.roll__scroller::-webkit-scrollbar-thumb { background: var(--roll-thumb); }
 
 .roll__inner {
   display: grid;
@@ -76,10 +81,10 @@
   position: sticky;
   left: 0;
   z-index: 3;
-  background: var(--display);
+  background: var(--win-ground);
   padding-top: var(--ruler);
   padding-left: var(--gutter);
-  border-right: 1px solid rgba(134, 206, 203, 0.16);
+  border-right: 1px solid var(--roll-line);
 }
 .head {
   display: flex;
@@ -88,38 +93,38 @@
   gap: 0.1rem;
   height: var(--lane-h);
   padding-right: var(--s-3);
-  border-bottom: 1px solid rgba(134, 206, 203, 0.12);
+  border-bottom: 1px solid var(--roll-lane);
 }
 .head__name {
   font-size: 0.8125rem;
   line-height: 1.2;
-  color: var(--on-display);
+  color: var(--win-ink);
 }
 .head__count {
   font-family: var(--f-measure);
   font-size: 0.6875rem;
   letter-spacing: 0.14em;
-  color: var(--on-display-soft);
+  color: var(--win-ink-soft);
 }
-.head:hover .head__name { color: var(--miku); }
-.head:hover .head__count { color: var(--cuer); }
+.head:hover .head__name { color: var(--win-accent); }
+.head:hover .head__count { color: var(--win-cue); }
 
 /* ------------------------------------------------------------ 键盘（中） */
 .roll__keys {
   position: sticky;
   left: var(--roll-heads);
   z-index: 3;
-  background: var(--display);
+  background: var(--win-ground);
   padding-top: var(--ruler);
-  border-right: 1px solid rgba(134, 206, 203, 0.16);
+  border-right: 1px solid var(--roll-line);
 }
 .keycap {
   display: block;
   height: var(--lane-h);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.85);
-  background: rgba(230, 235, 239, 0.14);
+  border-bottom: 1px solid var(--roll-cap-line);
+  background: var(--roll-cap);
 }
-.keycap--black { background: rgba(0, 0, 0, 0.55); width: 58%; }
+.keycap--black { background: var(--roll-cap-black); width: 58%; }
 
 /* ------------------------------------------------------------ 卷帘场 */
 /* 裁剪：播放头是铺满整格再用 transform 推出去的，它那 78% 的空盒子会算进
@@ -136,8 +141,8 @@
   font-family: var(--f-measure);
   font-size: 0.625rem;
   letter-spacing: 0.12em;
-  color: var(--on-display-soft);
-  border-bottom: 1px solid rgba(134, 206, 203, 0.16);
+  color: var(--win-ink-soft);
+  border-bottom: 1px solid var(--roll-line);
 }
 .roll__ruler span { flex: 1 1 25%; padding-left: 0.35rem; line-height: var(--ruler); }
 
@@ -147,18 +152,18 @@
   inset: 0;
   /* 三层：小节线、拍线、隔小节淡带。隔小节淡带是"这是卷帘不是甘特图"的关键 */
   background-image:
-    repeating-linear-gradient(to right, rgba(134, 206, 203, 0.2) 0 1px, transparent 1px 25%),
-    repeating-linear-gradient(to right, rgba(134, 206, 203, 0.08) 0 1px, transparent 1px 6.25%),
-    repeating-linear-gradient(to right, rgba(230, 235, 239, 0.04) 0 25%, transparent 25% 50%);
+    repeating-linear-gradient(to right, var(--roll-beat) 0 1px, transparent 1px 25%),
+    repeating-linear-gradient(to right, var(--roll-tick) 0 1px, transparent 1px 6.25%),
+    repeating-linear-gradient(to right, var(--roll-band) 0 25%, transparent 25% 50%);
 }
 .roll__lanes { position: relative; z-index: 1; }
 
 .lane {
   position: relative;
   height: var(--lane-h);
-  border-bottom: 1px solid rgba(134, 206, 203, 0.12);
+  border-bottom: 1px solid var(--roll-lane);
 }
-.lane--black { background: rgba(0, 0, 0, 0.28); }
+.lane--black { background: var(--roll-lane-black); }
 
 /* 音符块 */
 .note {
@@ -173,24 +178,26 @@
   min-width: 3.25rem;
   max-width: 14rem;
   padding: 0 0.5rem;
-  background: var(--miku);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
-  color: var(--display);
+  background: var(--win-note);
+  box-shadow: inset 0 0 0 1px var(--note-ring);
+  color: var(--win-note-ink);
   border-radius: 2px;
   font-size: 0.6875rem;
   line-height: 1;
   letter-spacing: 0.02em;
   white-space: nowrap;
   overflow: hidden;
-  transition: opacity 0.25s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  transition: background-color 0.25s ease, opacity 0.25s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
-.js .note { opacity: 0.28; }
-.js .note.is-lit { opacity: 1; }
+/* 未点亮的音符。青窗里它是黑的：扫光掠过时"被点亮"成白块。
+   墨窗里它是同一块青，只是淡下去——窗不同，这句话的意思也不同，所以底色是个 token。 */
+.js .note { background: var(--win-note-idle); opacity: 0.28; }
+.js .note.is-lit { background: var(--win-note); opacity: 1; }
 .note:hover,
 .note:focus-visible {
   opacity: 1;
   transform: translateY(-50%) translateY(-2px);
-  box-shadow: 0 0 0 1px var(--cuer);
+  box-shadow: 0 0 0 1px var(--win-ring);
 }
 
 /* 播放头：全站唯一允许移动的东西，也标示"此刻" */
@@ -208,8 +215,8 @@
   bottom: 0;
   left: 0;
   width: 2px;
-  background: var(--cuer);
-  box-shadow: 0 0 10px var(--cuer-glow);
+  background: var(--win-cursor);
+  box-shadow: 0 0 10px var(--win-cursor-glow);
 }
 .js .roll__playhead { animation: roll-sweep 2.2s cubic-bezier(0.42, 0, 0.28, 1) forwards; }
 @keyframes roll-sweep {
@@ -246,11 +253,11 @@ html:not(.js) .roll__hint { display: block; }
   padding: 0;
   font-size: 0;
   opacity: 0.26;   /* 幽灵音符：看得见自己在整首歌的哪一段 */
-  background: var(--on-display-soft);
+  background: var(--win-ghost);
 }
-.roll--strip .note.is-current { opacity: 1; background: var(--miku); }
+.roll--strip .note.is-current { opacity: 1; background: var(--win-note); }
 .roll--strip .roll__playhead { transform: translateX(var(--play-x, 0)); animation: none; }
-.roll--strip .roll__playhead::after { box-shadow: 0 0 8px var(--cuer-glow); }
+.roll--strip .roll__playhead::after { box-shadow: 0 0 8px var(--win-cursor-glow); }
 
 @media (max-width: 900px) {
   /* 手机上卷帘仍要能读：压矮轨道、收窄轨道名、把键盘列让给音符 */
@@ -295,6 +302,6 @@ html:not(.js) .roll__hint { display: block; }
   .note:hover,
   .note:focus-visible {
     transform: translateY(-50%);
-    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
+    box-shadow: inset 0 0 0 1px var(--note-ring);
   }
 }

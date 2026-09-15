@@ -4,27 +4,26 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
+<!-- 首帧的地址栏颜色。真正的那一份由 assets/js/palette.js 按当前配色覆盖 -->
 <meta name="theme-color" content="#f5f8f8">
 <title>关于 · 初音ミク CV01</title>
 <meta name="description" content="这个博客长什么样，用什么搭的，以及怎么改成你自己的。">
 <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/css/palette.css">
 <link rel="stylesheet" href="assets/css/tokens.css">
 <link rel="stylesheet" href="assets/css/base.css">
 <link rel="stylesheet" href="assets/css/roll.css">
 <link rel="stylesheet" href="assets/css/page.css">
 <link rel="stylesheet" href="assets/css/studio.css">
-<link rel="stylesheet" href="assets/css/feed.css">
 <script>
 /* 先于首屏决定主题与动效，避免闪烁 */
 (function(){var r=document.documentElement,s=null;
 try{s=localStorage.getItem('cv01-theme')}catch(e){}
 if(s==='dark'||s==='light'){r.setAttribute('data-theme',s)}
 else if(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches){r.setAttribute('data-theme','dark')}
-/* 手机浏览器的地址栏跟着主题走，免得浅地面顶上压一条深带 */
-var m=document.querySelector('meta[name="theme-color"]');
-if(m)m.setAttribute('content',r.getAttribute('data-theme')==='dark'?'#1a1c1e':'#f5f8f8');
 if(!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)){r.classList.add('js')}})();
 </script>
+<script src="assets/js/palette.js"></script>
 </head>
 <body>
 <a class="skip" href="#main">跳到正文</a>
@@ -39,7 +38,6 @@ if(!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches))
   <a class="bar__id" href="index.html">初音ミク <span>CV01</span></a>
   <nav class="bar__nav" aria-label="站点">
     <a href="index.html">首页</a>
-    <a href="feed.html">说说</a>
     <a href="kumura.html">云村</a>
     <a href="archive.html">归档</a>
     <a href="about.html" aria-current="page">关于</a>
@@ -74,12 +72,13 @@ if(!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches))
       <div class="spec__row"><p class="spec__key">内容源</p><p class="spec__val"><code>content/posts.mjs</code> 是唯一的内容源，运行 <code>node tools/build.mjs</code> 重新生成全部页面；也可以直接手改生成出来的 HTML。</p></div>
       <div class="spec__row"><p class="spec__key">目录</p><p class="spec__val">左边那排琴键和首页的卷帘是同一个东西：九个板块 = 九个音。低音在下（做题区doge 是 F#3，也是唯一一个黑键），越往上越轻。文章页顶部那条迷你卷帘会告诉你现在在哪一格。</p></div>
       <div class="spec__row"><p class="spec__key">每日一句</p><p class="spec__val">每一页顶上那句小字来自「胡盐乱雨集」。它以本地日期为种子选句，所以全站同一天显示同一句，过了零点自动换。句子写在 <code>content/posts.mjs</code> 的 <code>excerpts</code> 里。</p></div>
-      <div class="spec__row"><p class="spec__key">配色</p><p class="spec__val">地是中性冷灰 <code>#F5F8F8</code>，墨是 <code>#2D3033</code>——阅读的重量交给灰度的差，不交给色相。两组标志色只用来强调：<b>粉</b>负责指认（链接、序号、音高名），<b>青绿</b>负责暗窗内部（音符块、读数）。「此刻」是画面上唯一会动的东西。</p></div>
+      <div class="spec__row"><p class="spec__key">配色</p><p class="spec__val">颜色<b>不写在 CSS 里</b>：<code>content/palette.mjs</code> 是全站唯一写着色值的地方，<code>node tools/tokens.mjs</code> 校验对比度并生成 <code>assets/css/palette.css</code>。颜色在这里是<b>职务</b>不是气氛——<b>地</b>承担全部阅读重量（重量交给灰度的差，不交给色相），<b>墨</b>写正文，<b>签</b>只用来指认被选中的东西，<b>示</b>只表示「此刻」，是画面上唯一会动的东西。换一整套配色 = 改那个文件里的一行轮次。</p></div>
       <div class="spec__row"><p class="spec__key">字体</p><p class="spec__val">读到的是思源宋体（系统回退），操作界面是无衬线，测量数字用随站自带的 Big Shoulders。三个角色，各干各的事。</p></div>
       <div class="spec__row"><p class="spec__key">素材</p><p class="spec__val">全部视觉都是 CSS 与 SVG 现画的，没有引入任何插画素材。</p></div>
       <div class="spec__row"><p class="spec__key">钢琴声</p><p class="spec__val">默认<b>关闭</b>，顶栏「开启音效」打开后：点轨道名会先响一声再切板块，卷帘上的音符可以掠过试听。没有采样文件时用 WebAudio 现场合成；想换成真钢琴，把文件放进 <code>assets/audio/</code>，按音高命名（<code>a5.mp3</code>、<code>fs3.mp3</code>…），缺哪个补哪个。</p></div>
-      <div class="spec__row"><p class="spec__key">上传</p><p class="spec__val">双击 <code>start.cmd</code> 起一个零依赖的 Node 服务，右下角就多出三颗悬浮球：<b>音乐盒</b>（进页面自动播放，点球选歌，支持 mp3 / m4a）、<b>发说说</b>（文字、图片、视频、表情包，能发到任意板块或子板块）、<b>新建板块</b>（给新板块挑一个还没被占用的音高，它就接进卷帘）。文件落在 <code>media/</code>，记录落在 <code>data/*.json</code>。第一次上传要输一次口令，口令印在启动服务的那个终端里。</p></div>
-      <div class="spec__row"><p class="spec__key">说说流</p><p class="spec__val">所有板块上传的内容汇总在 <a href="feed.html">说说</a> 页，按时间倒序；每个板块页和文章页的底下也各有一条。删除按钮只对输入过口令的浏览器显示。</p></div>
+      <div class="spec__row"><p class="spec__key">上传</p><p class="spec__val">双击 <code>start.cmd</code> 起一个零依赖的 Node 服务（顺手把云村那个小服务也一起拉起来，<code>kumura.html</code> 打开就能扫码），右下角就多出两颗悬浮球。<b>音乐盒</b>是公开的：谁都能开、能听、能选歌、能把某一首设成「进页面自动播的那一首」。<b>站长工具箱</b>要口令，里面三件事：新建板块 / 子板块、上传音乐盒的音乐、快速写一篇博客。文件落在 <code>media/</code>，记录落在 <code>data/*.json</code>。第一次写要输一次口令，口令印在启动服务的那个终端里（也可以改 <code>data/settings.json</code> 里的 <code>passphrase</code>）；想关掉就双击 <code>stop.cmd</code>，它自己按进程找，不用记端口。</p></div>
+      <div class="spec__row"><p class="spec__key">写文章</p><p class="spec__val">站长工具箱里的「快速写一篇博客」会跳到一个独立编辑页 <code>editor.html</code>：标题、板块、日期、阅读分钟、短标签、一句话简介，正文用 Markdown 子集写（<code>##</code> 小标题、<code>-</code> 列表、<code>&gt;</code> 引用、反引号代码块，整块 HTML 原样放行），图片 / 视频 / 音乐拖进正文框就能传。文章存在 <code>data/articles.json</code>，页面由服务实时渲染，同时并进板块页的文章列表、归档、首页索引与卷帘——跟新建板块一样，建完立刻看得见。</p></div>
+      <div class="spec__row"><p class="spec__key">听歌</p><p class="spec__val">歌是<b>跨页面接着放</b>的。站内跳转由 <code>assets/js/nav.js</code> 接管：取回目标页之后只换正文、标题和高亮，右下角那根 <code>&lt;audio&gt;</code> 从头到尾没被销毁，所以切板块、翻文章、按后退都不会从头再来。代价是页面切换不再是整页刷新；<code>file://</code> 下没有 fetch，会自动退回普通跳转；云村页自带扫码轮询与自己的播放器，进出它仍走整页。</p></div>
       <div class="spec__row"><p class="spec__key">联系</p><p class="spec__val">改成你的邮箱、RSS 或社交账号。别留着占位符。</p></div>
     </div>
 
@@ -88,15 +87,15 @@ if(!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches))
       <p>6 个职务</p>
     </div>
     <div class="swatches">
-      <div class="swatch"><span class="swatch__chip" style="background:var(--paper)"></span><span class="swatch__name"><b>地</b>　中性冷灰，整站的地面（12.4:1）</span><span class="swatch__hex">#F5F8F8</span></div>
-      <div class="swatch"><span class="swatch__chip" style="background:var(--ink)"></span><span class="swatch__name"><b>墨</b>　正文与结构线（12.4:1）</span><span class="swatch__hex">#2D3033</span></div>
-      <div class="swatch"><span class="swatch__chip" style="background:var(--miku-deep)"></span><span class="swatch__name"><b>签·地面</b>　链接与序号（4.5:1）</span><span class="swatch__hex">#D81B7A</span></div>
-      <div class="swatch"><span class="swatch__chip" style="background:var(--miku)"></span><span class="swatch__name"><b>签·暗窗</b>　音符块与读数，只在暗窗上（8.0:1）</span><span class="swatch__hex">#39C5BB</span></div>
-      <div class="swatch"><span class="swatch__chip" style="background:var(--display)"></span><span class="swatch__name"><b>暗窗</b>　全站唯一的深色区域</span><span class="swatch__hex">#1A1C1E</span></div>
-      <div class="swatch"><span class="swatch__chip" style="background:var(--cuer)"></span><span class="swatch__name"><b>此刻</b>　播放头、焦点环、进度</span><span class="swatch__hex">#FF3399</span></div>
+      <div class="swatch" data-var="--paper"><span class="swatch__chip" style="background:var(--paper)"></span><span class="swatch__name"><b>地</b>　整站的地面，阅读的重量都在它身上</span><span class="swatch__hex">--paper</span></div>
+      <div class="swatch" data-var="--ink"><span class="swatch__chip" style="background:var(--ink)"></span><span class="swatch__name"><b>墨</b>　正文与结构线</span><span class="swatch__hex">--ink</span></div>
+      <div class="swatch" data-var="--miku-deep"><span class="swatch__chip" style="background:var(--miku-deep)"></span><span class="swatch__name"><b>签·地面</b>　被指认的东西：链接、序号、音高名</span><span class="swatch__hex">--miku-deep</span></div>
+      <div class="swatch" data-var="--miku"><span class="swatch__chip" style="background:var(--miku)"></span><span class="swatch__name"><b>签·暗窗</b>　音符块与读数</span><span class="swatch__hex">--miku</span></div>
+      <div class="swatch" data-var="--display"><span class="swatch__chip" style="background:var(--display)"></span><span class="swatch__name"><b>暗窗</b>　全站唯一的深色区域</span><span class="swatch__hex">--display</span></div>
+      <div class="swatch" data-var="--cuer"><span class="swatch__chip" style="background:var(--cuer)"></span><span class="swatch__name"><b>此刻</b>　播放头、焦点环、进度</span><span class="swatch__hex">--cuer</span></div>
     </div>
 
-    <p class="note-line">改配色只需动 <code>assets/css/tokens.css</code>：里面是完整的两套（日间调声 / 夜间调声），夜间不是在日间上做反相。青绿 <code>#39C5BB</code> 对浅地面只有 2.0:1，所以它只出现在暗窗里；粉的深色档比来源调色板压深了一格，为的是正文过 AA。</p>
+    <p class="note-line">改配色只需动 <code>content/palette.mjs</code>——全站唯一写着色值的地方，然后跑一次 <code>node tools/tokens.mjs</code>：它会重算每对前景/背景的对比度，不够 AA 就拒绝生成，并把实测值写进 <code>assets/css/palette.css</code> 顶上那张表。上面这些色块与十六进制都跟着它走，不写死在这一页里。</p>
   </main>
 <footer class="foot">
   <p class="foot__line">初音ミク CV01 · 用卷帘当目录的个人博客骨架</p>
@@ -114,17 +113,10 @@ if(!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches))
       </span>
       <span class="ball__dot" aria-hidden="true"></span>
     </button>
-    <button class="ball ball--post" type="button" data-ball="post" aria-expanded="false" aria-label="发说说">
+    <button class="ball ball--owner" type="button" data-ball="owner" aria-expanded="false" aria-label="站长工具箱（需要口令）">
       <span class="ball__glyph" aria-hidden="true">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M4 5h16v11H9l-5 4z"></path><path d="M12 8v5M9.5 10.5h5"></path>
-        </svg>
-      </span>
-    </button>
-    <button class="ball ball--sect" type="button" data-ball="sect" aria-expanded="false" aria-label="新建板块">
-      <span class="ball__glyph" aria-hidden="true">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M4 6h7v12H4zM13 6h7v5h-7zM13 13h7v5h-7z"></path>
+          <circle cx="8.5" cy="15.5" r="4.2"></circle><path d="M11.6 12.4 20 4M17.2 4.6l2.6 2.6M14.4 7.4l2.6 2.6"></path>
         </svg>
       </span>
     </button>
@@ -135,9 +127,29 @@ if(!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches))
 <script src="assets/js/audio.js" defer></script>
 <script src="assets/js/site.js" defer></script>
 <script src="assets/js/music.js" defer></script>
-<script src="assets/js/feed.js" defer></script>
-<script src="assets/js/composer.js" defer></script>
 <script src="assets/js/sections.js" defer></script>
+<script src="assets/js/owner.js" defer></script>
 <script src="assets/js/studio.js" defer></script>
+<script src="assets/js/nav.js" defer></script>
+<script>
+/* 色块下面那串十六进制是从当前配色里读出来的，不写死在 HTML 里——
+   换一轮配色、切一次主题，这一页都不会掉队。没 JS 时那里显示的是 token 名。 */
+(function () {
+  var rows = Array.prototype.slice.call(document.querySelectorAll('.swatch[data-var]'));
+  function paint() {
+    var style = getComputedStyle(document.documentElement);
+    rows.forEach(function (row) {
+      var value = style.getPropertyValue(row.getAttribute('data-var')).trim();
+      var out = row.querySelector('.swatch__hex');
+      if (out && value) out.textContent = value.toUpperCase();
+    });
+  }
+  paint();
+  new MutationObserver(paint).observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-theme', 'data-palette'],
+  });
+})();
+</script>
 </body>
 </html>

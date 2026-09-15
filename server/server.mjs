@@ -3,7 +3,6 @@
    ---------------------------------------------------------------------------
    零依赖：只用 node: 内置模块。跑起来之后：
      http://127.0.0.1:4321/            原来的静态博客（一字未改地服务出来）
-     /feed.html                        全站说说流
      /media/music/…                    上传的音乐
      /api/…                            上传与新建板块用的接口
 
@@ -26,21 +25,23 @@ import {
   saveSections,
   findSection,
   findSub,
-  loadPosts,
-  savePosts,
+  loadArticles,
+  saveArticles,
   loadMusic,
   saveMusic,
   scanMusicDir,
   loadSettings,
   saveSettings,
   suggestPitch,
+  sortByPitch,
   extOf,
   id as newId,
 } from './lib/store.mjs';
 import { parseMultipart, DEFAULT_LIMIT } from './lib/multipart.js';
-import { saveUpload, UploadError, kindOf } from './lib/media.js';
+import { saveUpload, UploadError, kindOf, KIND_LABEL } from './lib/media.js';
 import { seedTracks } from './lib/shell.mjs';
-import { dynamicSectionPage, dynamicSubPage, feedPage, postCard } from './lib/pages.mjs';
+import { dynamicSectionPage, dynamicSubPage } from './lib/pages.mjs';
+import { articlePage, articleBrief, mergeTracks, renderBody, sectionStats } from './lib/articles.mjs';
 
 const PORT = Number(process.argv[2] || process.env.PORT || 4321);
 const HOST = '127.0.0.1';
@@ -167,45 +168,68 @@ function slugify(name) {
 
 const settings = loadSettings();
 let sections = loadSections(seedTracks);
-let posts = loadPosts();
+let articles = loadArticles();
 let music = loadMusic();
 
-function sectionIndex() {
-  const map = new Map();
-  for (const s of sections) map.set(s.id, s);
-  return map;
+/* 九条原生轨道 + 运行时新建的板块 + 运行时文章，合成一份（卷帘位置、相邻文章都靠它） */
+function tracksNow() {
+  return mergeTracks(seedTracks, sections, articles);
 }
 
-/* 说说存的是 section/sub 的 id；渲染时补上名字与音高，前端就不用再查一遍 */
-function decorate(post) {
-  const s = sectionIndex().get(post.section);
-  const sub = s ? (s.subs || []).find((x) => x.id === post.sub) : null;
-  return {
-    ...post,
-    sectionName: s ? s.name : post.section,
-    pitch: s ? s.pitch : '·',
-    subName: sub ? sub.name : '',
-    kindLabel: post.kind === 'video' ? '视频' : post.kind === 'image' ? '图片' : post.kind === 'sticker' ? '表情包' : post.kind === 'audio' ? '音频' : '文字',
-  };
+/* 文章：日期、地址片段、附件清单的归一化 */
+function today() {
+  const n = new Date();
+  return `${n.getFullYear()}.${String(n.getMonth() + 1).padStart(2, '0')}.${String(n.getDate()).padStart(2, '0')}`;
 }
 
-function publicPosts() {
-  return posts.slice().sort((a, b) => (a.at < b.at ? 1 : -1)).map(decorate);
+function normalizeDate(value) {
+  const s = String(value || '').trim();
+  if (/^\d{4}\.\d{1,2}\.\d{1,2}$/.test(s)) {
+    const [y, m, d] = s.split('.');
+    return `${y}.${m.padStart(2, '0')}.${d.padStart(2, '0')}`;
+  }
+  if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(s)) {
+    const [y, m, d] = s.split('-');
+    return `${y}.${m.padStart(2, '0')}.${d.padStart(2, '0')}`;
+  }
+  return today();
 }
 
-function sectionPosts(sectionId, subId = '') {
-  return publicPosts().filter((p) => p.section === sectionId && (!subId || p.sub === subId));
+/* 地址片段要唯一，也不能撞上生成器写出来的那些 posts/<slug>.html（静态文件会盖住动态页） */
+function uniqueSlug(want, selfId = '') {
+  const base = slugify(want || '');
+  let slug = base;
+  let n = 2;
+  while (
+    articles.some((a) => a.slug === slug && a.id !== selfId) ||
+    existsSync(join(ROOT, 'posts', `${slug}.html`))
+  ) {
+    slug = `${base}-${n++}`;
+  }
+  return slug;
 }
 
-function saveAllPosts() {
-  savePosts(posts);
+function cleanAssets(list) {
+  if (!Array.isArray(list)) return [];
+  return list.slice(0, 80).map((a) => ({
+    kind: ['image', 'video', 'audio'].includes(a && a.kind) ? a.kind : 'image',
+    bucket: ['images', 'videos', 'music'].includes(a && a.bucket) ? a.bucket : 'images',
+    file: String((a && a.file) || '').slice(0, 160),
+    url: String((a && a.url) || '').slice(0, 300),
+    original: String((a && a.original) || '').slice(0, 200),
+    size: Number((a && a.size) || 0),
+    type: String((a && a.type) || '').slice(0, 80),
+  })).filter((a) => a.file && a.url);
 }
 
-function removeMedia(asset) {
-  if (!asset || !asset.bucket || !asset.file) return;
-  const dir = MEDIA_DIRS[asset.bucket];
-  if (!dir) return;
-  const full = safePath(dir, asset.file);
+function articleDetail(tracks, a) {
+  return { ...articleBrief(tracks, a), source: a.source || '', assets: a.assets || [], at: a.at };
+}
+
+function removeMedia(bucket, file) {
+  const dir = MEDIA_DIRS[bucket];
+  if (!dir || !file) return;
+  const full = safePath(dir, file);
   if (full && existsSync(full)) {
     try { rmSync(full); } catch { /* 文件被占用就留着，不影响数据 */ }
   }
@@ -250,13 +274,6 @@ function syncMusicDir() {
   return added;
 }
 
-/* ------------------------------------------------------------------ 说说流页面要用到的壳 */
-
-function feedPageHtml() {
-  const html = feedPage({ posts: publicPosts(), sections });
-  return html;
-}
-
 /* ------------------------------------------------------------------ 接口 */
 
 async function api(req, res, url) {
@@ -269,7 +286,6 @@ async function api(req, res, url) {
       ok: true,
       hasPassphrase: Boolean(settings.passphrase),
       sections: sections.length,
-      posts: posts.length,
       music: music.tracks.length,
       version: 1,
     });
@@ -281,29 +297,56 @@ async function api(req, res, url) {
     return sendJson(res, 200, { ok: true });
   }
 
-  /* --- 公开读取：板块树 / 说说 / 音乐列表 --- */
+  /* --- 公开读取：板块树（含运行时文章）/ 文章 / 音乐列表 --- */
   if (path === '/api/sections' && method === 'GET') {
+    const tracks = tracksNow();
+    const stats = sectionStats(tracks);
+    const briefs = articles.map((a) => articleBrief(tracks, a));
     return sendJson(res, 200, {
-      sections: sections.map((s) => ({
-        id: s.id,
-        name: s.name,
-        pitch: s.pitch,
-        black: Boolean(s.black),
-        seed: Boolean(s.seed),
-        def: s.def || '',
-        subs: (s.subs || []).map((x) => ({ id: x.id, name: x.name, def: x.def || '' })),
-        posts: posts.filter((p) => p.section === s.id).length,
-      })),
+      sections: sortByPitch(sections).map((s) => {
+        const st = stats.get(s.id) || { count: 0, recent: [] };
+        return {
+          id: s.id,
+          name: s.name,
+          pitch: s.pitch,
+          black: Boolean(s.black),
+          seed: Boolean(s.seed),
+          def: s.def || '',
+          subs: (s.subs || []).map((x) => ({ id: x.id, name: x.name, def: x.def || '' })),
+          articles: st.count,
+          recent: st.recent,
+          runtime: briefs.filter((b) => b.section === s.id),
+        };
+      }),
+      articles: {
+        total: tracks.reduce((n, t) => n + (t.posts || []).length, 0),
+        runtime: articles.length,
+      },
       suggestPitch: suggestPitch(sections),
     });
   }
 
-  if (path === '/api/posts' && method === 'GET') {
-    const section = url.searchParams.get('section') || '';
-    const sub = url.searchParams.get('sub') || '';
-    const limit = Math.min(Number(url.searchParams.get('limit') || 200) || 200, 1000);
-    const list = publicPosts().filter((p) => (!section || p.section === section) && (!sub || p.sub === sub));
-    return sendJson(res, 200, { posts: list.slice(0, limit), total: list.length });
+  if (path === '/api/articles' && method === 'GET') {
+    const tracks = tracksNow();
+    return sendJson(res, 200, {
+      articles: articles
+        .slice()
+        .sort((a, b) => (a.at < b.at ? 1 : -1))
+        .map((a) => ({ ...articleBrief(tracks, a), at: a.at, assets: (a.assets || []).length })),
+    });
+  }
+
+  const articleMatch = /^\/api\/articles\/([\w-]+)$/.exec(path);
+  if (articleMatch && method === 'GET') {
+    const article = articles.find((a) => a.id === articleMatch[1] || a.slug === articleMatch[1]);
+    if (!article) throw new HttpError(404, '没有这篇文章');
+    return sendJson(res, 200, { article: articleDetail(tracksNow(), article) });
+  }
+
+  /* 正文预览：编辑器要一边写一边看渲染结果，所以这一个不需要口令 */
+  if (path === '/api/render' && method === 'POST') {
+    const body = JSON.parse((await readBody(req, 1 << 20)).toString('utf8') || '{}');
+    return sendJson(res, 200, { ok: true, html: renderBody(String(body.source || '')) });
   }
 
   if (path === '/api/music' && method === 'GET') {
@@ -368,7 +411,7 @@ async function api(req, res, url) {
     const i = music.tracks.findIndex((t) => t.id === musicMatch[1]);
     if (i === -1) throw new HttpError(404, '没有这首曲子');
     const [entry] = music.tracks.splice(i, 1);
-    removeMedia({ bucket: 'music', file: entry.file });
+    removeMedia('music', entry.file);
     saveMusic(music);
     return sendJson(res, 200, { ok: true });
   }
@@ -384,69 +427,83 @@ async function api(req, res, url) {
     return sendJson(res, 200, { ok: true, settings: music.settings });
   }
 
-  /* 说说：发布 */
-  if (path === '/api/posts' && method === 'POST') {
+  /* 媒体上传：编辑页插图片 / 视频 / 音乐都走这里 */
+  if (path === '/api/media' && method === 'POST') {
     const form = await readForm(req);
-    const sectionId = (form.fields.section || '').trim();
-    const subId = (form.fields.sub || '').trim();
-    const section = findSection(sections, sectionId);
-    if (!section) throw new HttpError(400, '要先选一个板块');
-    const sub = subId ? findSub(section, subId) : null;
-    if (subId && !sub) throw new HttpError(400, '这个子板块不存在了');
-
-    const assets = [];
-    for (const file of form.files) {
-      const kind = kindOf(file);
-      if (!kind) throw new UploadError(`不认得的文件类型：${file.filename}`);
-      const bucket = kind === 'image' ? 'images' : kind === 'video' ? 'videos' : kind === 'sticker' ? 'stickers' : 'music';
-      const saved = saveUpload(file, bucket === 'music' ? 'audio' : bucket);
-      const width = Number(form.fields[`w:${file.filename}`] || 0);
-      const height = Number(form.fields[`h:${file.filename}`] || 0);
-      assets.push({
-        kind: saved.kind,
-        bucket: saved.bucket,
-        file: saved.file,
-        url: saved.url,
-        original: saved.original,
-        size: saved.size,
-        type: saved.type,
-        ...(width ? { w: width } : {}),
-        ...(height ? { h: height } : {}),
-      });
-    }
-
-    const text = (form.fields.text || '').trim();
-    if (!text && !assets.length) throw new HttpError(400, '写点什么，或者选个图片/视频再发');
-
-    const now = new Date();
-    const kinds = new Set(assets.map((a) => a.kind));
-    const kind = kinds.has('video') ? 'video' : kinds.has('image') || kinds.has('sticker') ? 'image' : 'text';
-
-    const post = {
-      id: newId('p_'),
-      section: section.id,
-      sub: sub ? sub.id : '',
-      text: text.slice(0, 4000),
-      mood: (form.fields.mood || '').slice(0, 24),
-      kind,
-      assets,
-      date: `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}`,
-      time: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
-      at: now.toISOString(),
-    };
-    posts.push(post);
-    saveAllPosts();
-    return sendJson(res, 201, { ok: true, post: decorate(post) });
+    if (!form.files.length) throw new HttpError(400, '没有收到文件');
+    const wanted = (form.fields.kind || '').trim();
+    const files = form.files.map((file) => {
+      const asset = saveUpload(file, wanted || undefined);
+      return { ...asset, label: KIND_LABEL[asset.kind] || asset.kind };
+    });
+    return sendJson(res, 201, { ok: true, files });
   }
 
-  const postMatch = /^\/api\/posts\/([\w-]+)$/.exec(path);
-  if (postMatch && method === 'DELETE') {
-    const i = posts.findIndex((p) => p.id === postMatch[1]);
-    if (i === -1) throw new HttpError(404, '这条说说已经没了');
-    const [gone] = posts.splice(i, 1);
-    for (const a of gone.assets || []) removeMedia(a);
-    saveAllPosts();
-    return sendJson(res, 200, { ok: true });
+  /* 文章：新建 / 改 / 删。存 data/articles.json，页面由服务运行时渲染。 */
+  if (path === '/api/articles' && method === 'POST') {
+    const body = JSON.parse((await readBody(req, 1 << 20)).toString('utf8') || '{}');
+    const title = String(body.title || '').trim();
+    if (!title) throw new HttpError(400, '文章得有个标题');
+    const section = findSection(sections, String(body.section || '').trim());
+    if (!section) throw new HttpError(400, '先选一个板块');
+    const sub = body.sub ? findSub(section, String(body.sub)) : null;
+    if (body.sub && !sub) throw new HttpError(400, '这个子板块不存在了');
+
+    const article = {
+      id: newId('a_'),
+      slug: uniqueSlug(String(body.slug || '').trim() || title),
+      title: title.slice(0, 120),
+      section: section.id,
+      sub: sub ? sub.id : '',
+      date: normalizeDate(body.date),
+      min: Math.min(120, Math.max(1, Number(body.min) || 3)),
+      short: String(body.short || '').trim().slice(0, 6) || title.slice(0, 4),
+      blurb: String(body.blurb || '').trim().slice(0, 140),
+      source: String(body.source || '').slice(0, 200000),
+      assets: cleanAssets(body.assets),
+      at: new Date().toISOString(),
+    };
+    articles.push(article);
+    saveArticles(articles);
+    return sendJson(res, 201, { ok: true, article: articleDetail(tracksNow(), article) });
+  }
+
+  if (articleMatch && method === 'PATCH') {
+    const article = articles.find((a) => a.id === articleMatch[1] || a.slug === articleMatch[1]);
+    if (!article) throw new HttpError(404, '没有这篇文章');
+    const body = JSON.parse((await readBody(req, 1 << 20)).toString('utf8') || '{}');
+
+    if (typeof body.title === 'string' && body.title.trim()) article.title = body.title.trim().slice(0, 120);
+    if (typeof body.section === 'string' && body.section.trim()) {
+      const section = findSection(sections, body.section.trim());
+      if (!section) throw new HttpError(400, '没有这个板块');
+      article.section = section.id;
+      if (article.sub && !findSub(section, article.sub)) article.sub = '';
+    }
+    if ('sub' in body) {
+      const section = findSection(sections, article.section);
+      const sub = body.sub ? findSub(section, String(body.sub)) : null;
+      if (body.sub && !sub) throw new HttpError(400, '这个子板块不存在了');
+      article.sub = sub ? sub.id : '';
+    }
+    if ('date' in body) article.date = normalizeDate(body.date);
+    if ('min' in body) article.min = Math.min(120, Math.max(1, Number(body.min) || 3));
+    if (typeof body.short === 'string') article.short = body.short.trim().slice(0, 6) || article.title.slice(0, 4);
+    if (typeof body.blurb === 'string') article.blurb = body.blurb.trim().slice(0, 140);
+    if (typeof body.source === 'string') article.source = body.source.slice(0, 200000);
+    if ('assets' in body) article.assets = cleanAssets(body.assets);
+
+    saveArticles(articles);
+    return sendJson(res, 200, { ok: true, article: articleDetail(tracksNow(), article) });
+  }
+
+  if (articleMatch && method === 'DELETE') {
+    const i = articles.findIndex((a) => a.id === articleMatch[1] || a.slug === articleMatch[1]);
+    if (i === -1) throw new HttpError(404, '没有这篇文章');
+    const [gone] = articles.splice(i, 1);
+    for (const a of gone.assets || []) removeMedia(a.bucket, a.file);
+    saveArticles(articles);
+    return sendJson(res, 200, { ok: true, removed: gone.id });
   }
 
   /* 板块与子板块 */
@@ -494,13 +551,15 @@ async function api(req, res, url) {
     if (i === -1) throw new HttpError(404, '没有这个板块');
     if (sections[i].seed) throw new HttpError(400, 'content/posts.mjs 里的九个原生板块不在这里删（改那个文件然后重新生成）');
     const [gone] = sections.splice(i, 1);
-    for (const p of posts.filter((p) => p.section === gone.id)) {
-      for (const a of p.assets || []) removeMedia(a);
+    /* 这个板块下用编辑页写的文章也跟着走（连带它们带的图片 / 视频 / 音频） */
+    const orphans = articles.filter((a) => a.section === gone.id);
+    for (const a of orphans) for (const x of a.assets || []) removeMedia(x.bucket, x.file);
+    if (orphans.length) {
+      articles = articles.filter((a) => a.section !== gone.id);
+      saveArticles(articles);
     }
-    posts = posts.filter((p) => p.section !== gone.id);
-    saveAllPosts();
     saveSections(sections);
-    return sendJson(res, 200, { ok: true, removedPosts: gone.id });
+    return sendJson(res, 200, { ok: true, removed: gone.id, removedArticles: orphans.length });
   }
 
   /* 子板块：POST /api/sections/<id>/subs */
@@ -526,17 +585,18 @@ async function api(req, res, url) {
     const sub = findSub(section, subItemMatch[2]);
     if (!sub) throw new HttpError(404, '没有这个子板块');
     section.subs = section.subs.filter((s) => s.id !== sub.id);
-    for (const p of posts.filter((p) => p.section === section.id && p.sub === sub.id)) {
-      for (const a of p.assets || []) removeMedia(a);
+    const orphans = articles.filter((a) => a.section === section.id && a.sub === sub.id);
+    for (const a of orphans) for (const x of a.assets || []) removeMedia(x.bucket, x.file);
+    if (orphans.length) {
+      articles = articles.filter((a) => !(a.section === section.id && a.sub === sub.id));
+      saveArticles(articles);
     }
-    posts = posts.filter((p) => !(p.section === section.id && p.sub === sub.id));
-    saveAllPosts();
     saveSections(sections);
-    return sendJson(res, 200, { ok: true });
+    return sendJson(res, 200, { ok: true, removedArticles: orphans.length });
   }
 
   if (path === '/api/state' && method === 'GET') {
-    return sendJson(res, 200, { sections, posts: publicPosts(), music: music.tracks, settings: music.settings });
+    return sendJson(res, 200, { sections, music: music.tracks, settings: music.settings });
   }
 
   throw new HttpError(404, `没有这个接口：${path}`);
@@ -595,6 +655,7 @@ function serveFile(req, res, full, { download = false } = {}) {
 function notFoundPage(res, pathname) {
   const html = `<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><title>404 · 没有这一页</title>
+<link rel="stylesheet" href="/assets/css/palette.css">
 <link rel="stylesheet" href="/assets/css/tokens.css">
 <link rel="stylesheet" href="/assets/css/base.css">
 </head><body><main class="main" style="max-width:34em;margin:12vh auto">
@@ -618,6 +679,13 @@ function serveStatic(req, res, url, pathname) {
     return serveFile(req, res, full, { download: url.searchParams.has('download') });
   }
 
+  /* 子板块页永远现场渲染：子板块本身就是运行时数据（data/sections.json），
+     生成器写出来的那份只是给静态托管兜底 —— 不能让它盖住运行时新写的文章。 */
+  const subRoute = /^\/sections\/([^/]+?)\/([^/]+?)\.html$/.exec(pathname);
+  if (subRoute && findSub(findSection(sections, subRoute[1]), subRoute[2])) {
+    return serveDynamicSection(req, res, subRoute[1], subRoute[2]);
+  }
+
   /* /assets/… 与站点根目录下的静态文件（index.html / archive.html / sections/*.html …） */
   const top = pathname.split('/').filter(Boolean)[0] || '';
   if (top && HIDDEN.has(top)) return notFoundPage(res, pathname);
@@ -627,6 +695,9 @@ function serveStatic(req, res, url, pathname) {
   /* 目录式访问：/sections → /sections/index.html 不存在时给出 404 页面 */
   const full = safePath(ROOT, relative);
   if (!full || !existsSync(full)) {
+    /* 编辑页写出来的文章：文件不存在就现场渲染（地址与静态文章一样是 posts/<slug>.html） */
+    const dynPost = /^\/posts\/([^/]+?)\.html$/.exec(pathname);
+    if (dynPost) return serveDynamicArticle(req, res, dynPost[1]);
     /* 新板块的动态页：/sections/<id>.html 或 /sections/<id>/<sub>.html，文件不存在就现场渲染。
        id 允许中文：自己改 data/sections.json 写了个中文 id 也能访问。 */
     const dyn = /^\/sections\/([^/]+?)(?:\/([^/]+?))?\.html$/.exec(pathname);
@@ -641,18 +712,31 @@ function serveStatic(req, res, url, pathname) {
   return serveFile(req, res, full);
 }
 
-/* 动态板块页：只在静态文件不存在时才走到这里 */
+/* 动态文章页：编辑页写出来的那些，静态文件不存在时才走到这里 */
+function serveDynamicArticle(req, res, slug) {
+  const article = articles.find((a) => a.slug === slug);
+  if (!article) return notFoundPage(res, req.url || '');
+  const body = Buffer.from(articlePage({ article, tracks: tracksNow(), base: '../' }), 'utf8');
+  res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'content-length': body.length, 'cache-control': 'no-store' });
+  res.end(body);
+}
+
+/* 动态板块页：只在静态文件不存在时才走到这里。
+   用合并后的轨道（九条原生 + 运行时板块 + 运行时文章）渲染，
+   所以用编辑页写的文章会立刻出现在板块页与子板块页的文章列表里。 */
 function serveDynamicSection(req, res, sectionId, subId) {
   const section = findSection(sections, sectionId);
   if (!section) return notFoundPage(res, req.url || '');
+  const tracks = tracksNow();
+  const track = tracks.find((t) => t.id === sectionId) || section;
   const base = subId ? '../../' : '../';
   let html;
   if (subId) {
     const sub = findSub(section, subId);
     if (!sub) return notFoundPage(res, req.url || '');
-    html = dynamicSubPage({ track: section, sub, posts: sectionPosts(sectionId, subId), sections, base });
+    html = dynamicSubPage({ track, sub, sections: tracks, base });
   } else {
-    html = dynamicSectionPage({ track: section, posts: sectionPosts(sectionId), sections, base });
+    html = dynamicSectionPage({ track, sections: tracks, base });
   }
   const body = Buffer.from(html, 'utf8');
   res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'content-length': body.length, 'cache-control': 'no-store' });
@@ -665,7 +749,6 @@ ensureStartup();
 
 function ensureStartup() {
   for (const dir of [DATA, ...Object.values(MEDIA_DIRS)]) mkdirSync(dir, { recursive: true });
-  mkdirSync(join(MEDIA_DIRS.images), { recursive: true });
 
   if (!settings.passphrase) {
     settings.passphrase = randomBytes(4).toString('hex');
@@ -686,17 +769,6 @@ const server = createServer(async (req, res) => {
       await api(req, res, url);
       return;
     }
-    if (pathname === '/feed.html' || pathname === '/feed') {
-      const html = feedPageHtml();
-      const body = Buffer.from(html, 'utf8');
-      res.writeHead(200, {
-        'content-type': 'text/html; charset=utf-8',
-        'content-length': body.length,
-        'cache-control': 'no-store',
-      });
-      res.end(body);
-      return;
-    }
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       return sendText(res, 405, '只支持 GET / HEAD / POST / PATCH / DELETE');
     }
@@ -714,8 +786,7 @@ server.listen(PORT, HOST, () => {
   console.log('  初音ミク CV01 · 上传服务已启动');
   console.log(`  ─────────────────────────────────────────────`);
   console.log(`  站点        http://${HOST}:${PORT}/`);
-  console.log(`  说说流      http://${HOST}:${PORT}/feed.html`);
-  console.log(`  板块 ${counts} 个 · 说说 ${posts.length} 条 · 曲目 ${music.tracks.length} 首`);
+  console.log(`  板块 ${counts} 个 · 曲目 ${music.tracks.length} 首 · 自写文章 ${articles.length} 篇`);
   console.log('');
   console.log(`  上传口令    ${settings.passphrase}`);
   console.log('  （第一次上传时输入这个口令，之后这个浏览器就记住了；');

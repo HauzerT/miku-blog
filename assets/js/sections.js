@@ -1,11 +1,17 @@
 /* ==========================================================================
-   sections.js · 新建板块 / 子板块
+   sections.js · 新建板块 / 子板块 + 把服务里的板块树与文章并进静态页
    ---------------------------------------------------------------------------
    新板块不是「新建一个空文件夹」——它要接进卷帘那套语法里：
    占一个还没被用过的音高（默认帮你挑一个空的），有自己的定义和导语，
-   生成出来之后轨道栏、说说、子板块都会认它。
+   生成出来之后，轨道栏、首页索引、卷帘、子板块都会认它。
 
    子板块挂在板块下面，一个板块可以有任意多个。
+
+   下半段解决的是「建完看不见」：用界面建的板块、用编辑页写的文章，
+   都只存在服务端的 data/*.json 里，而轨道栏、首页索引、大卷帘、板块页的
+   文章列表、归档都是生成静态页时烤进 HTML 的。所以跑着服务时这里把服务那份
+   读回来，缺的补上、多的撤掉 —— 建完立刻出现，不用刷新也不用重启生成器。
+   没跑服务时这段什么都不做，静态页一个字都不动。
    ========================================================================== */
 (function () {
   'use strict';
@@ -142,7 +148,7 @@
         host.querySelector('[data-def]').value = '';
         host.querySelector('[data-lede]').value = '';
         return reload().then(function () {
-          /* 轨道栏是静态生成的，新板块要刷新一次才会出现在左边 */
+          /* 轨道栏、首页索引、卷帘都靠下面那段合并跟上，见 syncTree */
           doc.dispatchEvent(new CustomEvent('cv01:sections-changed', { detail: data.section }));
         });
       })
@@ -168,11 +174,13 @@
 
   function dropSub(subId) {
     var parentId = host.querySelector('[data-parent]').value;
-    if (!window.confirm('删掉这个子板块？里面的说说和它们带的文件也会一起删掉。')) return;
+    if (!window.confirm('删掉这个子板块？')) return;
     cv01.withKey(function () { return cv01.fetchJSON(cv01.api + 'sections/' + parentId + '/subs/' + subId, { method: 'DELETE' }); })
       .then(function () {
         cv01.toast('删掉了');
-        return reload();
+        return reload().then(function () {
+          doc.dispatchEvent(new CustomEvent('cv01:sections-changed'));
+        });
       })
       .catch(cv01.error);
   }
@@ -203,4 +211,443 @@
       reload().catch(cv01.error);
     },
   };
+
+  /* ============================================================ 板块树合并
+     服务是权威：它说有哪些板块、哪些子板块，页面就按它对齐。
+     只动按 id 认得出的节点（轨道栏的 .key、索引的 .entry、卷帘的三列、
+     子板块的 .subnav__item），别的 DOM 一概不碰。 */
+
+  var PITCH_RE = /^([A-G])(#?)(-?\d)$/;
+  var SEMITONE = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+  var PITCH_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  var CN_NUM = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二', '十三', '十四', '十五'];
+
+  /* 音高 → 数字。和 server/lib/store.mjs 里那套同一算法，用来排「高音在上」 */
+  function pitchValue(pitch) {
+    var m = PITCH_RE.exec(String(pitch || ''));
+    if (!m) return -1;
+    return (Number(m[3]) + 1) * 12 + SEMITONE[m[1]] + (m[2] ? 1 : 0);
+  }
+
+  function pitchName(value) {
+    return PITCH_NAMES[((value % 12) + 12) % 12] + (Math.floor(value / 12) - 1);
+  }
+
+  /* href → 板块 id：'../sections/niji.html' 与绝对地址都认 */
+  function idOf(href) {
+    var tail = String(href || '').split('?')[0].split('#')[0].split('/').pop() || '';
+    return decodeURIComponent(tail.replace(/\.html?$/i, ''));
+  }
+
+  function each(list, fn) { Array.prototype.forEach.call(list, fn); }
+
+  function byPitchDesc(a, b) { return pitchValue(b.pitch) - pitchValue(a.pitch); }
+
+  /* 插到「第一个音高比它低的」前面：卷帘那套语法里高音在上 */
+  function insertByPitch(container, node, items, value, valOf) {
+    var at = items.length;
+    for (var i = 0; i < items.length; i++) {
+      if (valOf(items[i]) < value) { at = i; break; }
+    }
+    container.insertBefore(node, items[at] || null);
+  }
+
+  function sectionHref(section) {
+    return cv01.base + 'sections/' + encodeURIComponent(section.id) + '.html';
+  }
+
+  /* --- 轨道栏 --- */
+  function syncRail(all) {
+    var rail = doc.querySelector('.rail');
+    if (!rail) return;
+
+    var ids = {};
+    all.forEach(function (s) { ids[s.id] = true; });
+
+    var keys = Array.prototype.slice.call(rail.querySelectorAll('a.key'));
+    keys = keys.filter(function (a) {
+      if (ids[idOf(a.getAttribute('href'))]) return true;
+      a.parentNode.removeChild(a);            // 服务里已经没有它了
+      return false;
+    });
+    var known = {};
+    keys.forEach(function (a) { known[idOf(a.getAttribute('href'))] = true; });
+
+    all.slice().sort(byPitchDesc).forEach(function (s) {
+      if (known[s.id]) return;
+      var a = doc.createElement('a');
+      a.className = 'key' + (s.black ? ' key--black' : '');
+      a.setAttribute('data-pitch', s.pitch);
+      a.setAttribute('data-live', '');
+      a.setAttribute('href', sectionHref(s));
+      a.innerHTML = '<span class="key__pitch">' + esc(s.pitch) + '</span>' +
+        '<span class="key__name">' + esc(s.name) + '</span>';
+      var current = Array.prototype.slice.call(rail.querySelectorAll('a.key'));
+      insertByPitch(rail, a, current, pitchValue(s.pitch), function (el) {
+        return pitchValue(el.getAttribute('data-pitch'));
+      });
+    });
+
+    var label = rail.querySelector('.rail__label');
+    if (label) {
+      var n = rail.querySelectorAll('a.key').length;
+      label.textContent = '轨道 · ' + (CN_NUM[n] || String(n)) + '个音';
+    }
+  }
+
+  /* --- 首页的板块索引 --- */
+  function syncEntries(all, total) {
+    var list = doc.querySelector('.entry-list');
+    if (!list) return;
+
+    var entryId = function (li) {
+      var a = li.querySelector('.entry__name a');
+      return a ? idOf(a.getAttribute('href')) : '';
+    };
+    var entryPitch = function (li) {
+      var p = li.querySelector('.entry__pitch');
+      return pitchValue(p ? p.textContent : '');
+    };
+
+    var ids = {};
+    all.forEach(function (s) { ids[s.id] = true; });
+
+    var items = Array.prototype.slice.call(list.querySelectorAll('.entry'));
+    items = items.filter(function (li) {
+      if (ids[entryId(li)]) return true;
+      li.parentNode.removeChild(li);
+      return false;
+    });
+    var known = {};
+    items.forEach(function (li) { known[entryId(li)] = true; });
+
+    all.slice().sort(byPitchDesc).forEach(function (s) {
+      if (known[s.id]) return;
+      var li = doc.createElement('li');
+      li.className = 'entry';
+      li.setAttribute('data-live', '');
+      li.innerHTML =
+        '<p class="entry__pitch">' + esc(s.pitch) + '</p>' +
+        '<div>' +
+          '<h3 class="entry__name"><a href="' + sectionHref(s) + '">' +
+            esc(s.name) + '</a></h3>' +
+          '<p class="entry__blurb">' + esc(s.def || '') + '</p>' +
+          '<p class="entry__recent">最近：还没有文章</p>' +
+        '</div>' +
+        '<p class="entry__count">0 篇</p>';
+      var current = Array.prototype.slice.call(list.querySelectorAll('.entry'));
+      insertByPitch(list, li, current, pitchValue(s.pitch), entryPitch);
+    });
+
+    /* 「N 篇」与「最近：…」按服务那份重算（运行时文章也算进去） */
+    Array.prototype.forEach.call(list.querySelectorAll('.entry'), function (li) {
+      var id = entryId(li);
+      var s = null;
+      all.forEach(function (x) { if (x.id === id) s = x; });
+      if (!s) return;
+      var count = li.querySelector('.entry__count');
+      if (count) count.textContent = (s.articles || 0) + ' 篇';
+      var recent = li.querySelector('.entry__recent');
+      if (!recent) return;
+      var links = (s.recent || []).map(function (r) {
+        return '<a href="' + esc(r.url) + '">' + esc(r.title) + '</a>';
+      }).join('<span aria-hidden="true">·</span>');
+      recent.innerHTML = '最近：' + (links || '还没有文章');
+    });
+
+    /* 索引头上那行「27 篇 · 9 轨」 */
+    var head = doc.querySelector('.index-head p');
+    if (head) {
+      head.textContent = head.textContent
+        .replace(/^\s*\d+(\s*篇)/, (total || '') + '$1')
+        .replace(/(·\s*)\d+(\s*轨)/, '$1' + all.length + '$2');
+    }
+  }
+
+  /* --- 板块页的文章列表 --- */
+  function syncSectionPosts(all) {
+    var list = doc.querySelector('main .post-list');
+    if (!list) return;
+    var m = /\/sections\/([^/]+?)(?:\/([^/]+?))?\.html$/.exec(location.pathname);
+    if (!m || m[2]) return;                                   // 子板块页没有文章列表
+    var here = decodeURIComponent(m[1]);
+    var section = null;
+    all.forEach(function (s) { if (s.id === here) section = s; });
+    if (!section) return;
+
+    /* 先撤掉上一轮补的，再按服务那份补缺 —— 与轨道栏同一套路 */
+    each(list.querySelectorAll('[data-live]'), function (n) { n.parentNode.removeChild(n); });
+    var known = {};
+    each(list.querySelectorAll('.post-row'), function (li) {
+      var a = li.querySelector('.post-row__link');
+      if (a) known[idOf(a.getAttribute('href'))] = true;
+    });
+
+    (section.runtime || []).slice().sort(function (x, y) { return x.date < y.date ? 1 : -1; })
+      .forEach(function (art) {
+        if (known[art.slug]) return;
+        var li = doc.createElement('li');
+        li.className = 'post-row';
+        li.setAttribute('data-live', '');
+        li.innerHTML = '<a class="post-row__link" href="' + esc(art.url) + '">' +
+          '<time class="post-row__date">' + esc(art.date) + '</time>' +
+          '<span class="post-row__title">' + esc(art.title) + '</span>' +
+          '<span class="post-row__blurb">' + esc(art.blurb || '') + '</span>' +
+          '</a>';
+        insertByDate(list, li, art.date);
+      });
+
+    var pitch = doc.querySelector('.sect-head__pitch');
+    if (pitch) pitch.textContent = pitch.textContent.replace(/(·\s*)\d+(\s*篇)/, '$1' + (section.articles || 0) + '$2');
+  }
+
+  /* --- 归档 --- */
+  function syncArchive(all, total) {
+    var main = doc.querySelector('main#main');
+    if (!main || !main.querySelector('.year')) return;
+
+    each(main.querySelectorAll('[data-live]'), function (n) { n.parentNode.removeChild(n); });
+
+    var runtime = [];
+    all.forEach(function (s) {
+      (s.runtime || []).forEach(function (a) { runtime.push(a); });
+    });
+    runtime.sort(function (x, y) { return x.date < y.date ? 1 : -1; });
+
+    runtime.forEach(function (art) {
+      var year = String(art.date).slice(0, 4);
+      var group = null;
+      each(main.querySelectorAll('.year'), function (g) {
+        var num = g.querySelector('.year__num');
+        if (num && num.textContent.trim() === year) group = g;
+      });
+      if (!group) group = makeYear(main, year);
+
+      var list = group.querySelector('.post-list');
+      if (!list) return;
+      var li = doc.createElement('li');
+      li.className = 'post-row';
+      li.setAttribute('data-live', '');
+      li.innerHTML = '<a class="post-row__link" href="' + esc(art.url) + '">' +
+        '<time class="post-row__date">' + esc(art.date) + '</time>' +
+        '<span class="post-row__title">' + esc(art.title) + '</span>' +
+        '<span class="post-row__blurb">' + esc(art.sectionName || '') + '</span>' +
+        '</a>';
+      insertByDate(list, li, art.date);
+    });
+
+    each(main.querySelectorAll('.year'), function (g) {
+      var count = g.querySelector('.year__count');
+      if (count) count.textContent = g.querySelectorAll('.post-row').length + ' 篇';
+    });
+
+    var head = main.querySelector('.sect-head__pitch');
+    if (head) {
+      head.textContent = head.textContent
+        .replace(/^\s*\d+(\s*篇)/, (total || '') + '$1')
+        .replace(/(·\s*)\d+(\s*轨)/, '$1' + all.length + '$2');
+    }
+  }
+
+  function makeYear(main, year) {
+    var group = doc.createElement('section');
+    group.className = 'year';
+    group.setAttribute('data-live', '');
+    group.innerHTML = '<div class="year__head">' +
+      '<span class="year__num">' + esc(year) + '</span>' +
+      '<span class="year__count">0 篇</span>' +
+      '</div><ol class="post-list"></ol>';
+    var groups = Array.prototype.slice.call(main.querySelectorAll('.year'));
+    var at = groups.length;
+    for (var i = 0; i < groups.length; i++) {
+      var num = groups[i].querySelector('.year__num');
+      if (num && num.textContent.trim() < year) { at = i; break; }
+    }
+    main.insertBefore(group, groups[at] || null);
+    return group;
+  }
+
+  /* 日期倒序地插进去（日期都是 YYYY.MM.DD，字符串比大小就对） */
+  function insertByDate(container, node, date) {
+    var rows = Array.prototype.slice.call(container.querySelectorAll('.post-row'));
+    var at = rows.length;
+    for (var i = 0; i < rows.length; i++) {
+      var d = rows[i].querySelector('.post-row__date');
+      var text = d ? d.textContent.trim() : '';
+      if (text && text < date) { at = i; break; }
+    }
+    container.insertBefore(node, rows[at] || null);
+  }
+
+  /* --- 首页那条大卷帘：轨道头 / 键帽 / 空轨道三列得一起插 --- */
+  function syncRoll(all) {
+    var roll = doc.querySelector('.roll--hero');
+    if (!roll) return;
+    var heads = roll.querySelector('.roll__heads');
+    var caps = roll.querySelector('.roll__keys');
+    var lanes = roll.querySelector('.roll__lanes');
+    if (!heads || !caps || !lanes) return;
+
+    var ids = {};
+    all.forEach(function (s) { ids[s.id] = true; });
+
+    /* 服务里没有的轨道：三列按同一个下标一起撤（从后往前，免得下标错位） */
+    var doomed = [];
+    each(heads.querySelectorAll('.head'), function (h, i) {
+      if (!ids[idOf(h.getAttribute('href'))]) doomed.push(i);
+    });
+    for (var i = doomed.length - 1; i >= 0; i--) {
+      [heads.children[doomed[i]], caps.children[doomed[i]], lanes.children[doomed[i]]]
+        .forEach(function (n) { if (n && n.parentNode) n.parentNode.removeChild(n); });
+    }
+
+    var known = {};
+    each(heads.querySelectorAll('.head'), function (h) { known[idOf(h.getAttribute('href'))] = true; });
+
+    all.slice().sort(byPitchDesc).forEach(function (s) {
+      if (known[s.id]) return;
+      var at = heads.children.length;
+      for (var j = 0; j < heads.children.length; j++) {
+        if (pitchValue(heads.children[j].getAttribute('data-pitch')) < pitchValue(s.pitch)) { at = j; break; }
+      }
+
+      var head = doc.createElement('a');
+      head.className = 'head';
+      head.setAttribute('data-pitch', s.pitch);
+      head.setAttribute('data-live', '');
+      head.setAttribute('href', sectionHref(s));
+      head.innerHTML = '<span class="head__name">' + esc(s.name) + '</span>' +
+        '<span class="head__count">0 篇</span>';
+
+      var cap = doc.createElement('span');
+      cap.className = 'keycap' + (s.black ? ' keycap--black' : '');
+      cap.setAttribute('data-live', '');
+
+      var lane = doc.createElement('div');
+      lane.className = 'lane' + (s.black ? ' lane--black' : '');
+      lane.setAttribute('data-live', '');
+
+      heads.insertBefore(head, heads.children[at] || null);
+      caps.insertBefore(cap, caps.children[at] || null);
+      lanes.insertBefore(lane, lanes.children[at] || null);
+    });
+
+    /* 读数：轨数与音域跟着走（BPM 是站点的，不动） */
+    var readout = roll.querySelector('.roll__readout');
+    var bs = readout ? readout.querySelectorAll('b') : [];
+    var values = all.map(function (s) { return pitchValue(s.pitch); }).filter(function (v) { return v > 0; });
+    if (bs.length >= 2 && values.length) {
+      bs[0].textContent = String(all.length);
+      bs[1].textContent = pitchName(Math.min.apply(null, values)) + '–' + pitchName(Math.max.apply(null, values));
+    }
+
+    /* 运行时文章的音符：服务那份 sections 已经按音高排好，
+       和上面补完轨道之后的卷帘条一一对应，所以下标就能对上 */
+    var fresh = [];
+    all.forEach(function (s, index) {
+      var lane = lanes.children[index];
+      if (!lane) return;
+      (s.runtime || []).forEach(function (a) {
+        var note = doc.createElement('a');
+        note.className = 'note';
+        note.setAttribute('data-live', '');
+        note.setAttribute('data-x', String(a.x));
+        note.setAttribute('data-pitch', a.pitch || s.pitch);
+        note.setAttribute('data-title', a.title);
+        note.setAttribute('data-min', String(a.min || 3));
+        note.setAttribute('href', a.url);
+        note.setAttribute('style', '--x:' + a.x + ';--w:' + a.w);
+        note.setAttribute('aria-label', a.title + '（' + s.name + '，' + (a.min || 3) + ' 分钟）');
+        note.innerHTML = '<span class="note__short">' + esc(a.short || a.title.slice(0, 4)) + '</span>';
+        lane.appendChild(note);
+        fresh.push(note);
+      });
+    });
+    if (fresh.length && cv01.site && cv01.site.bindNotes) cv01.site.bindNotes(fresh);
+  }
+
+  /* --- 板块页的子板块列表 --- */
+  function syncSubnav(all) {
+    var main = doc.querySelector('main#main');
+    if (!main) return;
+    var m = /\/sections\/([^/]+?)(?:\/([^/]+?))?\.html$/.exec(location.pathname);
+    if (!m || m[2]) return;                                  // 子板块页自己没有下一层
+    var here = decodeURIComponent(m[1]);
+    var section = null;
+    all.forEach(function (s) { if (s.id === here) section = s; });
+    if (!section) return;
+
+    var subs = section.subs || [];
+    var ids = {};
+    subs.forEach(function (x) { ids[x.id] = true; });
+
+    var nav = main.querySelector('.subnav');
+    if (nav) {
+      each(nav.querySelectorAll('a.subnav__item'), function (a) {
+        var id = idOf(a.getAttribute('href'));
+        if (!ids[id] && a.parentNode) { a.parentNode.removeChild(a); return; }
+        /* 静态页里的那条链接是按生成时的深度写死的；换页之后（局部刷新）
+           或者生成器写错了前缀，它就会解析到别处去。这里按当前页重写一遍。 */
+        if (ids[id]) {
+          a.setAttribute('href', cv01.base + 'sections/' + encodeURIComponent(section.id) + '/' + encodeURIComponent(id) + '.html');
+        }
+      });
+    }
+    if (!subs.length) {
+      if (nav && nav.parentNode) nav.parentNode.removeChild(nav);
+      return;
+    }
+    if (!nav) {
+      nav = doc.createElement('nav');
+      nav.className = 'subnav';
+      nav.setAttribute('aria-label', section.name + '的子板块');
+      var list = main.querySelector('.post-list');
+      var lede = main.querySelector('.lede');
+      if (list) list.parentNode.insertBefore(nav, list);
+      else if (lede) lede.parentNode.insertBefore(nav, lede.nextSibling);
+      else main.appendChild(nav);
+    }
+    var known = {};
+    each(nav.querySelectorAll('a.subnav__item'), function (a) { known[idOf(a.getAttribute('href'))] = true; });
+    subs.forEach(function (x) {
+      if (known[x.id]) return;
+      var a = doc.createElement('a');
+      a.className = 'subnav__item';
+      a.setAttribute('data-live', '');
+      a.setAttribute('href', cv01.base + 'sections/' + encodeURIComponent(section.id) + '/' + encodeURIComponent(x.id) + '.html');
+      a.innerHTML = '<span class="subnav__name">' + esc(x.name) + '</span>';
+      nav.appendChild(a);
+    });
+  }
+
+  var syncing = false;
+  var again = false;
+
+  function syncTree() {
+    if (!cv01.fetchJSON || !cv01.isOnline || !cv01.isOnline()) return;
+    if (syncing) { again = true; return; }
+    syncing = true;
+    cv01.fetchJSON(cv01.api + 'sections')
+      .then(function (data) {
+        var all = data.sections || [];
+        var total = (data.articles && data.articles.total) || 0;
+        syncRail(all);
+        syncEntries(all, total);
+        syncRoll(all);
+        syncSubnav(all);
+        syncSectionPosts(all);
+        syncArchive(all, total);
+        /* 刚补进去的链接也要变成绝对地址，否则换页（局部刷新）之后会解析错 */
+        if (cv01.absolutizeShell) cv01.absolutizeShell();
+      })
+      .catch(function () { /* 服务抽风就当没这回事，静态页照旧 */ })
+      .then(function () {
+        syncing = false;
+        if (again) { again = false; syncTree(); }
+      });
+  }
+
+  doc.addEventListener('cv01:online', syncTree);
+  doc.addEventListener('cv01:sections-changed', syncTree);
+  doc.addEventListener('cv01:navigated', syncTree);
 })();

@@ -1,10 +1,10 @@
 /* ==========================================================================
-   tools/upload-check.mjs · 用真实界面走一遍「传音乐 + 发说说」
+   tools/upload-check.mjs · 用真实界面走一遍「传音乐」
    ---------------------------------------------------------------------------
    不用 curl，直接从文件选择器下手：CDP 的 DOM.setFileInputFiles 就是真人点
    「选择文件」之后浏览器做的同一件事，所以这条路径能把
    input → change → FormData → XHR → 服务端落盘 → 列表重画 全部串起来。
-   跑完会把自己造的那条说说和那首曲子删掉，data/ 与 media/ 依然是干净的。
+   跑完会把自己造的那首曲子删掉，data/ 与 media/ 依然是干净的。
 
    用法（服务要先跑起来）：
      node server/server.mjs 4321
@@ -17,7 +17,6 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
 import { tmpdir } from 'node:os';
-import zlib from 'node:zlib';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SITE = process.argv[2] || 'http://127.0.0.1:4321';
@@ -28,56 +27,6 @@ const CHROME = [
 ].find((p) => existsSync(p));
 const KEY = JSON.parse(readFileSync(join(ROOT, 'data', 'settings.json'), 'utf8')).passphrase;
 
-/* 一张真的能被解码的 64×64 PNG（自己拼，不依赖任何库）：
-   刚才用 2×2 的图时 Chrome 拒绝解码，说明不了任何问题——测试素材得像回事。 */
-function makePng(size = 64) {
-  const crcTable = (() => {
-    const t = new Int32Array(256);
-    for (let n = 0; n < 256; n++) {
-      let c = n;
-      for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-      t[n] = c;
-    }
-    return t;
-  })();
-  const crc32 = (buf) => {
-    let c = -1;
-    for (const b of buf) c = crcTable[(c ^ b) & 0xff] ^ (c >>> 8);
-    return (c ^ -1) >>> 0;
-  };
-  const chunk = (type, data) => {
-    const len = Buffer.alloc(4);
-    len.writeUInt32BE(data.length);
-    const body = Buffer.concat([Buffer.from(type, 'ascii'), data]);
-    const crc = Buffer.alloc(4);
-    crc.writeUInt32BE(crc32(body));
-    return Buffer.concat([len, body, crc]);
-  };
-  const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(size, 0);
-  ihdr.writeUInt32BE(size, 4);
-  ihdr[8] = 8;   // 位深
-  ihdr[9] = 2;   // 真彩色 RGB
-  const raw = Buffer.alloc(size * (1 + size * 3));
-  for (let y = 0; y < size; y++) {
-    const row = y * (1 + size * 3);
-    raw[row] = 0;
-    for (let x = 0; x < size; x++) {
-      const i = row + 1 + x * 3;
-      raw[i] = (x * 4) % 256;
-      raw[i + 1] = (y * 4) % 256;
-      raw[i + 2] = 190;
-    }
-  }
-  return Buffer.concat([
-    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-    chunk('IHDR', ihdr),
-    chunk('IDAT', zlib.deflateSync(raw)),
-    chunk('IEND', Buffer.alloc(0)),
-  ]);
-}
-
-const PNG = makePng(64);
 /* 一个**浏览器真的能解码**的 wav（16 位 8kHz 单声道，约两秒的轻音）。
    之前拿假 mp3 当素材，「有没有真的在播」这条断言永远失败——测试素材得能播。 */
 function makeWav(seconds = 2, rate = 8000) {
@@ -105,11 +54,9 @@ function makeWav(seconds = 2, rate = 8000) {
 
 const TMP = join(tmpdir(), 'cv01-e2e');
 mkdirSync(TMP, { recursive: true });
-const IMG = join(TMP, '测试截图.png');
 /* 名字用 .mp3，但内容是合法 wav 头：服务端按后缀归档，浏览器按内容解码——
    正好把「mp3 / m4a 都能传」和「传进来的东西真能放」两件事一起测了 */
 const WAV = join(TMP, '测试曲子.mp3');
-writeFileSync(IMG, PNG);
 writeFileSync(WAV, makeWav(2));
 
 /* ------------------------------------------------------------------ CDP */
@@ -222,20 +169,41 @@ try {
     await send('DOM.setFileInputFiles', { files, nodeId });
   };
 
-  /* --- 1. 音乐盒里传一首曲子 --- */
+  /* --- 1. 传一首曲子：入口在站长球里（音乐盒那一颗是公开的，不写文件） --- */
   await goto(SITE + '/index.html');
   await evaluate(`localStorage.setItem('cv01-key', ${JSON.stringify(KEY)})`);
+
+  /* 先开音乐盒数一下现在几首 */
   await evaluate('document.querySelector(\'[data-ball="music"]\').click()');
   await evaluate('new Promise(r => setTimeout(r, 800))');
   const before = await evaluate('document.querySelectorAll(".mp-item").length');
+  await evaluate('window.cv01.closePanel()');
+
+  await evaluate('document.querySelector(\'[data-ball="owner"]\').click()');
+  await evaluate('new Promise(r => setTimeout(r, 900))');
+  ok('站长工具箱：三选一，且有去编辑页的入口',
+    (await evaluate('document.querySelectorAll(".ow__item").length')) === 3 &&
+    (await evaluate('!!document.querySelector(\'.ow__item[href$="editor.html"]\')')));
+
+  await evaluate('document.querySelector(\'[data-go="music"]\').click()');
+  await evaluate('new Promise(r => setTimeout(r, 700))');
+  ok('站长工具箱：点进去就是「上传音乐」那一块', await evaluate('!!document.querySelector("[data-pick]")'));
 
   await setFiles('.mp__file:not([data-swap-file])', [WAV]);
-  let after = before;
-  for (let i = 0; i < 40 && after <= before; i++) {
+  let doneText = '';
+  for (let i = 0; i < 40; i++) {
     await evaluate('new Promise(r => setTimeout(r, 400))');
-    after = await evaluate('document.querySelectorAll(".mp-item").length');
+    doneText = await evaluate('(document.querySelector("[data-done]")||{}).textContent || ""');
+    if (/测试曲子/.test(doneText)) break;
   }
-  ok('音乐盒：选文件后列表新增一首', after === before + 1, `${before} → ${after}`);
+  ok('上传面板：传完写出「刚传进来：…」', /测试曲子/.test(doneText), doneText);
+
+  /* 回音乐盒看曲库 */
+  await evaluate('window.cv01.closePanel()');
+  await evaluate('document.querySelector(\'[data-ball="music"]\').click()');
+  await evaluate('new Promise(r => setTimeout(r, 900))');
+  const after = await evaluate('document.querySelectorAll(".mp-item").length');
+  ok('音乐盒：新传的曲子进了曲库', after === before + 1, `${before} → ${after}`);
   const titles = await evaluate('Array.from(document.querySelectorAll(".mp-item__title")).map(e=>e.textContent.trim()).join(" | ")');
   ok('音乐盒：新曲子带名字进列表', /测试曲子/.test(titles), titles);
 
@@ -252,7 +220,8 @@ try {
   })()`);
   const d0 = JSON.parse(dump);
   console.log(`  · 曲库 ${d0.total} 首，每行有 ${d0.pinBtns} 个「设默认」、${d0.swapBtns} 个「换」`);
-  ok('音乐盒：面板里有明确的「上传 BGM」入口', d0.hasUploadButton);
+  ok('音乐盒（有口令）：每行摆着「设默认」与「换」', d0.pinBtns === 1 && d0.swapBtns === 1,
+    `pin=${d0.pinBtns} swap=${d0.swapBtns}`);
   await evaluate(`(function(){
     var items = document.querySelectorAll('.mp-item');
     var last = items[items.length - 1];
@@ -362,120 +331,13 @@ try {
   })()`);
   ok('音乐盒：audio 元素已指向曲库', /media\/music/.test(JSON.parse(audio).src), JSON.parse(audio).src);
 
-  /* --- 2. 发说说：文字 + 图片 --- */
-  await goto(SITE + '/index.html');
-  await evaluate(`localStorage.setItem('cv01-key', ${JSON.stringify(KEY)})`);
-  await evaluate('document.querySelector(\'[data-ball="post"]\').click()');
-  await evaluate('new Promise(r => setTimeout(r, 1000))');
-  await evaluate(`(function(){
-    const s = document.querySelector('[data-section]');
-    s.value = 'suiyu';
-    s.dispatchEvent(new Event('change'));
-    document.querySelector('[data-text]').value = '端到端自测：这条是从真实界面上传的。';
-    document.querySelector('[data-text]').dispatchEvent(new Event('input'));
-  })()`);
-  await setFiles('[data-file="image"]', [IMG]);
-  await evaluate('new Promise(r => setTimeout(r, 600))');
-  const chips = await evaluate('document.querySelectorAll(".cp__chip").length');
-  ok('说说：图片进了预览条', chips === 1, `chips=${chips}`);
-
-  const feedBefore = await evaluate('document.querySelectorAll(".feed-item").length');
-  await evaluate('document.querySelector("[data-send]").click()');
-  /* 发出去之后飘出来的提示条就是结果：成功是「发出去了」，失败是具体原因 */
-  let toast = '';
-  for (let i = 0; i < 40; i++) {
-    await evaluate('new Promise(r => setTimeout(r, 400))');
-    toast = await evaluate('(document.querySelector(".studio__toast")||{}).textContent || ""');
-    if (toast) break;
-  }
-  ok('说说：界面上给出了结果反馈', /发出去了|就能看见/.test(toast), toast);
-
-  /* 首页没有留言区，去板块页看这一条 */
-  await goto(SITE + '/sections/suiyu.html');
-  await evaluate('window.cv01.feed.reload()');
-  await evaluate('new Promise(r => setTimeout(r, 700))');
-  const inSection = await evaluate(`(function(){
-    var items = Array.prototype.slice.call(document.querySelectorAll('.feed-item'));
-    var item = items.filter(function(el){
-      var t = el.querySelector('.feed__text');
-      return t && /端到端自测/.test(t.textContent);
-    })[0];
-    return JSON.stringify({
-      count: items.length,
-      text: item && item.querySelector('.feed__text') ? item.querySelector('.feed__text').textContent : ''
-    });
-  })()`);
-  const sec = JSON.parse(inSection);
-  ok('说说：板块页留言区出现了这一条', /端到端自测/.test(sec.text), `共 ${sec.count} 条：${sec.text.slice(0, 24)}`);
-
-  const shot = await evaluate(`(function(){
-    /* 找准刚发的那一条：列表是按时间倒序的，但历史数据里可能还有别的 */
-    var items = Array.prototype.slice.call(document.querySelectorAll('.feed-item'));
-    var item = items.filter(function(el){
-      var t = el.querySelector('.feed__text');
-      return t && /端到端自测/.test(t.textContent);
-    })[0] || items[0];
-    var img = item && item.querySelector('.shot img');
-    return JSON.stringify({
-      text: item && item.querySelector('.feed__text') ? item.querySelector('.feed__text').textContent.trim() : '',
-      imgSrc: img ? img.getAttribute('src') : '',
-      hasDel: !!(item && item.querySelector('[data-del-post]'))
-    });
-  })()`);
-  const s2 = JSON.parse(shot);
-  ok('说说：正文正确', /端到端自测/.test(s2.text), s2.text);
-  ok('说说：删除按钮可见（有口令）', s2.hasDel);
-
-  /* 图片到底能不能画出来：lazy 图片刚插进去时可能还没完成解码，
-     这里直接拿这张图再量一次，量到的才是真结论 */
-  /* 图片到底能不能画出来：不只信 DOM（lazy 图 / 缓存旧列表都会骗人），
-     直接拿这条说说里那张图的地址去请求一次、再让浏览器解码一次 */
-  const decoded = await evaluate(`new Promise(function(resolve){
-    var url = ${JSON.stringify(s2.imgSrc)};
-    if (!url) return resolve('没有图片地址');
-    fetch(url, { cache: 'no-store' }).then(function(r){
-      return r.arrayBuffer().then(function(b){
-        var u8 = new Uint8Array(b);
-        var head = Array.prototype.slice.call(u8.slice(0, 8)).map(function(n){ return n.toString(16).padStart(2,'0'); }).join(' ');
-        var blob = new Blob([b], { type: 'image/png' });
-        var blobUrl = URL.createObjectURL(blob);
-        var probe = new Image();
-        probe.onload = function(){ resolve('ok ' + probe.naturalWidth + 'x' + probe.naturalHeight + ' 字节=' + u8.length + ' 头=' + head); };
-        probe.onerror = function(){ resolve('解码失败 字节=' + u8.length + ' 头=' + head); };
-        probe.src = blobUrl;
-        setTimeout(function(){ resolve('超时 complete=' + probe.complete); }, 5000);
-      });
-    }).catch(function(e){ resolve('请求失败 ' + e.message); });
-  })`);
-  ok('说说：这张图片真的能画出来', /^ok /.test(decoded), `${decoded}  ${s2.imgSrc}`);
-
-  const png = await send('Page.captureScreenshot', { format: 'png' });
-  mkdirSync(join(ROOT, '.check'), { recursive: true });
-  writeFileSync(join(ROOT, '.check', 'after-upload.png'), Buffer.from(png.data, 'base64'));
-
-  /* --- 3. 说说流页面上也能看到 --- */
-  await goto(SITE + '/feed.html');
-  await evaluate('window.cv01.feed.reload()');
-  await evaluate('new Promise(r => setTimeout(r, 700))');
-  const inFeed = await evaluate(`(function(){
-    const item = document.querySelector('.feed-item');
-    return JSON.stringify({
-      count: document.querySelectorAll('.feed-item').length,
-      text: item ? (item.querySelector('.feed__text')||{}).textContent || '' : ''
-    });
-  })()`);
-  const f2 = JSON.parse(inFeed);
-  ok('说说流：新内容也在这', /端到端自测/.test(f2.text), `共 ${f2.count} 条`);
-  const png2 = await send('Page.captureScreenshot', { format: 'png' });
-  writeFileSync(join(ROOT, '.check', 'feed-uploaded.png'), Buffer.from(png2.data, 'base64'));
-
   ok('全程没有控制台报错', errors.length === 0, errors.join(' | '));
   if (failedUrls.length) console.log('  （请求失败记录：' + failedUrls.join(' ; ') + '）');
 } catch (err) {
   console.log('  XX  自测脚本出错：' + err.message);
   fails.push('脚本');
 } finally {
-  /* 自测留下的东西自己收拾：删掉刚传的曲子和刚发的说说，
+  /* 自测留下的东西自己收拾：删掉刚传的那首曲子，
      这样跑多少次 data/ 和 media/ 都还是干净的 */
   try {
     const headers = { 'x-cv01-key': KEY, accept: 'application/json' };
@@ -483,11 +345,6 @@ try {
     for (const t of music.tracks.filter((x) => /测试曲子/.test(x.title))) {
       await fetch(SITE + '/api/music/' + t.id, { method: 'DELETE', headers });
       console.log('  （清掉测试曲目 ' + t.title + '）');
-    }
-    const posts = await (await fetch(SITE + '/api/posts')).json();
-    for (const p of posts.posts.filter((x) => /端到端自测/.test(x.text || ''))) {
-      await fetch(SITE + '/api/posts/' + p.id, { method: 'DELETE', headers });
-      console.log('  （清掉测试说说 ' + p.id + '）');
     }
   } catch (err) {
     console.log('  （清理测试数据失败：' + err.message + '）');

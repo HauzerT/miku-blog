@@ -1,7 +1,8 @@
 /* ==========================================================================
    studio.js · 悬浮工作台
    ---------------------------------------------------------------------------
-   右下角三颗球：音乐盒 / 发说说 / 新建板块。
+   右下角两颗球：音乐盒 / 站长工具箱。
+   音乐盒谁都能开（听歌、选歌、设默认）；站长工具箱里有写文件的操作，开之前先验口令。
    站点的静态部分（首页、卷帘、文章）不依赖这个文件；没跑服务时它什么都不做，
    所以 file:// 打开或者丢到静态托管上，页面依然和以前一模一样。
 
@@ -33,6 +34,8 @@
   };
   cv01.setKey = function (value) {
     try { window.localStorage.setItem(KEY_STORE, value); } catch (e) { /* 隐私模式：本次会话有效 */ }
+    /* 音乐盒靠这个把「换 / 改名 / 删」这几颗只有站长能按的按钮亮出来 */
+    doc.dispatchEvent(new CustomEvent('cv01:key'));
   };
 
   cv01.error = function (err) {
@@ -181,27 +184,36 @@
     if (focusable && !window.matchMedia('(hover: none)').matches) window.setTimeout(function () { focusable.focus(); }, 40);
   }
 
+  /* 只有站长进得去的那颗球 */
+  var OWNER_ONLY = { owner: true };
+
   balls.forEach(function (ball) {
     ball.addEventListener('click', function (e) {
       e.stopPropagation();
       if (!online) return toast('上传服务没在跑：先双击 start.cmd', true);
+      var name = ball.getAttribute('data-ball');
+      var mod = { music: cv01.music, owner: cv01.owner }[name];
+      if (!mod || !mod.open) return toast('这个面板没有加载成功，刷新一下试试', true);
+      /* 音乐盒公开：直接开。站长工具箱：先验口令，验过才开 */
+      if (!OWNER_ONLY[name]) return openPanel(name, mod.open, ball);
       cv01.withKey(function () { return cv01.fetchJSON(API + 'auth', { method: 'POST', json: {} }); })
-        .then(function () {
-          var name = ball.getAttribute('data-ball');
-          var mod = { music: cv01.music, post: cv01.composer, sect: cv01.sections }[name];
-          if (!mod || !mod.open) return toast('这个面板没有加载成功，刷新一下试试', true);
-          openPanel(name, mod.open, ball);
-        })
+        .then(function () { openPanel(name, mod.open, ball); })
         .catch(function (err) { cv01.error(err); });
     });
   });
+
+  /* 子面板换内容之后重新收一下焦点（owner.js 的「← 工具箱」用得上） */
+  cv01.focusPanel = function () {
+    var focusable = panel.querySelector('button, input, select, textarea, a[href]');
+    if (focusable && !window.matchMedia('(hover: none)').matches) window.setTimeout(function () { focusable.focus(); }, 20);
+  };
 
   doc.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && openName) closePanel();
   });
 
   /* 「点面板外面就收起」这件事有个坑：面板里的按钮经常会把列表 innerHTML 重画一遍
-     （比如音乐盒点「设默认」、说说流点删除），重画之后 e.target 已经脱离文档，
+     （比如音乐盒点「设默认」、点「删」、站长工具箱换子面板），重画之后 e.target 已经脱离文档，
      等事件冒泡到 document 再问 root.contains(e.target) 就变成 false 了——
      明明点在里面，却被判成点在外面，面板自己关掉。
      所以判断放在捕获阶段：那时 DOM 还没被改，e.target 一定还在原位。 */
@@ -241,7 +253,7 @@
       .catch(function () { /* 静态托管：工作台隐身，站点照常 */ });
   }
 
-  /* 深链：index.html?open=music / ?open=post / ?open=sect 进来就展开那个面板。
+  /* 深链：index.html?open=music / ?open=owner 进来就展开那个面板。
      自己用着方便，截图检查样式也靠它。 */
   function deepLink() {
     var want = '';

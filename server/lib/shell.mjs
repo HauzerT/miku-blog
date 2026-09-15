@@ -14,6 +14,15 @@ import { fileURLToPath } from 'node:url';
 const CONTENT = new URL('../../content/posts.mjs', import.meta.url);
 export const { site, tracks: seedTracks, excerpts } = await import(CONTENT.href);
 
+/* 配色：全站唯一的真源。这里只取「地面」一个值——首帧的地址栏颜色。
+   别的地方要颜色就去 CSS 里拿 var()，不要在生成器里抄色值。 */
+import { rounds as PALETTE_ROUNDS, active as PALETTE_ACTIVE } from '../../content/palette.mjs';
+export const paperHex = (theme = 'light') => {
+  const value = PALETTE_ROUNDS[PALETTE_ACTIVE].tokens['--paper'];
+  const [light, dark] = Array.isArray(value) ? value : [value, value];
+  return theme === 'dark' ? dark : light;
+};
+
 export const CN = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二'];
 export const cn = (n) => CN[n] || String(n);
 
@@ -56,6 +65,12 @@ export function noteWidth(trackIndex, postIndex) {
   return [Math.min(x, 96 - 12), 12];
 }
 
+/* 一条轨道在卷帘上的「节奏槽」：音符的 x 位置由它决定。
+   显示顺序按音高排（高音在上），但节奏槽钉在内容顺序上——
+   否则运行时新建一个更高的板块，会让所有已有轨道的音符节奏跟着挪位。
+   静态页由生成器写死节奏槽（就是数组下标），服务端渲染时用 track.slot。 */
+export const slotOf = (track, index) => (Number.isFinite(track.slot) ? track.slot : index);
+
 /* 给字符串套一个 <br> 分隔器（tracks 里的 lede 用 <br> 换行） */
 export const brToSpace = (s) => String(s || '').replace(/<br\s*\/?>/gi, ' ');
 
@@ -63,9 +78,7 @@ const BOOT = `(function(){var r=document.documentElement,s=null;
 try{s=localStorage.getItem('cv01-theme')}catch(e){}
 if(s==='dark'||s==='light'){r.setAttribute('data-theme',s)}
 else if(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches){r.setAttribute('data-theme','dark')}
-/* 手机浏览器的地址栏跟着主题走，免得浅地面顶上压一条深带 */
-var m=document.querySelector('meta[name="theme-color"]');
-if(m)m.setAttribute('content',r.getAttribute('data-theme')==='dark'?'#1a1c1e':'#f5f8f8');
+/* 手机浏览器地址栏的颜色紧接着由 assets/js/palette.js 按当前配色算，这里不再写死 */
 if(!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)){r.classList.add('js')}})();`;
 
 /* 站点根：静态页在根目录 base=''，在 sections/ posts/ 里 base='../'，动态页 base='/site/'。
@@ -77,28 +90,28 @@ export function head({ title, desc, base = '', styles = [] }) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#f5f8f8">
+<meta name="theme-color" content="${paperHex('light')}">
 <title>${escapeHtml(title)}</title>
 <meta name="description" content="${escapeHtml(desc)}">
 <link rel="icon" href="${base}assets/img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="${base}assets/css/palette.css">
 <link rel="stylesheet" href="${base}assets/css/tokens.css">
 <link rel="stylesheet" href="${base}assets/css/base.css">
 <link rel="stylesheet" href="${base}assets/css/roll.css">
 <link rel="stylesheet" href="${base}assets/css/page.css">
 <link rel="stylesheet" href="${base}assets/css/studio.css">
-<link rel="stylesheet" href="${base}assets/css/feed.css">
 ${styles.map((s) => `<link rel="stylesheet" href="${base}${s}">`).join('\n')}
 <script>
 /* 先于首屏决定主题与动效，避免闪烁 */
 ${BOOT}
 </script>
+<script src="${base}assets/js/palette.js"></script>
 </head>`;
 }
 
 export function bar(base, current) {
   const items = [
     ['index.html', '首页', 'home'],
-    ['feed.html', '说说', 'feed'],
     ['kumura.html', '云村', 'kumura'],
     ['archive.html', '归档', 'archive'],
     ['about.html', '关于', 'about'],
@@ -156,8 +169,8 @@ export function foot() {
 </footer>`;
 }
 
-/* 悬浮工作台（音乐盒 + 发说说 + 新建板块）的挂载点。
-   三个 JS 在没跑服务时也会自己判断：能连上 API 就长出按钮，连不上就静静待着。 */
+/* 悬浮球：音乐盒（谁都能开）+ 站长工具箱（要口令）。
+   两个 JS 在没跑服务时也会自己判断：能连上 API 就长出按钮，连不上就静静待着。 */
 export function studio(base) {
   return `<div class="studio" data-studio data-base="${base}" hidden>
   <div class="studio__panel" data-studio-panel hidden></div>
@@ -170,17 +183,10 @@ export function studio(base) {
       </span>
       <span class="ball__dot" aria-hidden="true"></span>
     </button>
-    <button class="ball ball--post" type="button" data-ball="post" aria-expanded="false" aria-label="发说说">
+    <button class="ball ball--owner" type="button" data-ball="owner" aria-expanded="false" aria-label="站长工具箱（需要口令）">
       <span class="ball__glyph" aria-hidden="true">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M4 5h16v11H9l-5 4z"></path><path d="M12 8v5M9.5 10.5h5"></path>
-        </svg>
-      </span>
-    </button>
-    <button class="ball ball--sect" type="button" data-ball="sect" aria-expanded="false" aria-label="新建板块">
-      <span class="ball__glyph" aria-hidden="true">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M4 6h7v12H4zM13 6h7v5h-7zM13 13h7v5h-7z"></path>
+          <circle cx="8.5" cy="15.5" r="4.2"></circle><path d="M11.6 12.4 20 4M17.2 4.6l2.6 2.6M14.4 7.4l2.6 2.6"></path>
         </svg>
       </span>
     </button>
@@ -217,10 +223,10 @@ ${studio(base)}
 <script src="${base}assets/js/audio.js" defer></script>
 <script src="${base}assets/js/site.js" defer></script>
 <script src="${base}assets/js/music.js" defer></script>
-<script src="${base}assets/js/feed.js" defer></script>
-<script src="${base}assets/js/composer.js" defer></script>
 <script src="${base}assets/js/sections.js" defer></script>
+<script src="${base}assets/js/owner.js" defer></script>
 <script src="${base}assets/js/studio.js" defer></script>
+<script src="${base}assets/js/nav.js" defer></script>
 ${scripts.map((s) => `<script src="${base}${s}" defer></script>`).join('\n')}
 </body>
 </html>
@@ -237,7 +243,7 @@ export function readIfExists(path) {
    tools/build.mjs 和 server 的动态页面共用这两个函数。 */
 
 export function noteMarkup(post, track, ti, base, { asLink = true } = {}) {
-  const [x, w] = noteWidth(ti, post.pi);
+  const [x, w] = noteWidth(slotOf(track, ti), post.pi);
   const label = `${post.title}（${track.name}，${post.min} 分钟）`;
   const attrs = `class="note" style="--x:${x};--w:${w}" data-x="${x}" data-pitch="${track.pitch}" data-title="${escapeHtml(
     post.title
@@ -308,7 +314,7 @@ export function rollStrip(tracks, currentId, currentSlug, playX) {
     .map((t, ti) => {
       const notes = (t.posts || [])
         .map((post, pi) => {
-          const [x, w] = noteWidth(ti, pi);
+          const [x, w] = noteWidth(slotOf(t, ti), pi);
           const isCurrent = t.id === currentId && (currentSlug ? post.slug === currentSlug : true);
           return `          <span class="note${isCurrent ? ' is-current' : ''}" style="--x:${x};--w:${w}"></span>`;
         })
@@ -334,59 +340,7 @@ ${lanes}
 </div>`;
 }
 
-/* 说说区块：静态生成时内联一份首屏内容，跑起服务后由 feed.js 覆盖。
-   内容来自 data/posts.json（服务已经写过就取，没有就空着） */
-export function feedBlockHtml(posts, sectionId, subId = '') {
-  const list = posts.length
-    ? posts.map((p) => staticPostCard(p)).join('\n')
-    : `<p class="empty" data-feed-empty>这个板块还没有说说。点右下角的悬浮球发第一条。</p>`;
-  return `    <div class="feed" data-feed data-section="${escapeHtml(sectionId)}" data-sub="${escapeHtml(
-    subId
-  )}">
-${list}
-    </div>`;
-}
-
-function staticPostCard(post) {
-  const images = (post.assets || []).filter((a) => a.kind === 'image' || a.kind === 'sticker');
-  const videos = (post.assets || []).filter((a) => a.kind === 'video');
-  const shots = images.length
-    ? `      <div class="shots${images.length === 1 ? ' shots--one' : ''}">\n${images
-        .map(
-          (a) =>
-            `        <a class="shot" href="${a.url}"><img src="${a.url}" alt="${escapeHtml(
-              a.original || ''
-            )}" loading="lazy"></a>`
-        )
-        .join('\n')}\n      </div>`
-    : '';
-  const clips = videos
-    .map((v) => `      <figure class="clip"><video src="${v.url}" controls preload="metadata" playsinline></video></figure>`)
-    .join('\n');
-  const text = post.text
-    ? `      <div class="feed__text">${escapeHtml(post.text).split(/\n{2,}/).map((p) => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('')}</div>`
-    : '';
-  return `  <article class="feed-item" data-post-id="${escapeHtml(post.id || '')}">
-    <header class="feed-item__head">
-      <span class="feed-item__pitch">${escapeHtml(post.pitch || '·')}</span>
-      <span class="feed__sect">${escapeHtml(post.sectionName || '')}</span>${
-    post.subName ? `<span class="feed__sep">/</span><span class="feed__sub">${escapeHtml(post.subName)}</span>` : ''
-  }
-      <time class="feed-item__time">${escapeHtml(post.date || '')} ${escapeHtml(post.time || '')}</time>
-${post.mood ? `      <span class="feed__mood">${escapeHtml(post.mood)}</span>\n` : ''}    </header>
-    <div class="feed-item__body">
-${text}
-${shots}
-${clips}
-    </div>
-    <footer class="feed-item__foot">
-      <span class="feed-item__meta">${escapeHtml(post.kindLabel || '说说')}</span>
-      <button class="feed-item__del" type="button" data-del-post="${escapeHtml(post.id || '')}" hidden>删除</button>
-    </footer>
-  </article>`;
-}
-
-/* 数据文件（服务写过的说说与板块）；生成静态页时用来把首屏说说内联进去 */
+/* 数据文件（服务写过的板块与子板块）；生成静态页时用来取板块的定义、导语与子板块 */
 export function readData(name, fallback) {
   const raw = readIfExists(join(ROOT, 'data', name));
   if (!raw) return fallback;

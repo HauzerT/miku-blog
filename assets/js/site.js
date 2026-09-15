@@ -1,23 +1,33 @@
 /* ==========================================================================
    site.js · 主题切换 / 卷帘播放头 / 悬停读数 / 卷帘键盘导航
    站点在不加载本文件时依然完整可读：音符默认全亮，主题跟随系统。
+
+   分两半：
+     · 主题开关、resize 量尺 —— 整个会话只装一次
+     · initPage() —— 跟着「当前这一页的正文」走（卷帘、每日一句）；
+       nav.js 局部换完正文之后会再喊它一遍，所以每次切页播放头都会重扫。
    ========================================================================== */
 (function () {
   'use strict';
 
   var doc = document;
   var root = doc.documentElement;
+  var cv01 = (window.cv01 = window.cv01 || {});
   var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var toArray = function (list) { return Array.prototype.slice.call(list); };
 
   /* ------------------------------------------------------------ 主题 */
   var toggle = doc.querySelector('[data-theme-toggle]');
 
-  /* 手机浏览器的地址栏颜色跟着主题走（首屏由 <head> 里的同一段逻辑先设一次） */
+  /* 手机浏览器的地址栏颜色跟着配色走。算式在 assets/js/palette.js 里
+     （它知道当前是哪一轮、现在是哪一态），这里只负责在切主题时喊它一声；
+     万一那个文件没加载上，就退回读 --paper 的实际值——总之不在这里写死颜色。 */
   function paintChrome() {
     var meta = doc.querySelector('meta[name="theme-color"]');
     if (!meta) return;
-    meta.setAttribute('content', root.getAttribute('data-theme') === 'dark' ? '#1a1c1e' : '#f5f8f8');
+    if (window.cv01Palette) return void window.cv01Palette.chrome();
+    var paper = getComputedStyle(root).getPropertyValue('--paper').trim();
+    if (paper) meta.setAttribute('content', paper);
   }
 
   function paintToggle() {
@@ -52,23 +62,16 @@
   }
 
   /* ------------------------------------------------------------ 卷帘 */
-  toArray(doc.querySelectorAll('[data-roll]')).forEach(function (roll) {
+  function initRolls() {
+    toArray(doc.querySelectorAll('[data-roll]')).forEach(setupRoll);
+  }
+
+  function setupRoll(roll) {
     var notes = toArray(roll.querySelectorAll('.note'));
     if (!notes.length) return;
 
     var live = roll.querySelector('[data-live]');
     var idle = live ? (live.getAttribute('data-idle') || '') : '';
-
-    /* 卷帘只在窄屏上横向溢出：量过之后再决定要不要说「可以左右滑动」
-       （提示本身由 roll.css 用 .is-scrollable 打开） */
-    var scroller = roll.querySelector('.roll__scroller');
-    if (scroller) {
-      var measure = function () {
-        roll.classList.toggle('is-scrollable', scroller.scrollWidth > scroller.clientWidth + 1);
-      };
-      measure();
-      if (window.addEventListener) window.addEventListener('resize', measure);
-    }
 
     /* 触摸设备上既没有指针也没有方向键，待机文案得换一套说辞 */
     if (live && window.matchMedia && window.matchMedia('(hover: none)').matches) {
@@ -106,6 +109,7 @@
       note.addEventListener('mouseleave', clear);
       note.addEventListener('focus', function () { show(note); });
       note.addEventListener('blur', clear);
+      note.__cv01Note = true;
     });
 
     /* 键盘：上下换轨，左右在同一轨内沿时间轴移动，Home/End 到首尾 */
@@ -130,14 +134,26 @@
       }
       if (target) target.focus();
     });
-  });
+  }
+
+  /* 卷帘只在窄屏上横向溢出：量过之后再决定要不要说「可以左右滑动」
+     （提示本身由 roll.css 用 .is-scrollable 打开）。
+     换页会换掉卷帘，所以量的动作按需调用；resize 只在这里装一次。 */
+  function measureRolls() {
+    toArray(doc.querySelectorAll('[data-roll]')).forEach(function (roll) {
+      var scroller = roll.querySelector('.roll__scroller');
+      if (scroller) roll.classList.toggle('is-scrollable', scroller.scrollWidth > scroller.clientWidth + 1);
+    });
+  }
+  window.addEventListener('resize', measureRolls);
 
   /* ------------------------------------------------------- 每日一句
      以本地日期为种子，从胡盐乱雨集的句子里挑一句。
      同一天、所有页面、所有刷新都是同一句；过了本地零点自动换。 */
-  var slot = doc.querySelector('[data-excerpt]');
-  var pool = window.CV01_EXCERPTS;
-  if (slot && pool && pool.length) {
+  function initExcerpt() {
+    var slot = doc.querySelector('[data-excerpt]');
+    var pool = window.CV01_EXCERPTS;
+    if (!slot || !pool || !pool.length) return;
     var now = new Date();
     var day = now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
     /* 整数散列：相邻的日期必须跳到句库里互不相邻的位置 */
@@ -148,4 +164,47 @@
     slot.textContent = pool[Math.abs(h) % pool.length];
     slot.setAttribute('title', '每日一句 · 本地日期 ' + day + ' · 每 24 小时换一次');
   }
+
+  /* 跟着「当前这一页的正文」走的那部分。
+     nav.js 局部换完正文之后会再喊一遍 initPage()，所以每次切页
+     播放头都会重扫、悬停读数与新卷帘重新绑定。 */
+  function initPage() {
+    initRolls();
+    measureRolls();
+    initExcerpt();
+  }
+
+  /* 给运行时文章补进来的音符挂上悬停读数。
+     sections.js 合并完卷帘会喊一声；已经挂过的靠 __cv01Note 认出来，不会重复挂。 */
+  function bindNotes(list) {
+    toArray(list).forEach(function (note) {
+      if (note.__cv01Note) return;
+      var roll = note.closest ? note.closest('[data-roll]') : null;
+      if (!roll) return;
+      var live = roll.querySelector('[data-live]');
+      var idle = live ? (live.getAttribute('data-idle') || '') : '';
+      note.__cv01Note = true;
+      note.addEventListener('mouseenter', function () { showNote(live, note); });
+      note.addEventListener('mouseleave', function () { clearNote(live, idle); });
+      note.addEventListener('focus', function () { showNote(live, note); });
+      note.addEventListener('blur', function () { clearNote(live, idle); });
+    });
+  }
+
+  function showNote(live, note) {
+    if (!live) return;
+    live.textContent = note.getAttribute('data-pitch') + ' · ' +
+      note.getAttribute('data-title') + ' · ' +
+      note.getAttribute('data-min') + ' 分钟';
+    live.classList.add('is-live');
+  }
+
+  function clearNote(live, idle) {
+    if (!live) return;
+    live.textContent = idle;
+    live.classList.remove('is-live');
+  }
+
+  cv01.site = { initPage: initPage, bindNotes: bindNotes };
+  initPage();
 })();

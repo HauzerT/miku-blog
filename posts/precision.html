@@ -8,12 +8,12 @@
 <title>论“差不多”的精确度 · 初音ミク CV01</title>
 <meta name="description" content="“差不多”不是不精确，它是把精度花在你还看得见的地方。">
 <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/css/palette.css">
 <link rel="stylesheet" href="../assets/css/tokens.css">
 <link rel="stylesheet" href="../assets/css/base.css">
 <link rel="stylesheet" href="../assets/css/roll.css">
 <link rel="stylesheet" href="../assets/css/page.css">
 <link rel="stylesheet" href="../assets/css/studio.css">
-<link rel="stylesheet" href="../assets/css/feed.css">
 
 <script>
 /* 先于首屏决定主题与动效，避免闪烁 */
@@ -21,11 +21,10 @@
 try{s=localStorage.getItem('cv01-theme')}catch(e){}
 if(s==='dark'||s==='light'){r.setAttribute('data-theme',s)}
 else if(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches){r.setAttribute('data-theme','dark')}
-/* 手机浏览器的地址栏跟着主题走，免得浅地面顶上压一条深带 */
-var m=document.querySelector('meta[name="theme-color"]');
-if(m)m.setAttribute('content',r.getAttribute('data-theme')==='dark'?'#1a1c1e':'#f5f8f8');
+/* 手机浏览器地址栏的颜色紧接着由 assets/js/palette.js 按当前配色算，这里不再写死 */
 if(!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)){r.classList.add('js')}})();
 </script>
+<script src="../assets/js/palette.js"></script>
 </head>
 <body>
 <a class="skip" href="#main">跳到正文</a>
@@ -40,7 +39,6 @@ if(!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches))
   <a class="bar__id" href="../index.html">初音ミク <span>CV01</span></a>
   <nav class="bar__nav" aria-label="站点">
     <a href="../index.html">首页</a>
-    <a href="../feed.html">说说</a>
     <a href="../kumura.html">云村</a>
     <a href="../archive.html">归档</a>
     <a href="../about.html">关于</a>
@@ -143,13 +141,6 @@ if(!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches))
         <a href="../posts/naming.html"><span class="pager__label">下一首 · D5</span><span class="pager__title">我给所有东西起了名字</span></a>
       </div>
     </nav>
-      <div class="index-head">
-        <h2>这个板块的说说</h2>
-        <p>0 条</p>
-      </div>
-    <div class="feed" data-feed data-section="suiyu" data-sub="">
-<p class="empty" data-feed-empty>这个板块还没有说说。点右下角的悬浮球发第一条。</p>
-    </div>
     </article>
   </main>
 <footer class="foot">
@@ -168,17 +159,10 @@ if(!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches))
       </span>
       <span class="ball__dot" aria-hidden="true"></span>
     </button>
-    <button class="ball ball--post" type="button" data-ball="post" aria-expanded="false" aria-label="发说说">
+    <button class="ball ball--owner" type="button" data-ball="owner" aria-expanded="false" aria-label="站长工具箱（需要口令）">
       <span class="ball__glyph" aria-hidden="true">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M4 5h16v11H9l-5 4z"></path><path d="M12 8v5M9.5 10.5h5"></path>
-        </svg>
-      </span>
-    </button>
-    <button class="ball ball--sect" type="button" data-ball="sect" aria-expanded="false" aria-label="新建板块">
-      <span class="ball__glyph" aria-hidden="true">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M4 6h7v12H4zM13 6h7v5h-7zM13 13h7v5h-7z"></path>
+          <circle cx="8.5" cy="15.5" r="4.2"></circle><path d="M11.6 12.4 20 4M17.2 4.6l2.6 2.6M14.4 7.4l2.6 2.6"></path>
         </svg>
       </span>
     </button>
@@ -189,10 +173,10 @@ if(!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches))
 <script src="../assets/js/audio.js" defer></script>
 <script src="../assets/js/site.js" defer></script>
 <script src="../assets/js/music.js" defer></script>
-<script src="../assets/js/feed.js" defer></script>
-<script src="../assets/js/composer.js" defer></script>
 <script src="../assets/js/sections.js" defer></script>
+<script src="../assets/js/owner.js" defer></script>
 <script src="../assets/js/studio.js" defer></script>
+<script src="../assets/js/nav.js" defer></script>
 
 </body>
 </html>

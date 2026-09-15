@@ -1,6 +1,6 @@
 /* ==========================================================================
    tools/build.mjs · 把 content/posts.mjs 编译成静态 HTML
-   生成：index.html / feed.html / archive.html / sections/*.html / posts/*.html
+   生成：index.html / archive.html / kumura.html / sections/*.html / posts/*.html
    用法：node tools/build.mjs
    不跑这个脚本也能维护站点——生成出来的 HTML 就是普通文件，直接手改即可。
 
@@ -17,42 +17,24 @@ import {
   noteWidth,
   rollHero,
   rollStrip,
-  feedBlockHtml,
   readData,
   cn,
   escapeHtml,
 } from '../server/lib/shell.mjs';
+import { dynamicSubPage } from '../server/lib/pages.mjs';
+import { run as runTokens } from './tokens.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const VOICE_CN = cn(tracks.length);
 const allPosts = tracks.flatMap((track, ti) => track.posts.map((post, pi) => ({ ...post, track, ti, pi })));
 
-/* 说说：data/posts.json 里已有的内容会被内联进页面（首屏不用等接口），
-   跑起服务后 assets/js/feed.js 会用接口数据覆盖它。 */
+/* 先把配色对齐：色值只写在 content/palette.mjs，这一步会重算对比度并重新生成
+   assets/css/palette.css 与 assets/js/palette.js。配色不过 AA 就整站不生成。 */
+if (runTokens(['--quiet']) !== 0) process.exit(1);
+
+/* 服务里新建的板块与子板块写在 data/sections.json：定义、导语、子板块以那份为准 */
 const dataSections = readData('sections.json', []);
-const storedPosts = readData('posts.json', []);
 const sectionMeta = new Map((Array.isArray(dataSections) ? dataSections : []).map((s) => [s.id, s]));
-
-function decorated() {
-  return (Array.isArray(storedPosts) ? storedPosts : [])
-    .slice()
-    .sort((a, b) => (a.at < b.at ? 1 : -1))
-    .map((p) => {
-      const s = sectionMeta.get(p.section);
-      const sub = s ? (s.subs || []).find((x) => x.id === p.sub) : null;
-      return {
-        ...p,
-        sectionName: s ? s.name : p.section,
-        pitch: s ? s.pitch : '·',
-        subName: sub ? sub.name : '',
-        kindLabel:
-          p.kind === 'video' ? '视频' : p.kind === 'image' ? '图片' : p.kind === 'sticker' ? '表情包' : '文字',
-      };
-    });
-}
-
-const withPosts = decorated();
-const postsOf = (id, sub = '') => withPosts.filter((p) => p.section === id && (!sub || p.sub === sub));
 
 const postHref = (base, post) => `${base}posts/${post.slug}.html`;
 const trackHref = (base, track) => `${base}sections/${track.id}.html`;
@@ -67,15 +49,12 @@ function buildIndex() {
         .map((p) => `<a href="${postHref('', { slug: p.slug })}">${p.title}</a>`)
         .join('<span aria-hidden="true">·</span>');
       const meta = sectionMeta.get(t.id);
-      const said = postsOf(t.id).length;
       return `      <li class="entry">
         <p class="entry__pitch">${t.pitch}</p>
         <div>
           <h3 class="entry__name"><a href="${trackHref('', t)}">${t.name}</a></h3>
           <p class="entry__blurb">${(meta?.def || t.lede).replace(/<br>/g, ' ')}</p>
-          <p class="entry__recent">最近：${recent}${
-        said ? `<span aria-hidden="true">·</span><a href="${trackHref('', t)}#feed">${said} 条说说</a>` : ''
-      }</p>
+          <p class="entry__recent">最近：${recent}</p>
         </div>
         <p class="entry__count">${t.posts.length} 篇</p>
       </li>`;
@@ -92,7 +71,7 @@ ${rollHero('', tracks)}
 
     <div class="index-head">
       <h2>${VOICE_CN}板块索引</h2>
-      <p>${allPosts.length} 篇 · ${tracks.length} 轨 · ${withPosts.length} 条说说</p>
+      <p>${allPosts.length} 篇 · ${tracks.length} 轨</p>
     </div>
     <ol class="entry-list">
 ${entries}
@@ -147,86 +126,6 @@ ${groups}`;
   });
 }
 
-/* 说说流：静态版本。跑起服务后 feed.js 会拉最新的一份，包括还没重新生成的内容。 */
-function buildFeed() {
-  const list = withPosts.length
-    ? withPosts.map((p) => staticFeedCard(p, '')).join('\n')
-    : `<p class="empty" data-feed-empty>还没有说说。点右下角的悬浮球，写下第一条。</p>`;
-
-  const filters = tracks
-    .map((t) => {
-      const n = postsOf(t.id).length;
-      return `      <button class="chip" type="button" data-feed-filter="${t.id}">${t.pitch} ${t.name}<b>${n}</b></button>`;
-    })
-    .join('\n');
-
-  const main = `    <header class="sect-head">
-      <p class="sect-head__pitch">${withPosts.length} 条说说 · ${tracks.length} 个板块</p>
-      <h1 class="sect-head__name">说说</h1>
-      <p class="sect-head__def">所有板块上传的内容都在这里，按时间倒序：文字、图片、视频、表情包。点右下角的悬浮球发一条。</p>
-    </header>
-    <div class="feed-filter" role="group" aria-label="按板块筛选">
-      <button class="chip is-on" type="button" data-feed-filter="">全部<b>${withPosts.length}</b></button>
-${filters}
-    </div>
-    <div class="feed" data-feed data-section="">
-${list}
-    </div>`;
-
-  return page({
-    title: `说说 · ${site.brand} ${site.mark}`,
-    desc: '所有板块上传的说说，按时间倒序。',
-    nav: 'feed',
-    tracks,
-    main,
-  });
-}
-
-/* 和 assets/js/feed.js 里那张卡片结构一致：脚本接手后只是重画一遍，不会跳版 */
-function staticFeedCard(post, base) {
-  const images = (post.assets || []).filter((a) => a.kind === 'image' || a.kind === 'sticker');
-  const videos = (post.assets || []).filter((a) => a.kind === 'video');
-  const shots = images.length
-    ? `      <div class="shots${images.length === 1 ? ' shots--one' : ''}">\n${images
-        .map(
-          (a) =>
-            `        <a class="shot" href="${a.url}"><img src="${a.url}" alt="${escapeHtml(
-              a.original || ''
-            )}" loading="lazy"></a>`
-        )
-        .join('\n')}\n      </div>`
-    : '';
-  const clips = videos
-    .map((v) => `      <figure class="clip"><video src="${v.url}" controls preload="metadata" playsinline></video></figure>`)
-    .join('\n');
-  const text = post.text
-    ? `      <div class="feed__text">${escapeHtml(post.text)
-        .split(/\n{2,}/)
-        .map((p) => `<p>${p.replace(/\n/g, '<br>')}</p>`)
-        .join('')}</div>`
-    : '';
-  return `  <article class="feed-item" data-post-id="${escapeHtml(post.id || '')}">
-    <header class="feed-item__head">
-      <span class="feed-item__pitch">${escapeHtml(post.pitch || '·')}</span>
-      <a class="feed__sect" href="${base}sections/${encodeURIComponent(post.section)}.html">${escapeHtml(
-    post.sectionName || ''
-  )}</a>${
-    post.subName ? `<span class="feed__sep">/</span><span class="feed__sub">${escapeHtml(post.subName)}</span>` : ''
-  }
-      <time class="feed-item__time">${escapeHtml(post.date || '')} ${escapeHtml(post.time || '')}</time>
-${post.mood ? `      <span class="feed__mood">${escapeHtml(post.mood)}</span>\n` : ''}    </header>
-    <div class="feed-item__body">
-${text}
-${shots}
-${clips}
-    </div>
-    <footer class="feed-item__foot">
-      <span class="feed-item__meta">${escapeHtml(post.kindLabel || '说说')}</span>
-      <button class="feed-item__del" type="button" data-del-post="${escapeHtml(post.id || '')}" hidden>删除</button>
-    </footer>
-  </article>`;
-}
-
 function buildSection(track, ti) {
   const rows = track.posts
     .map(
@@ -247,18 +146,19 @@ function buildSection(track, ti) {
 ${subs
       .map(
         (s) =>
-          `      <a class="subnav__item" href="sections/${track.id}/${s.id}.html"><span class="subnav__name">${escapeHtml(
+          /* 这一页就在 sections/ 里，所以是「板块 id/子板块 id.html」——
+             带上 sections/ 前缀会解析成 /sections/sections/…，404 */
+          `      <a class="subnav__item" href="${track.id}/${s.id}.html"><span class="subnav__name">${escapeHtml(
             s.name
-          )}</span><span class="subnav__count">${postsOf(track.id, s.id).length} 条</span></a>`
+          )}</span></a>`
       )
       .join('\n')}
     </nav>`
     : '';
 
-  const mine = postsOf(track.id).filter((p) => !p.sub);
   const main = `${rollStrip(tracks, track.id, null, noteWidth(ti, 0)[0])}
     <header class="sect-head">
-      <p class="sect-head__pitch">${track.pitch}${track.black ? ' · 黑键' : ''} · ${track.posts.length} 篇 · ${mine.length} 条说说</p>
+      <p class="sect-head__pitch">${track.pitch}${track.black ? ' · 黑键' : ''} · ${track.posts.length} 篇</p>
       <h1 class="sect-head__name">${track.name}</h1>
       <p class="sect-head__def">${meta?.def || track.def}</p>
     </header>
@@ -266,13 +166,7 @@ ${subs
 ${subNav}
     <ol class="post-list">
 ${rows}
-    </ol>
-
-    <div class="index-head" id="feed">
-      <h2>说说</h2>
-      <p>${mine.length} 条</p>
-    </div>
-${feedBlockHtml(mine, track.id)}`;
+    </ol>`;
 
   return page({
     title: `${track.name} · ${site.brand} ${site.mark}`,
@@ -304,7 +198,6 @@ ${next ? `        <a href="${postHref('../', next)}"><span class="pager__label">
       </div>
     </nav>`;
 
-  const mine = postsOf(post.track.id);
   const main = `${rollStrip(tracks, post.track.id, post.slug, playX)}
     <article class="article">
       <header>
@@ -321,11 +214,6 @@ ${next ? `        <a href="${postHref('../', next)}"><span class="pager__label">
 ${body}
       </div>
 ${pager}
-      <div class="index-head">
-        <h2>这个板块的说说</h2>
-        <p>${mine.length} 条</p>
-      </div>
-${feedBlockHtml(mine.slice(0, 4), post.track.id)}
     </article>`;
 
   return page({
@@ -502,12 +390,22 @@ function buildKumura() {
 
 /* ------------------------------------------------------------------ 输出 */
 
+/* 子板块页：板块页上那条子板块导航指着它。子板块本身是运行时的数据
+   （只有 data/sections.json 里有），所以这份静态产物是给静态托管兜底的；
+   跑着服务时服务端会现场重渲染，好把运行时新写的文章一起列出来。 */
+const subPages = tracks.flatMap((t) =>
+  (((sectionMeta.get(t.id) || {}).subs) || []).map((sub) => [
+    `sections/${t.id}/${sub.id}.html`,
+    dynamicSubPage({ track: t, sub, sections: tracks, base: '../../' }),
+  ])
+);
+
 const outputs = [
   ['index.html', buildIndex()],
-  ['feed.html', buildFeed()],
   ['kumura.html', buildKumura()],
   ['archive.html', buildArchive()],
   ...tracks.map((t, ti) => [`sections/${t.id}.html`, buildSection(t, ti)]),
+  ...subPages,
   ...allPosts.map((p) => [`posts/${p.slug}.html`, buildPost(p)]),
   ['posts/_template.html', buildTemplate()],
 ];
@@ -530,7 +428,7 @@ writeFileSync(
 
 console.log(`✓ 生成 ${outputs.length} 个页面`);
 console.log(
-  `  ${allPosts.length} 篇文章 · ${tracks.length} 个板块 · ${excerpts.length} 条每日一句 · ${withPosts.length} 条说说`
+  `  ${allPosts.length} 篇文章 · ${tracks.length} 个板块 · ${excerpts.length} 条每日一句`
 );
 const unwritten = allPosts.filter((p) => !p.body);
 if (unwritten.length) {

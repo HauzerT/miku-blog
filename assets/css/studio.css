@@ -1,5 +1,5 @@
 /* ==========================================================================
-   studio.css · 悬浮工作台（音乐盒 / 发说说 / 新建板块）
+   studio.css · 悬浮工作台（音乐盒 / 新建板块）
    ---------------------------------------------------------------------------
    和全站说同一套颜色话：地面用 --paper，浮起来的面板用 --card，
    结构与文字用 --ink / --ink-soft，链接与序号用 --miku-deep，
@@ -30,14 +30,14 @@
   .studio { right: var(--s-3); bottom: max(var(--s-3), env(safe-area-inset-bottom)); }
 }
 
-/* 悬浮球是 fixed 的：滚到页面最底下时，视口右下那 3×球高 的一条永远被它压着。
-   页脚正好落在这一条里，于是「初音ミク CV01 …」和那行英文会被三个球盖住。
+/* 悬浮球是 fixed 的：滚到页面最底下时，视口右下那 2×球高 的一条永远被它压着。
+   页脚正好落在这一条里，于是「初音ミク CV01 …」和那行英文会被两个球盖住。
    给页脚留出这条通道——不是把球挪走，是让页脚从它上面经过。 */
 @media (max-width: 900px) {
-  .foot { padding-bottom: calc(3.125rem * 3 + var(--s-6) + env(safe-area-inset-bottom)); }
+  .foot { padding-bottom: calc(3.125rem * 2 + var(--s-6) + env(safe-area-inset-bottom)); }
 }
 @media (max-width: 560px) {
-  .foot { padding-bottom: calc(2.875rem * 3 + var(--s-6) + env(safe-area-inset-bottom)); }
+  .foot { padding-bottom: calc(2.875rem * 2 + var(--s-6) + env(safe-area-inset-bottom)); }
 }
 
 /* ---------------------------------------------------------------- 悬浮球 */
@@ -96,7 +96,6 @@
   transition: opacity 0.2s ease, transform 0.2s ease;
 }
 .ball--music.is-blocked .ball__dot { opacity: 1; transform: scale(1); animation: cv01-blink 1.9s ease-in-out infinite; }
-.ball--post .ball__dot,
 .ball--sect .ball__dot { display: none; }
 
 /* 曲目数：小球右上角一个测量体的小数字 */
@@ -168,14 +167,12 @@
 
 /* 暗窗：面板的头部统一是暗的，和文章里的代码块同一块颜色 */
 .mp__head,
-.cp__head,
 .sc__head {
   padding: var(--s-4) var(--s-5) var(--s-3);
   background: var(--display);
   color: var(--on-display);
 }
 .mp__eyebrow,
-.cp__eyebrow,
 .sc__eyebrow {
   font-family: var(--f-measure);
   font-size: 0.6875rem;
@@ -184,7 +181,6 @@
   color: var(--miku);
 }
 .mp__hint,
-.cp__hint,
 .sc__hint {
   margin-top: var(--s-2);
   font-size: var(--t-data);
@@ -370,6 +366,8 @@
   overflow: hidden;
 }
 .mp__up[hidden] { display: none; }
+/* 音乐盒面板里那条（换歌用）：跟在曲目列表后面，两边留出边界 */
+.mp__list + .mp__up { margin-inline: var(--s-5); margin-bottom: var(--s-3); }
 .mp__up i {
   display: block;
   height: 100%;
@@ -508,8 +506,7 @@
   color: var(--ink-soft);
 }
 
-.mp__note,
-.cp__note {
+.mp__note {
   padding: var(--s-3) var(--s-5) var(--s-4);
   font-size: 0.6875rem;
   line-height: 1.7;
@@ -517,6 +514,17 @@
   color: var(--ink-soft);
 }
 .mp__note code { font-family: var(--f-code); color: var(--miku-deep); }
+/* 上传面板里「刚传进来：…」那一行 */
+.mp__done {
+  margin: var(--s-3) var(--s-5) 0;
+  padding: var(--s-2) var(--s-3);
+  font-size: var(--t-data);
+  line-height: 1.6;
+  color: var(--ink);
+  background: var(--paper-deep);
+  border-left: 2px solid var(--miku);
+}
+.mp__done[hidden] { display: none; }
 .mp-empty {
   padding: var(--s-5);
   font-size: 0.875rem;
@@ -524,17 +532,67 @@
   color: var(--ink-soft);
 }
 
-/* ---------------------------------------------------------------- 发说说 */
-.cp__row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: var(--s-3);
-  padding: var(--s-4) var(--s-5) 0;
+/* ---------------------------------------------------------------- 站长工具箱 */
+.ow { padding-bottom: var(--s-4); }
+.ow__head {
+  padding: var(--s-4) var(--s-5) var(--s-3);
+  background: var(--display);
+  color: var(--on-display);
 }
-.cp__row--pick { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr); }
-.cp__field { display: block; min-width: 0; }
-.cp__field[hidden] { display: none; }
-.cp__label,
+.ow__eyebrow {
+  font-family: var(--f-measure);
+  font-size: 0.6875rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--miku);
+}
+.ow__hint {
+  margin-top: var(--s-2);
+  font-size: var(--t-data);
+  line-height: 1.65;
+  color: var(--on-display-soft);
+}
+.ow__item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--rule-soft);
+  padding: var(--s-3) var(--s-5);
+  cursor: pointer;
+  text-decoration: none;
+}
+.ow__item:hover { background: var(--paper-deep); }
+.ow__item b { display: block; font-size: 0.9375rem; font-weight: 400; }
+.ow__item span { display: block; margin-top: 0.15rem; font-size: var(--t-data); line-height: 1.6; color: var(--ink-soft); }
+.ow__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-5);
+  border-bottom: 1px solid var(--rule);
+}
+.ow__back {
+  font: inherit;
+  font-size: var(--t-ui);
+  color: var(--miku-deep);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.ow__back:hover { border-bottom: 1px solid var(--miku-deep); }
+.ow__title {
+  font-family: var(--f-measure);
+  font-size: var(--t-data);
+  letter-spacing: 0.16em;
+  color: var(--ink-soft);
+}
+
+/* ---------------------------------------------------------------- 表单控件（新建板块共用） */
 .sc__label {
   display: block;
   margin-bottom: 0.25rem;
@@ -544,122 +602,7 @@
   text-transform: uppercase;
   color: var(--ink-soft);
 }
-.cp__select,
 .sc__select { width: 100%; }
-
-.cp__text {
-  display: block;
-  width: calc(100% - 2 * var(--s-5));
-  margin: var(--s-4) var(--s-5) 0;
-  min-height: 6.5rem;
-  resize: vertical;
-  font-family: var(--f-read);
-  font-size: 0.9375rem;
-  line-height: 1.8;
-}
-.cp__text:focus { border-color: var(--cuer); }
-
-.cp__att { padding: var(--s-3) var(--s-5) 0; }
-.cp__att[hidden] { display: none; }
-.cp__group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s-2);
-  margin-bottom: var(--s-2);
-}
-.cp__chip {
-  position: relative;
-  width: 4rem;
-  margin: 0;
-  border: 1px solid var(--rule);
-  border-radius: 2px;
-  overflow: hidden;
-  background: var(--paper-deep);
-}
-.cp__chip img,
-.cp__chip video { width: 4rem; height: 4rem; object-fit: cover; }
-.cp__chip--sticker img { object-fit: contain; background: var(--display-soft); }
-.cp__chip figcaption {
-  padding: 0.15rem 0.25rem 0.25rem;
-  font-size: 0.5625rem;
-  line-height: 1.3;
-  color: var(--ink-soft);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.cp__chip-x {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 1.15rem;
-  height: 1.15rem;
-  font: inherit;
-  font-size: 0.75rem;
-  line-height: 1;
-  color: var(--paper);
-  background: var(--ink);
-  border: 0;
-  cursor: pointer;
-}
-
-.cp__tools {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--s-2);
-  padding: var(--s-3) var(--s-5) 0;
-}
-.cp__tool {
-  font: inherit;
-  font-size: var(--t-ui);
-  color: var(--ink);
-  background: none;
-  border: 1px solid var(--rule);
-  border-radius: 2px;
-  padding: 0.3rem 0.6rem;
-  min-height: 2rem;
-  cursor: pointer;
-}
-.cp__tool:hover { color: var(--miku-deep); border-color: var(--miku-deep); }
-.cp__tool[aria-expanded="true"] { color: var(--paper); background: var(--ink); border-color: var(--ink); }
-.cp__count {
-  margin-left: auto;
-  font-family: var(--f-measure);
-  font-size: var(--t-data);
-  letter-spacing: 0.12em;
-  color: var(--ink-soft);
-}
-
-.cp__emoji {
-  display: grid;
-  grid-template-columns: repeat(8, minmax(0, 1fr));
-  gap: 1px;
-  margin: var(--s-3) var(--s-5) 0;
-  padding: var(--s-2);
-  max-height: 9rem;
-  overflow: auto;
-  background: var(--display);
-  border-radius: 2px;
-}
-.cp__emoji[hidden] { display: none; }
-.cp__emoji-btn {
-  font-size: 1.05rem;
-  line-height: 1.6;
-  background: none;
-  border: 0;
-  border-radius: 2px;
-  cursor: pointer;
-}
-.cp__emoji-btn:hover { background: rgba(255, 105, 180, 0.22); }
-
-.cp__foot {
-  display: flex;
-  align-items: center;
-  gap: var(--s-3);
-  padding: var(--s-4) var(--s-5);
-}
-.cp__send,
 .sc__send,
 .sc__mini {
   font: inherit;
@@ -673,34 +616,7 @@
   min-height: 2.25rem;
   cursor: pointer;
 }
-.cp__send { margin-left: auto; }
-.cp__send:hover,
 .sc__send:hover { color: var(--miku); }
-.cp__send:disabled { opacity: 0.5; cursor: progress; }
-.cp__up {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  flex: 1 1 auto;
-  min-width: 0;
-}
-.cp__up[hidden] { display: none; }
-.cp__up i {
-  display: block;
-  height: 2px;
-  width: 0;
-  background: var(--cuer);
-  transition: width 0.2s ease;
-}
-.cp__up b {
-  font-family: var(--f-measure);
-  font-size: 0.625rem;
-  font-weight: 400;
-  letter-spacing: 0.12em;
-  color: var(--ink-soft);
-}
-/* 面板整体是投放区 */
-.cp-wrap.is-over .cp { outline: 2px dashed var(--cuer); outline-offset: -4px; }
 
 /* ---------------------------------------------------------------- 新建板块 */
 .sc__row {
@@ -788,7 +704,7 @@
   align-items: center;
   justify-content: center;
   padding: var(--s-4);
-  background: rgba(10, 11, 12, 0.55);
+  background: var(--scrim);
 }
 .keygate__box {
   width: min(22rem, 100%);
@@ -845,7 +761,7 @@
 .studio__toast {
   position: fixed;
   right: var(--s-4);
-  bottom: calc(3.125rem * 3 + var(--s-4) * 4);
+  bottom: calc(3.125rem * 2 + var(--s-4) * 4);
   max-width: min(22rem, calc(100vw - 2 * var(--s-4)));
   padding: 0.5rem 0.8rem;
   font-size: var(--t-ui);
@@ -864,18 +780,14 @@
 /* ---------------------------------------------------------------- 响应式 */
 @media (max-width: 560px) {
   .studio__panel { width: calc(100vw - 2 * var(--s-3)); max-height: 70vh; }
-  .cp__row--pick { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  .cp__row--pick .cp__field:first-child { grid-column: 1 / -1; }
-  .cp__emoji { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .ball { width: 2.875rem; height: 2.875rem; }
-  .studio__toast { bottom: calc(2.875rem * 3 + var(--s-3) * 4); right: var(--s-3); }
+  .studio__toast { bottom: calc(2.875rem * 2 + var(--s-3) * 4); right: var(--s-3); }
 }
 
 /* 触摸设备没有悬停：别留下粘着的状态 */
 @media (hover: none) {
   .ball:hover { transform: none; background: var(--paper); }
   .mp__btn:hover { color: var(--ink); border-color: var(--rule); }
-  .cp__tool:hover { color: var(--ink); border-color: var(--rule); }
 }
 
 /* 减少动效：环和灯都不动，只留静态提示 */

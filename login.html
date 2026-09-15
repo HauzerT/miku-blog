@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<!-- 门厅的地是青，所以地址栏也是青——这一页不跟配色轮次走，只跟主题走 -->
+<meta name="theme-color" content="#39c5bb">
+<title>进门 · 初音ミク CV01</title>
+<meta name="description" content="进站：访客直接进，站长要口令。口令印在启动服务的那个终端窗口里。">
+<link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/css/palette.css">
+<link rel="stylesheet" href="assets/css/tokens.css">
+<link rel="stylesheet" href="assets/css/base.css">
+<link rel="stylesheet" href="assets/css/login.css">
+<script>
+/* 先于首屏决定主题，避免闪烁。门厅的青地不随主题变，但黑键与墨要跟着走。 */
+(function(){var r=document.documentElement,s=null;
+try{s=localStorage.getItem('cv01-theme')}catch(e){}
+if(s==='dark'||s==='light'){r.setAttribute('data-theme',s)}
+else if(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches){r.setAttribute('data-theme','dark')}
+if(!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)){r.classList.add('js')}})();
+</script>
+</head>
+<body>
+<main class="gate">
+  <header class="gate__head">
+    <p class="gate__mark">初音ミク <span>CV01</span></p>
+  </header>
+
+  <div class="gate__body">
+    <div class="gate__panel">
+      <h1 class="gate__title">进门</h1>
+      <p class="gate__note">访客直接进。站长要口令，它印在启动服务的终端里。</p>
+
+      <div class="gate__keys">
+        <a class="gate-key gate-key--visitor" href="index.html">访客进入</a>
+        <button class="gate-key gate-key--owner" type="button" data-owner aria-expanded="false" aria-controls="gate-pass">站长登录</button>
+      </div>
+
+      <form class="gate__pass" id="gate-pass" data-pass novalidate hidden>
+        <label class="gate__label" for="gate-input">口令</label>
+        <input class="gate__input" id="gate-input" data-pass-input type="password" inputmode="latin"
+               autocomplete="off" spellcheck="false" enterkeyhint="go" placeholder="例如 3f9a1c02">
+        <button class="gate-key gate-key--owner gate-key--go" type="submit">进入</button>
+      </form>
+
+      <p class="gate__msg" data-msg role="status" aria-live="polite"></p>
+
+      <p class="gate__status" data-status hidden>这台浏览器记着口令，进站后站长工具箱直接可用。<button class="gate__forget" type="button" data-forget>忘掉口令</button></p>
+    </div>
+  </div>
+
+  <!-- 九个音高名：与左侧轨道栏、首页卷帘是同一份数据。不指路，只说明这是谁的门 -->
+  <footer class="gate__foot" aria-hidden="true">
+    <span>F#3</span><span>A3</span><span>C4</span><span>E4</span><span>G4</span><span>B4</span><span>D5</span><span>F#5</span><span>A5</span>
+  </footer>
+</main>
+<script src="assets/js/login.js" defer></script>
+</body>
+</html>
