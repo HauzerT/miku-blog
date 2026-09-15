@@ -1,0 +1,300 @@
+/* ==========================================================================
+   roll.css · 钢琴卷帘：本站的主导航，也是唯一的深色暗窗
+   七条轨道 = 七个板块；音符块 = 文章；播放头 = 此刻。
+   音高由低到高排列（低音在下），与任何一台合成器的卷帘一致。
+   ========================================================================== */
+
+.roll {
+  --lane-h: var(--lane);
+  --ruler: 1.125rem;
+  position: relative;
+  background: var(--display);
+  color: var(--on-display);
+}
+
+/* 通栏出血：从轨道栏右缘一路到视口右缘 */
+.roll--bleed { margin-inline: calc(var(--gutter) * -1); }
+
+/* 暗色主题下暗窗不再靠明暗对比取胜，改用一道青绿细边维持"窗口"的身份 */
+:root[data-theme="dark"] .roll { border-block: 1px solid rgba(134, 206, 203, 0.16); }
+
+/* 切换主题时才存在的过渡，避免全站常驻 transition */
+:root.is-theming,
+:root.is-theming * {
+  transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease !important;
+}
+
+.roll__bar {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-5);
+  padding: var(--s-4) var(--gutter) var(--s-3);
+  border-bottom: 1px solid rgba(134, 206, 203, 0.22);
+}
+.roll__caption {
+  font-size: var(--t-data);
+  letter-spacing: 0.1em;
+  color: var(--on-display-soft);
+  white-space: nowrap;
+}
+.roll__live {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--t-ui);
+  color: var(--on-display-soft);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.roll__live.is-live { color: var(--cuer); }
+.roll__readout {
+  font-family: var(--f-measure);
+  font-size: 0.875rem;
+  letter-spacing: 0.16em;
+  color: var(--on-display-soft);
+  white-space: nowrap;
+}
+.roll__readout b { font-weight: 700; color: var(--miku); }
+
+.roll__scroller {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.roll__scroller::-webkit-scrollbar { height: 6px; }
+.roll__scroller::-webkit-scrollbar-thumb { background: rgba(157, 164, 170, 0.35); }
+
+.roll__inner {
+  display: grid;
+  grid-template-columns: var(--roll-heads) var(--roll-keys) minmax(0, 1fr);
+  min-width: 51rem;
+  max-width: 87.5rem;
+}
+
+/* ------------------------------------------------------------ 轨道名（左） */
+.roll__heads {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: var(--display);
+  padding-top: var(--ruler);
+  padding-left: var(--gutter);
+  border-right: 1px solid rgba(134, 206, 203, 0.16);
+}
+.head {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.1rem;
+  height: var(--lane-h);
+  padding-right: var(--s-3);
+  border-bottom: 1px solid rgba(134, 206, 203, 0.12);
+}
+.head__name {
+  font-size: 0.8125rem;
+  line-height: 1.2;
+  color: var(--on-display);
+}
+.head__count {
+  font-family: var(--f-measure);
+  font-size: 0.6875rem;
+  letter-spacing: 0.14em;
+  color: var(--on-display-soft);
+}
+.head:hover .head__name { color: var(--miku); }
+.head:hover .head__count { color: var(--cuer); }
+
+/* ------------------------------------------------------------ 键盘（中） */
+.roll__keys {
+  position: sticky;
+  left: var(--roll-heads);
+  z-index: 3;
+  background: var(--display);
+  padding-top: var(--ruler);
+  border-right: 1px solid rgba(134, 206, 203, 0.16);
+}
+.keycap {
+  display: block;
+  height: var(--lane-h);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.85);
+  background: rgba(230, 235, 239, 0.14);
+}
+.keycap--black { background: rgba(0, 0, 0, 0.55); width: 58%; }
+
+/* ------------------------------------------------------------ 卷帘场 */
+/* 裁剪：播放头是铺满整格再用 transform 推出去的，它那 78% 的空盒子会算进
+   .roll__scroller 的可滚动宽度里 —— 桌面端因此多出一根横向滚动条，
+   手机上则能一直往右滑进一片空白。这里把溢出关掉，可见的线一根不少。 */
+.roll__field {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+}
+.roll__ruler {
+  display: flex;
+  height: var(--ruler);
+  font-family: var(--f-measure);
+  font-size: 0.625rem;
+  letter-spacing: 0.12em;
+  color: var(--on-display-soft);
+  border-bottom: 1px solid rgba(134, 206, 203, 0.16);
+}
+.roll__ruler span { flex: 1 1 25%; padding-left: 0.35rem; line-height: var(--ruler); }
+
+.roll__body { position: relative; }
+.roll__beats {
+  position: absolute;
+  inset: 0;
+  /* 三层：小节线、拍线、隔小节淡带。隔小节淡带是"这是卷帘不是甘特图"的关键 */
+  background-image:
+    repeating-linear-gradient(to right, rgba(134, 206, 203, 0.2) 0 1px, transparent 1px 25%),
+    repeating-linear-gradient(to right, rgba(134, 206, 203, 0.08) 0 1px, transparent 1px 6.25%),
+    repeating-linear-gradient(to right, rgba(230, 235, 239, 0.04) 0 25%, transparent 25% 50%);
+}
+.roll__lanes { position: relative; z-index: 1; }
+
+.lane {
+  position: relative;
+  height: var(--lane-h);
+  border-bottom: 1px solid rgba(134, 206, 203, 0.12);
+}
+.lane--black { background: rgba(0, 0, 0, 0.28); }
+
+/* 音符块 */
+.note {
+  position: absolute;
+  top: 50%;
+  left: calc(var(--x) * 1%);
+  width: calc(var(--w) * 1%);
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  height: 54%;
+  min-width: 3.25rem;
+  max-width: 14rem;
+  padding: 0 0.5rem;
+  background: var(--miku);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
+  color: var(--display);
+  border-radius: 2px;
+  font-size: 0.6875rem;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: opacity 0.25s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+.js .note { opacity: 0.28; }
+.js .note.is-lit { opacity: 1; }
+.note:hover,
+.note:focus-visible {
+  opacity: 1;
+  transform: translateY(-50%) translateY(-2px);
+  box-shadow: 0 0 0 1px var(--cuer);
+}
+
+/* 播放头：全站唯一允许移动的东西，也标示"此刻" */
+.roll__playhead {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  transform: translateX(var(--play-x, 78%));
+}
+.roll__playhead::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  background: var(--cuer);
+  box-shadow: 0 0 10px var(--cuer-glow);
+}
+.js .roll__playhead { animation: roll-sweep 2.2s cubic-bezier(0.42, 0, 0.28, 1) forwards; }
+@keyframes roll-sweep {
+  from { transform: translateX(0); }
+  to { transform: translateX(78%); }
+}
+
+/* ------------------------------------------------------------ 移动端提示 */
+.roll__hint {
+  display: none;
+  margin-top: var(--s-3);
+  font-size: var(--t-data);
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+}
+/* 没有 JS 就保守地一直说；有 JS 时由 site.js 量过真的溢出才显示——
+   卷帘在宽一点的手机上并不需要左右滑，那就别撒谎。 */
+html:not(.js) .roll__hint { display: block; }
+.roll--hero.is-scrollable + .roll__hint { display: block; }
+
+/* ------------------------------------------------------------ 迷你定位条 */
+.roll--strip {
+  --lane-h: 1.375rem;
+  margin-bottom: var(--s-6);
+}
+.roll--strip .roll__inner { grid-template-columns: minmax(0, 1fr); min-width: 0; max-width: none; }
+.roll--strip .roll__heads,
+.roll--strip .roll__keys,
+.roll--strip .roll__ruler,
+.roll--strip .roll__bar { display: none; }
+.roll--strip .note {
+  height: 42%;
+  min-width: 0.5rem;
+  padding: 0;
+  font-size: 0;
+  opacity: 0.26;   /* 幽灵音符：看得见自己在整首歌的哪一段 */
+  background: var(--on-display-soft);
+}
+.roll--strip .note.is-current { opacity: 1; background: var(--miku); }
+.roll--strip .roll__playhead { transform: translateX(var(--play-x, 0)); animation: none; }
+.roll--strip .roll__playhead::after { box-shadow: 0 0 8px var(--cuer-glow); }
+
+@media (max-width: 900px) {
+  /* 手机上卷帘仍要能读：压矮轨道、收窄轨道名、把键盘列让给音符 */
+  .roll--hero { --lane-h: 2.25rem; --roll-heads: 5.5rem; }
+  .roll--hero .roll__inner {
+    grid-template-columns: var(--roll-heads) minmax(0, 1fr);
+    min-width: 30rem;
+  }
+  .roll--hero .roll__keys { display: none; }
+  .roll--hero .roll__heads { padding-left: var(--s-4); }
+  .roll--hero .head__count { display: none; }
+  .roll--hero .head__name { font-size: 0.75rem; line-height: 1.15; }
+  .roll--hero .note {
+    height: 70%;                /* 一格 36px，音符 25px：既留得住轨道感，又点得中 */
+    min-width: 2.5rem;
+    padding: 0 0.35rem;
+    font-size: 0.6875rem;
+    overflow: visible;          /* 把裁剪交给下面的 .note__short，好让 ::after 撑出格子 */
+  }
+  .roll--hero .note__short {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .roll__caption { display: none; }
+  .roll__readout { font-size: 0.75rem; letter-spacing: 0.1em; }
+}
+
+/* 手指：音符块看上去 25px 高，可点的区域补到接近一格轨道 */
+@media (pointer: coarse) {
+  .roll--hero .note::after {
+    content: "";
+    position: absolute;
+    inset: -0.4rem -0.2rem;
+  }
+}
+
+/* 触摸没有悬停：点过之后别让音符一直浮着 */
+@media (hover: none) {
+  .note:hover,
+  .note:focus-visible {
+    transform: translateY(-50%);
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
+  }
+}

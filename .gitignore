@@ -1,0 +1,15 @@
+# 上传服务产生的数据：每个人自己的曲库、说说和板块
+# （.gitignore 只是建议——你要是想让这些跟着仓库走，把下面几行删掉就行）
+data/*
+!data/.gitkeep
+media/*
+!media/.gitkeep
+
+# 自检脚本的截图
+.check/
+
+node_modules/
+*.tmp
+
+# 云村小服务的登录凭证（相当于你的网易云登录态，绝对不要提交）
+.ncm-session.json

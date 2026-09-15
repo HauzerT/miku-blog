@@ -1,0 +1,435 @@
+/* ==========================================================================
+   page.css · 页面级组件：首页索引、板块列表、文章正文、归档、关于
+   全站零卡片、零统一阴影、零渐变装饰。结构用细线和留白表达。
+   ========================================================================== */
+
+/* ---------------------------------------------------------------- 首页 */
+.hero { padding-bottom: var(--s-7); }
+
+.hero__note em {
+  font-style: normal;
+  border-bottom: 2px solid var(--miku);
+}
+
+/* 板块索引：七行版面条目，不是七张卡片 */
+.index-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-5);
+  margin: var(--s-8) 0 0;
+  padding-bottom: var(--s-3);
+  border-bottom: 1px solid var(--ink);
+}
+.index-head h2 {
+  font-family: var(--f-read);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+.index-head p {
+  font-family: var(--f-measure);
+  font-size: var(--t-data);
+  letter-spacing: 0.16em;
+  color: var(--ink-soft);
+}
+
+.entry-list { border-bottom: 1px solid var(--rule); }
+.entry {
+  display: grid;
+  grid-template-columns: 4.25rem minmax(0, 1fr) auto;
+  gap: var(--s-5);
+  align-items: start;
+  padding: var(--s-5) 0;
+  border-top: 1px solid var(--rule);
+}
+.entry-list .entry:first-child { border-top: 0; }
+
+.entry__pitch {
+  font-family: var(--f-measure);
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--miku-deep);
+}
+.entry__name {
+  font-family: var(--f-read);
+  font-size: 1.5rem;
+  line-height: 1.2;
+  font-weight: 700;
+}
+.entry__blurb {
+  margin-top: var(--s-2);
+  max-width: 40em;
+  font-size: 0.9375rem;
+  line-height: 1.7;
+  color: var(--ink-soft);
+}
+.entry__recent {
+  margin-top: var(--s-3);
+  font-size: var(--t-ui);
+  color: var(--ink-soft);
+}
+.entry__recent a { color: var(--ink); border-bottom: 1px solid var(--rule); }
+.entry__recent a:hover { border-bottom-color: var(--miku-deep); }
+.entry__recent span { color: var(--rule); padding-inline: 0.45rem; }
+.entry__count {
+  font-family: var(--f-measure);
+  font-size: 0.9375rem;
+  letter-spacing: 0.12em;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.entry:hover .entry__pitch { color: var(--miku-deep); }
+.entry:hover .entry__name a { border-bottom: 2px solid var(--miku-deep); }
+
+/* ---------------------------------------------------------------- 板块页 */
+/* 板块页与文章页顶着定位条，不再需要主区上内边距 */
+.sect-main { padding-top: 0; }
+
+.post-list {
+  margin-top: var(--s-6);
+  border-top: 1px solid var(--ink);
+}
+.post-row { border-bottom: 1px solid var(--rule); }
+.post-row__link {
+  display: grid;
+  grid-template-columns: 7rem minmax(0, 1fr);
+  gap: var(--s-2) var(--s-5);
+  padding: var(--s-5) 0;
+}
+.post-row__date {
+  font-family: var(--f-measure);
+  font-size: 0.9375rem;
+  letter-spacing: 0.1em;
+  color: var(--miku-deep);
+  padding-top: 0.35em;
+}
+.post-row__title {
+  font-family: var(--f-read);
+  font-size: var(--t-post);
+  line-height: 1.35;
+  font-weight: 700;
+}
+.post-row__blurb {
+  grid-column: 2;
+  max-width: 42em;
+  font-size: 0.9375rem;
+  line-height: 1.7;
+  color: var(--ink-soft);
+}
+.post-row__link:hover .post-row__title { border-bottom: 2px solid var(--miku-deep); }
+.post-row__link:hover .post-row__date { color: var(--miku-deep); }
+/* 归档页里年份标题已经有一条线，列表不再重复画 */
+.year .post-list { margin-top: 0; border-top: 0; }
+
+.empty {
+  padding: var(--s-6) 0;
+  font-size: 0.9375rem;
+  color: var(--ink-soft);
+}
+
+/* ---------------------------------------------------------------- 文章 */
+.article { padding-top: var(--s-2); }
+.article__title {
+  max-width: 24em;
+  font-family: var(--f-read);
+  font-size: clamp(1.75rem, 4.2vw, 2.75rem);
+  line-height: 1.18;
+  font-weight: 700;
+}
+.article__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-top: var(--s-4);
+  padding-bottom: var(--s-4);
+  font-family: var(--f-measure);
+  font-size: var(--t-data);
+  letter-spacing: 0.14em;
+  color: var(--ink-soft);
+}
+.article__meta a { color: var(--miku-deep); }
+.article__meta a:hover { border-bottom: 1px solid var(--miku-deep); }
+
+.prose {
+  max-width: var(--measure);
+  font-family: var(--f-read);
+  font-size: var(--t-body);
+  line-height: 1.9;
+}
+.prose > * + * { margin-top: 1.35em; }
+.prose h2 {
+  margin-top: 2.2em;
+  padding-left: 0.55em;
+  border-left: 3px solid var(--miku-deep);
+  font-size: 1.375rem;
+  line-height: 1.45;
+  font-weight: 700;
+}
+.prose h3 {
+  margin-top: 1.9em;
+  font-size: 1.125rem;
+  line-height: 1.5;
+  font-weight: 700;
+}
+.prose ul,
+.prose ol { padding-left: 1.5em; }
+.prose ul { list-style: disc; }
+.prose ol { list-style: decimal; }
+.prose li + li { margin-top: 0.45em; }
+.prose li::marker { color: var(--miku-deep); }
+.prose blockquote {
+  padding-left: 1.1em;
+  border-left: 2px solid var(--rule);
+  color: var(--ink-soft);
+}
+.prose a {
+  border-bottom: 1px solid var(--miku-deep);
+  color: var(--miku-deep);
+}
+.prose a:hover { background: var(--paper-deep); }
+.prose strong { font-weight: 700; }
+.prose hr {
+  border: 0;
+  border-top: 1px solid var(--rule);
+  margin-block: var(--s-7);
+}
+.prose code {
+  font-family: var(--f-code);
+  font-size: 0.875em;
+  padding: 0.12em 0.35em;
+  background: var(--paper-deep);
+  border-radius: 2px;
+  color: var(--miku-deep);
+}
+.prose pre {
+  padding: var(--s-4) var(--s-5);
+  background: var(--display);
+  color: var(--on-display);
+  border-radius: 2px;
+  overflow-x: auto;
+  font-size: 0.8125rem;
+  line-height: 1.75;
+}
+.prose pre code {
+  padding: 0;
+  background: none;
+  color: inherit;
+  font-size: 1em;
+}
+.prose figure { margin-block: var(--s-6); }
+.prose figcaption {
+  margin-top: var(--s-2);
+  font-family: var(--f-ui);
+  font-size: var(--t-data);
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+}
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--f-ui);
+  font-size: 0.9375rem;
+}
+.prose th,
+.prose td {
+  padding: 0.6em 0.8em;
+  border-bottom: 1px solid var(--rule);
+  text-align: left;
+}
+.prose th { border-bottom-color: var(--ink); font-weight: 700; }
+
+.pager {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-5);
+  max-width: var(--measure);
+  margin-top: var(--s-8);
+  padding-top: var(--s-5);
+  border-top: 1px solid var(--rule);
+}
+.pager__label {
+  font-family: var(--f-measure);
+  font-size: var(--t-data);
+  letter-spacing: 0.14em;
+  color: var(--ink-soft);
+}
+.pager__title {
+  display: block;
+  margin-top: var(--s-1);
+  font-family: var(--f-read);
+  font-size: 1.0625rem;
+  line-height: 1.5;
+}
+.pager__item--next { text-align: right; }
+.pager a:hover .pager__title { border-bottom: 2px solid var(--miku-deep); }
+
+/* ---------------------------------------------------------------- 归档 */
+.year { margin-top: var(--s-7); }
+.year__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-4);
+  padding-bottom: var(--s-2);
+  border-bottom: 1px solid var(--ink);
+}
+.year__num {
+  font-family: var(--f-measure);
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+.year__count {
+  font-family: var(--f-measure);
+  font-size: var(--t-data);
+  letter-spacing: 0.16em;
+  color: var(--ink-soft);
+}
+
+/* ---------------------------------------------------------------- 关于 */
+.spec {
+  max-width: 46em;
+  margin-top: var(--s-6);
+}
+.spec__row {
+  display: grid;
+  grid-template-columns: 8rem minmax(0, 1fr);
+  gap: var(--s-5);
+  padding: var(--s-4) 0;
+  border-top: 1px solid var(--rule);
+  font-size: 0.9375rem;
+}
+.spec__key {
+  font-family: var(--f-measure);
+  font-size: var(--t-data);
+  letter-spacing: 0.16em;
+  color: var(--ink-soft);
+  padding-top: 0.35em;
+}
+.spec__val { font-family: var(--f-read); }
+/* 参数表里的正文是「读」的那套字，混在句子里的链接得自己声明一次，
+   否则它就是一段看不见的普通文字（页面上确实有过这样一个 <a>） */
+.spec__val a {
+  color: var(--miku-deep);
+  border-bottom: 1px solid var(--miku-deep);
+}
+.spec__val a:hover { background: var(--paper-deep); }
+.spec__val code {
+  font-family: var(--f-code);
+  font-size: 0.875em;
+  color: var(--miku-deep);
+}
+
+.swatches { margin-top: var(--s-6); max-width: 46em; }
+.swatch {
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr) auto;
+  gap: var(--s-4);
+  align-items: center;
+  padding: var(--s-3) 0;
+  border-top: 1px solid var(--rule-soft);
+}
+.swatch__chip {
+  height: 2.5rem;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+}
+.swatch__name { font-size: 0.9375rem; }
+.swatch__name b { font-weight: 600; }
+.swatch__hex {
+  font-family: var(--f-measure);
+  font-size: var(--t-data);
+  letter-spacing: 0.14em;
+  color: var(--ink-soft);
+}
+
+/* 页面末尾的一行小注 */
+.note-line {
+  max-width: 46em;
+  margin-top: var(--s-6);
+  font-size: var(--t-data);
+  line-height: 1.8;
+  letter-spacing: 0.03em;
+  color: var(--ink-soft);
+}
+.note-line code {
+  font-family: var(--f-code);
+  font-size: 0.95em;
+  color: var(--miku-deep);
+}
+
+/* ---------------------------------------------------------------- 响应式 */
+@media (max-width: 720px) {
+  .entry { grid-template-columns: 3.5rem minmax(0, 1fr); gap: var(--s-3) var(--s-4); }
+  .entry__count { grid-column: 2; }
+  .post-row__link { grid-template-columns: minmax(0, 1fr); }
+  .post-row__blurb { grid-column: 1; }
+  .post-row__date { padding-top: 0; }
+  .pager { grid-template-columns: minmax(0, 1fr); }
+  .pager__item--next { text-align: left; }
+  .spec__row { grid-template-columns: minmax(0, 1fr); gap: var(--s-1); }
+  .spec__key { padding-top: 0; }
+}
+
+/* 手机：一行只有 30 来个字，把每一层的内边距都收一档，
+   省下来的高度全部还给正文 */
+@media (max-width: 560px) {
+  .hero { padding-bottom: var(--s-6); }
+
+  .entry { grid-template-columns: 3rem minmax(0, 1fr); gap: var(--s-2) var(--s-4); padding: var(--s-4) 0; }
+  .entry__name { font-size: 1.3125rem; }
+  .entry__blurb { font-size: 0.875rem; }
+  .entry__count { font-size: 0.875rem; }
+
+  .index-head { margin-top: var(--s-7); }
+  .sect-head { margin-bottom: var(--s-5); }
+  .lede { padding-bottom: var(--s-4); }
+  .post-row__link { padding: var(--s-4) 0; }
+  .year { margin-top: var(--s-6); }
+
+  .article__title { font-size: clamp(1.6rem, 7.4vw, 2.75rem); }
+  .prose pre { padding: var(--s-3) var(--s-4); font-size: 0.75rem; }
+  .prose h2 { font-size: 1.25rem; padding-left: 0.45em; }
+  .prose code { overflow-wrap: anywhere; }
+  .prose table { display: block; overflow-x: auto; }
+
+  .pager { gap: var(--s-4); margin-top: var(--s-7); }
+  .spec { margin-top: var(--s-5); }
+  .swatch { grid-template-columns: 2.5rem minmax(0, 1fr) auto; gap: var(--s-3); }
+}
+
+/* 触摸没有悬停：手指点过的地方不该一直亮着 */
+@media (hover: none) {
+  .entry:hover .entry__pitch { color: var(--miku-deep); }
+  .entry:hover .entry__name a { border-bottom: 0; }
+  .entry__recent a:hover { border-bottom-color: var(--rule); }
+  .post-row__link:hover .post-row__title { border-bottom: 0; }
+  .post-row__link:hover .post-row__date { color: var(--miku-deep); }
+  .pager a:hover .pager__title { border-bottom: 0; }
+  .prose a:hover { background: transparent; }
+}
+
+/* 手指：首页索引里「最近」那两个链接行高只有 20px。
+   行内元素加纵向 padding 不顶开行距，却能把可点区域垫到 33px。
+   「最近」的链接自带一条 border-bottom 当细线，padding 会把它推离文字，
+   所以在触摸设备上把这条线换成 text-decoration —— 同样一像素，贴着字走。 */
+@media (pointer: coarse) {
+  .entry__name a { padding-block: 0.5rem; }
+  .entry__recent a {
+    padding-block: 0.5rem;
+    border-bottom: 0;
+    text-decoration: underline;
+    text-decoration-color: var(--rule);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.3em;
+  }
+  .spec__val a {
+    padding-block: 0.5rem;
+    border-bottom: 0;
+    text-decoration: underline;
+    text-decoration-color: var(--miku-deep);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.3em;
+  }
+}

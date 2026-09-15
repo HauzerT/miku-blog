@@ -1,0 +1,539 @@
+/* ==========================================================================
+   tools/build.mjs · 把 content/posts.mjs 编译成静态 HTML
+   生成：index.html / feed.html / archive.html / sections/*.html / posts/*.html
+   用法：node tools/build.mjs
+   不跑这个脚本也能维护站点——生成出来的 HTML 就是普通文件，直接手改即可。
+
+   页头、命令栏、轨道栏、页脚、卷帘都来自 server/lib/shell.mjs，
+   和上传服务渲染的动态页面共用同一套——两边永远不会长得不一样。
+   ========================================================================== */
+
+import { writeFileSync, mkdirSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { site, tracks, excerpts } from '../content/posts.mjs';
+import {
+  page,
+  noteWidth,
+  rollHero,
+  rollStrip,
+  feedBlockHtml,
+  readData,
+  cn,
+  escapeHtml,
+} from '../server/lib/shell.mjs';
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const VOICE_CN = cn(tracks.length);
+const allPosts = tracks.flatMap((track, ti) => track.posts.map((post, pi) => ({ ...post, track, ti, pi })));
+
+/* 说说：data/posts.json 里已有的内容会被内联进页面（首屏不用等接口），
+   跑起服务后 assets/js/feed.js 会用接口数据覆盖它。 */
+const dataSections = readData('sections.json', []);
+const storedPosts = readData('posts.json', []);
+const sectionMeta = new Map((Array.isArray(dataSections) ? dataSections : []).map((s) => [s.id, s]));
+
+function decorated() {
+  return (Array.isArray(storedPosts) ? storedPosts : [])
+    .slice()
+    .sort((a, b) => (a.at < b.at ? 1 : -1))
+    .map((p) => {
+      const s = sectionMeta.get(p.section);
+      const sub = s ? (s.subs || []).find((x) => x.id === p.sub) : null;
+      return {
+        ...p,
+        sectionName: s ? s.name : p.section,
+        pitch: s ? s.pitch : '·',
+        subName: sub ? sub.name : '',
+        kindLabel:
+          p.kind === 'video' ? '视频' : p.kind === 'image' ? '图片' : p.kind === 'sticker' ? '表情包' : '文字',
+      };
+    });
+}
+
+const withPosts = decorated();
+const postsOf = (id, sub = '') => withPosts.filter((p) => p.section === id && (!sub || p.sub === sub));
+
+const postHref = (base, post) => `${base}posts/${post.slug}.html`;
+const trackHref = (base, track) => `${base}sections/${track.id}.html`;
+
+/* ------------------------------------------------------------------ 页面 */
+
+function buildIndex() {
+  const entries = tracks
+    .map((t) => {
+      const recent = t.posts
+        .slice(0, 2)
+        .map((p) => `<a href="${postHref('', { slug: p.slug })}">${p.title}</a>`)
+        .join('<span aria-hidden="true">·</span>');
+      const meta = sectionMeta.get(t.id);
+      const said = postsOf(t.id).length;
+      return `      <li class="entry">
+        <p class="entry__pitch">${t.pitch}</p>
+        <div>
+          <h3 class="entry__name"><a href="${trackHref('', t)}">${t.name}</a></h3>
+          <p class="entry__blurb">${(meta?.def || t.lede).replace(/<br>/g, ' ')}</p>
+          <p class="entry__recent">最近：${recent}${
+        said ? `<span aria-hidden="true">·</span><a href="${trackHref('', t)}#feed">${said} 条说说</a>` : ''
+      }</p>
+        </div>
+        <p class="entry__count">${t.posts.length} 篇</p>
+      </li>`;
+    })
+    .join('\n');
+
+  const main = `    <section class="hero">
+      <h1 class="hero__name">${site.brand}</h1>
+      <p class="hero__latin">${site.latin}</p>
+      <p class="hero__note">${VOICE_CN}个板块是一个和弦的${VOICE_CN}个音，<em>越往上越轻</em>。下面这条卷帘就是本站的目录：点任意一个音符进文章，点左边的轨道名进板块。指针停在音符上会报出它的音高、标题和时长。</p>
+    </section>
+
+${rollHero('', tracks)}
+
+    <div class="index-head">
+      <h2>${VOICE_CN}板块索引</h2>
+      <p>${allPosts.length} 篇 · ${tracks.length} 轨 · ${withPosts.length} 条说说</p>
+    </div>
+    <ol class="entry-list">
+${entries}
+    </ol>`;
+
+  return page({ title: `${site.brand} ${site.mark} · 个人博客`, desc: site.desc, nav: 'home', tracks, main });
+}
+
+function buildArchive() {
+  const years = [...new Set(allPosts.map((p) => p.date.slice(0, 4)))].sort((a, b) => b - a);
+  const groups = years
+    .map((year) => {
+      const list = allPosts
+        .filter((p) => p.date.startsWith(year))
+        .sort((a, b) => (a.date < b.date ? 1 : -1));
+      const rows = list
+        .map(
+          (p) => `        <li class="post-row">
+          <a class="post-row__link" href="${postHref('', p)}">
+            <time class="post-row__date">${p.date}</time>
+            <span class="post-row__title">${p.title}</span>
+            <span class="post-row__blurb">${p.track.name} · ${p.blurb}</span>
+          </a>
+        </li>`
+        )
+        .join('\n');
+      return `      <section class="year">
+        <div class="year__head">
+          <span class="year__num">${year}</span>
+          <span class="year__count">${list.length} 篇</span>
+        </div>
+        <ol class="post-list">
+${rows}
+        </ol>
+      </section>`;
+    })
+    .join('\n');
+
+  const main = `    <header class="sect-head">
+      <p class="sect-head__pitch">${allPosts.length} 篇 · ${tracks.length} 轨</p>
+      <h1 class="sect-head__name">归档</h1>
+      <p class="sect-head__def">按年份倒序。每条前面是日期，后面是它所属的板块。</p>
+    </header>
+${groups}`;
+
+  return page({
+    title: `归档 · ${site.brand} ${site.mark}`,
+    desc: '全部文章，按年份倒序。',
+    nav: 'archive',
+    tracks,
+    main,
+  });
+}
+
+/* 说说流：静态版本。跑起服务后 feed.js 会拉最新的一份，包括还没重新生成的内容。 */
+function buildFeed() {
+  const list = withPosts.length
+    ? withPosts.map((p) => staticFeedCard(p, '')).join('\n')
+    : `<p class="empty" data-feed-empty>还没有说说。点右下角的悬浮球，写下第一条。</p>`;
+
+  const filters = tracks
+    .map((t) => {
+      const n = postsOf(t.id).length;
+      return `      <button class="chip" type="button" data-feed-filter="${t.id}">${t.pitch} ${t.name}<b>${n}</b></button>`;
+    })
+    .join('\n');
+
+  const main = `    <header class="sect-head">
+      <p class="sect-head__pitch">${withPosts.length} 条说说 · ${tracks.length} 个板块</p>
+      <h1 class="sect-head__name">说说</h1>
+      <p class="sect-head__def">所有板块上传的内容都在这里，按时间倒序：文字、图片、视频、表情包。点右下角的悬浮球发一条。</p>
+    </header>
+    <div class="feed-filter" role="group" aria-label="按板块筛选">
+      <button class="chip is-on" type="button" data-feed-filter="">全部<b>${withPosts.length}</b></button>
+${filters}
+    </div>
+    <div class="feed" data-feed data-section="">
+${list}
+    </div>`;
+
+  return page({
+    title: `说说 · ${site.brand} ${site.mark}`,
+    desc: '所有板块上传的说说，按时间倒序。',
+    nav: 'feed',
+    tracks,
+    main,
+  });
+}
+
+/* 和 assets/js/feed.js 里那张卡片结构一致：脚本接手后只是重画一遍，不会跳版 */
+function staticFeedCard(post, base) {
+  const images = (post.assets || []).filter((a) => a.kind === 'image' || a.kind === 'sticker');
+  const videos = (post.assets || []).filter((a) => a.kind === 'video');
+  const shots = images.length
+    ? `      <div class="shots${images.length === 1 ? ' shots--one' : ''}">\n${images
+        .map(
+          (a) =>
+            `        <a class="shot" href="${a.url}"><img src="${a.url}" alt="${escapeHtml(
+              a.original || ''
+            )}" loading="lazy"></a>`
+        )
+        .join('\n')}\n      </div>`
+    : '';
+  const clips = videos
+    .map((v) => `      <figure class="clip"><video src="${v.url}" controls preload="metadata" playsinline></video></figure>`)
+    .join('\n');
+  const text = post.text
+    ? `      <div class="feed__text">${escapeHtml(post.text)
+        .split(/\n{2,}/)
+        .map((p) => `<p>${p.replace(/\n/g, '<br>')}</p>`)
+        .join('')}</div>`
+    : '';
+  return `  <article class="feed-item" data-post-id="${escapeHtml(post.id || '')}">
+    <header class="feed-item__head">
+      <span class="feed-item__pitch">${escapeHtml(post.pitch || '·')}</span>
+      <a class="feed__sect" href="${base}sections/${encodeURIComponent(post.section)}.html">${escapeHtml(
+    post.sectionName || ''
+  )}</a>${
+    post.subName ? `<span class="feed__sep">/</span><span class="feed__sub">${escapeHtml(post.subName)}</span>` : ''
+  }
+      <time class="feed-item__time">${escapeHtml(post.date || '')} ${escapeHtml(post.time || '')}</time>
+${post.mood ? `      <span class="feed__mood">${escapeHtml(post.mood)}</span>\n` : ''}    </header>
+    <div class="feed-item__body">
+${text}
+${shots}
+${clips}
+    </div>
+    <footer class="feed-item__foot">
+      <span class="feed-item__meta">${escapeHtml(post.kindLabel || '说说')}</span>
+      <button class="feed-item__del" type="button" data-del-post="${escapeHtml(post.id || '')}" hidden>删除</button>
+    </footer>
+  </article>`;
+}
+
+function buildSection(track, ti) {
+  const rows = track.posts
+    .map(
+      (p) => `      <li class="post-row">
+        <a class="post-row__link" href="${postHref('../', p)}">
+          <time class="post-row__date">${p.date}</time>
+          <span class="post-row__title">${p.title}</span>
+          <span class="post-row__blurb">${p.blurb}</span>
+        </a>
+      </li>`
+    )
+    .join('\n');
+
+  const meta = sectionMeta.get(track.id);
+  const subs = meta?.subs || [];
+  const subNav = subs.length
+    ? `    <nav class="subnav" aria-label="${escapeHtml(track.name)}的子板块">
+${subs
+      .map(
+        (s) =>
+          `      <a class="subnav__item" href="sections/${track.id}/${s.id}.html"><span class="subnav__name">${escapeHtml(
+            s.name
+          )}</span><span class="subnav__count">${postsOf(track.id, s.id).length} 条</span></a>`
+      )
+      .join('\n')}
+    </nav>`
+    : '';
+
+  const mine = postsOf(track.id).filter((p) => !p.sub);
+  const main = `${rollStrip(tracks, track.id, null, noteWidth(ti, 0)[0])}
+    <header class="sect-head">
+      <p class="sect-head__pitch">${track.pitch}${track.black ? ' · 黑键' : ''} · ${track.posts.length} 篇 · ${mine.length} 条说说</p>
+      <h1 class="sect-head__name">${track.name}</h1>
+      <p class="sect-head__def">${meta?.def || track.def}</p>
+    </header>
+    <p class="lede">${meta?.lede || track.lede}</p>
+${subNav}
+    <ol class="post-list">
+${rows}
+    </ol>
+
+    <div class="index-head" id="feed">
+      <h2>说说</h2>
+      <p>${mine.length} 条</p>
+    </div>
+${feedBlockHtml(mine, track.id)}`;
+
+  return page({
+    title: `${track.name} · ${site.brand} ${site.mark}`,
+    desc: `${track.name}：${meta?.def || track.def}`,
+    base: '../',
+    nav: 'section',
+    currentSection: track.id,
+    tracks,
+    main,
+  });
+}
+
+function buildPost(post) {
+  const siblings = post.track.posts;
+  const prev = siblings[post.pi - 1];
+  const next = siblings[post.pi + 1];
+  const playX = noteWidth(post.ti, post.pi)[0];
+
+  const body = post.body
+    ? post.body.trim()
+    : `<p class="empty">这篇还没写。骨架先留在这里：打开 <code>content/posts.mjs</code>，把这条记录的 <code>body</code> 填上，再运行 <code>node tools/build.mjs</code>——或者直接编辑这个 HTML 文件。</p>`;
+
+  const pager = `<nav class="pager" aria-label="同轨道的相邻文章">
+      <div class="pager__item">
+${prev ? `        <a href="${postHref('../', prev)}"><span class="pager__label">上一首 · ${post.track.pitch}</span><span class="pager__title">${prev.title}</span></a>` : ''}
+      </div>
+      <div class="pager__item pager__item--next">
+${next ? `        <a href="${postHref('../', next)}"><span class="pager__label">下一首 · ${post.track.pitch}</span><span class="pager__title">${next.title}</span></a>` : ''}
+      </div>
+    </nav>`;
+
+  const mine = postsOf(post.track.id);
+  const main = `${rollStrip(tracks, post.track.id, post.slug, playX)}
+    <article class="article">
+      <header>
+        <h1 class="article__title">${post.title}</h1>
+        <p class="article__meta">
+          <time datetime="${post.date.replace(/\./g, '-')}">${post.date}</time>
+          <span aria-hidden="true">·</span>
+          <a href="${trackHref('../', post.track)}">${post.track.name}</a>
+          <span aria-hidden="true">·</span>
+          <span>${post.min} 分钟</span>
+        </p>
+      </header>
+      <div class="prose">
+${body}
+      </div>
+${pager}
+      <div class="index-head">
+        <h2>这个板块的说说</h2>
+        <p>${mine.length} 条</p>
+      </div>
+${feedBlockHtml(mine.slice(0, 4), post.track.id)}
+    </article>`;
+
+  return page({
+    title: `${post.title} · ${site.brand} ${site.mark}`,
+    desc: post.blurb,
+    base: '../',
+    nav: 'post',
+    currentSection: post.track.id,
+    tracks,
+    main,
+  });
+}
+
+/* 手写文章用的模板：结构和生成的文章完全一致，复制一份改内容即可 */
+function buildTemplate() {
+  const main = `${rollStrip(tracks, 'suiyu', null, 2)}
+    <article class="article">
+      <header>
+        <h1 class="article__title">文章标题写在这里</h1>
+        <p class="article__meta">
+          <time datetime="2025-01-01">2025.01.01</time>
+          <span aria-hidden="true">·</span>
+          <a href="../sections/suiyu.html">胡盐乱雨集</a>
+          <span aria-hidden="true">·</span>
+          <span>5 分钟</span>
+        </p>
+      </header>
+      <div class="prose">
+        <p>正文段落。把这份文件复制到 <code>posts/</code> 下改名，然后删掉这里的占位内容。</p>
+        <h2>小节标题</h2>
+        <p>小节正文。顶部的迷你卷帘标出了这篇文章属于哪条轨道——改上面那个 <code>--play-x</code> 和高亮的轨道即可。</p>
+        <ul>
+          <li>列表项一</li>
+          <li>列表项二</li>
+        </ul>
+        <blockquote><p>引用一段话。</p></blockquote>
+        <pre><code>// 代码块用的是暗窗底色
+const hello = 'world';</code></pre>
+      </div>
+      <nav class="pager" aria-label="同轨道的相邻文章">
+        <div class="pager__item">
+          <a href="#"><span class="pager__label">上一首 · D5</span><span class="pager__title">上一篇的标题</span></a>
+        </div>
+        <div class="pager__item pager__item--next">
+          <a href="#"><span class="pager__label">下一首 · D5</span><span class="pager__title">下一篇的标题</span></a>
+        </div>
+      </nav>
+    </article>`;
+
+  return page({
+    title: `文章模板 · ${site.brand} ${site.mark}`,
+    desc: '手写文章时复制这一份。',
+    base: '../',
+    nav: 'post',
+    currentSection: 'suiyu',
+    tracks,
+    main,
+  });
+}
+
+/* -------------------------------------------------------------- 云村
+   扫码登录网易云、显示账号信息与红心歌单。
+   这一页的取数不靠静态生成——没登录时它本来就是空的。页面只放挂载点和文案，
+   assets/js/kumura.js 起服务后自己取数（tools/ncm-server.mjs）。
+   四段内容由 [data-pane] 标记，显示哪一段交给 kumura.css 按状态机控制。 */
+function buildKumura() {
+  const main = `    <header class="sect-head">
+      <p class="sect-head__pitch">G4 · 生活在云上</p>
+      <h1 class="sect-head__name">云村</h1>
+      <p class="sect-head__def">用网易云扫码登录，在这里看自己的账号与红心歌单。登录凭证只存在本机。</p>
+    </header>
+
+    <div class="km" data-music data-music-state="loading">
+
+      <section class="km-note" data-pane="loading">
+        <span class="km-spinner" aria-hidden="true"></span>正在连接本机的云村小服务…
+      </section>
+
+      <section class="km-note" data-pane="offline">
+        <b>小服务没在跑。</b><br>
+        在博客根目录执行 <code>node tools/ncm-server.mjs</code>，然后刷新这一页。
+        <span data-service-hint hidden></span>
+      </section>
+
+      <section class="km-login" data-pane="login">
+        <div class="km-login__frame">
+          <div class="km-login__code" data-qr></div>
+        </div>
+        <div class="km-login__side">
+          <p class="km-login__title">扫码登录网易云音乐</p>
+          <ol class="km-login__steps">
+            <li>打开手机上的网易云音乐 App</li>
+            <li>点左上角的「扫一扫」</li>
+            <li>对准左边的二维码，然后在手机上确认</li>
+          </ol>
+          <p class="km-login__status">
+            <span data-qr-status>正在准备二维码…</span>
+            <span class="km-login__timer" data-qr-timer></span>
+          </p>
+          <div class="km-profile__act">
+            <button class="km-btn" type="button" data-qr-refresh>换一张</button>
+          </div>
+          <p class="km-login__status">二维码由本站自己画，不经过任何第三方图片服务。<br>登录凭证只写进本机的 <code>.ncm-session.json</code>，浏览器这边不存。</p>
+        </div>
+      </section>
+
+      <section class="km-profile" data-pane="ready">
+        <div class="km-profile__bg" data-profile-bg hidden></div>
+        <div class="km-profile__avatar" data-avatar></div>
+        <div class="km-profile__body">
+          <div class="km-profile__top">
+            <h2 class="km-profile__name" data-nickname></h2>
+            <span class="km-profile__uid" data-uid></span>
+            <span class="km-profile__vip" data-vip hidden></span>
+          </div>
+          <p class="km-profile__sign" data-signature></p>
+          <ul class="km-facts" data-facts></ul>
+          <div class="km-profile__act">
+            <button class="km-btn" type="button" data-logout>退出登录</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="km-liked" data-pane="ready">
+        <div class="km-liked__head">
+          <div class="km-liked__cover" data-liked-cover hidden></div>
+          <div>
+            <div class="km-liked__meta" data-liked-meta></div>
+            <p class="km-liked__note" data-list-note></p>
+          </div>
+        </div>
+        <ol class="km-tracks" data-list></ol>
+        <p class="km-more"><button class="km-btn km-btn--main" type="button" data-more hidden>再读 50 首</button></p>
+      </section>
+
+      <!-- 播放条：平时藏着，点任意一首歌才升起来。
+           音频走网易 CDN 的直链（那边发 CORS 头），不经小服务中转。 -->
+      <div class="km-player" data-player hidden>
+        <div class="km-player__art" data-player-art></div>
+        <div class="km-player__meta">
+          <p class="km-player__name" data-player-name>—</p>
+          <p class="km-player__sub" data-player-sub></p>
+        </div>
+        <div class="km-player__ctrl">
+          <button class="km-player__btn" type="button" data-player-prev aria-label="上一首">◀◀</button>
+          <button class="km-player__btn km-player__btn--main" type="button" data-player-toggle aria-label="播放 / 暂停">▶</button>
+          <button class="km-player__btn" type="button" data-player-next aria-label="下一首">▶▶</button>
+        </div>
+        <div class="km-player__scrub">
+          <input class="km-player__seek" type="range" min="0" max="1000" value="0" step="1"
+                 aria-label="播放进度" data-player-seek>
+          <span class="km-player__clock" data-player-clock>0:00 / 0:00</span>
+        </div>
+        <div class="km-player__vol">
+          <span class="km-player__vol-label" aria-hidden="true">音量</span>
+          <input class="km-player__vol-range" type="range" min="0" max="100" value="80" step="1"
+                 aria-label="音量" data-player-vol>
+        </div>
+        <button class="km-player__btn km-player__btn--close" type="button" data-player-close aria-label="收起播放条">✕</button>
+      </div>
+
+    </div>`;
+
+  return page({
+    title: `云村 · ${site.brand} ${site.mark}`,
+    desc: '扫码登录网易云音乐，查看账号信息与红心歌单。',
+    nav: 'kumura',
+    tracks,
+    styles: ['assets/css/kumura.css'],
+    scripts: ['assets/js/music.config.js', 'assets/js/qr.js', 'assets/js/kumura.js'],
+    main,
+  });
+}
+
+/* ------------------------------------------------------------------ 输出 */
+
+const outputs = [
+  ['index.html', buildIndex()],
+  ['feed.html', buildFeed()],
+  ['kumura.html', buildKumura()],
+  ['archive.html', buildArchive()],
+  ...tracks.map((t, ti) => [`sections/${t.id}.html`, buildSection(t, ti)]),
+  ...allPosts.map((p) => [`posts/${p.slug}.html`, buildPost(p)]),
+  ['posts/_template.html', buildTemplate()],
+];
+
+for (const [file, html] of outputs) {
+  const full = join(ROOT, file);
+  mkdirSync(dirname(full), { recursive: true });
+  writeFileSync(full, html, 'utf8');
+}
+
+/* 每日一句的词库：生成成一个小 JS 文件，避免在几十个页面里重复内联 */
+const excerptsPath = join(ROOT, 'assets/js/excerpts.js');
+mkdirSync(dirname(excerptsPath), { recursive: true });
+writeFileSync(
+  excerptsPath,
+  `/* 由 tools/build.mjs 从 content/posts.mjs 的 excerpts 生成 —— 不要手改这个文件 */\n` +
+    `window.CV01_EXCERPTS = ${JSON.stringify(excerpts)};\n`,
+  'utf8'
+);
+
+console.log(`✓ 生成 ${outputs.length} 个页面`);
+console.log(
+  `  ${allPosts.length} 篇文章 · ${tracks.length} 个板块 · ${excerpts.length} 条每日一句 · ${withPosts.length} 条说说`
+);
+const unwritten = allPosts.filter((p) => !p.body);
+if (unwritten.length) {
+  console.log(`  其中 ${unwritten.length} 篇是空状态页（content/posts.mjs 里还没有 body）：`);
+  console.log('  ' + unwritten.map((p) => p.slug).join(', '));
+}

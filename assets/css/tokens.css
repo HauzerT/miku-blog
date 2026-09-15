@@ -1,0 +1,140 @@
+/* ==========================================================================
+   tokens.css · CV01 调声台
+   ---------------------------------------------------------------------------
+   第三轮配色：中性地面 + 青/粉两级强调。来源调色板 ——
+
+     mikuGreen  main #39C5BB   light #86CECB   dark #137A7F
+     mikuPink   main #FF3399   deep  #E12885   light #FF69B4
+     亮  bg #F5F8F8  card #FFFFFF  text #2D3033  text2 #666A6D  border #BEC8D1  mark #FFE6F2
+     暗  bg #1A1C1E  card #2D3033  text #E6EBEF  text2 #9DA4AA  border #44494D  mark #4A2038
+
+   职务映射 —— token 名一个没动，所以组件 CSS 不必跟着重写：
+
+     --paper / --paper-deep   ← bg          地面。不再是满屏饱和青，改中性冷灰
+     --card                   ← card        面板表面（工作台 / 发说说 / 云村）
+     --ink / --ink-soft       ← text/text2  正文与结构线 / 次要文本
+     --rule / --rule-soft     ← border      细线
+     --mark                   ← mark        选区
+     --display / --display-soft      ← 暗色 bg / card    全站唯一的深色区域「仪器窗口」
+     --on-display / --on-display-soft ← 暗色 text / text2
+     --miku         ← mikuGreen.main   签·暗窗态：音符块、读数、当前轨
+     --miku-deep    ← mikuPink         签·地面态：链接、序号、音高名
+     --cuer         ← mikuPink         示·此刻（暗色一套换 light 档）
+
+   两处取舍是量出来的，不是估的（实测对比度写在每个变量后面）：
+
+   1. 粉的深色档压深了一格。来源调色板的 #E12885 对 #F5F8F8 只有 4.06:1，
+      差 0.44 到 AA。#D81B7A 是同色相压深一档，4.51:1 过线，肉眼几乎分不出差别——
+      和上一轮"青底粉字"把粉色拆成两级是同一个手法，只是这次缺的是那一点点亮度。
+
+   2. 「此刻」从琥珀换成了粉。琥珀 #F5A623 对旧的青底只有 1.05:1——旧版那条
+      焦点环其实一直是隐形的；换到中性地面也只有 1.90:1。中性地上没有第三种
+      色相的位置：青 #39C5BB 对地面 1.99:1（它天生只配活在暗窗里），
+      粉 #FF3399 对地面 3.18:1（够 3:1 的描边与焦点环）、对暗窗 5.03:1（够正文）。
+      于是全站只剩两组色系 + 中性灰。暗色一套里「此刻」用 #FF69B4（6.45:1）。
+
+   地面变成中性色之后「颜色即语法」反而更严了：青只在暗窗里出现，粉只用来指认，
+   灰色承担全部阅读重量——等级差交给墨量（粗细、疏密、不透明度），不交给色相。
+   上一轮那组「更护眼的替代值」已经没有必要，默认值就是它。
+   ========================================================================== */
+
+@font-face {
+  font-family: "Big Shoulders";
+  src: url("../fonts/BigShoulders-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Big Shoulders";
+  src: url("../fonts/BigShoulders-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* ---- 色彩 · 白天调声 ---- */
+  --paper: #f5f8f8;                     /* 地：中性冷灰（对正文 12.4:1） */
+  --paper-deep: rgba(19, 122, 127, 0.08);  /* 悬停 / 内嵌码：极淡的青灰 */
+  --card: #ffffff;                      /* 面板表面：浮在地面之上的一层白 */
+  --ink: #2d3033;                       /* 墨：正文与结构线（12.4:1） */
+  --ink-soft: #666a6d;                  /* 次要文本（5.1:1） */
+  --miku-deep: #d81b7a;                 /* 签·地面态：链接/序号/音高（4.51:1） */
+  --miku: #39c5bb;                      /* 签·暗窗态：音符块/读数（对暗窗 8.0:1） */
+  --display: #1a1c1e;                   /* 暗窗：全站唯一深色区域 */
+  --display-soft: #2d3033;              /* 暗窗内抬起的一层（视频屏、黑键） */
+  --cuer: #ff3399;                      /* 示：此刻。播放头/焦点环/悬停读数 */
+  --cuer-glow: rgba(255, 51, 153, 0.5); /* 此刻的辉光（跟随 --cuer 换档） */
+  --rule: #bec8d1;
+  --rule-soft: rgba(190, 200, 209, 0.55);
+  --mark: #ffe6f2;                      /* 选区 */
+  --key-black: #2d3033;                 /* 黑键行：F#3 那一轨 */
+  --key-black-hover: #3a4046;
+  --on-display: #e6ebef;                /* 暗窗上的正文色 */
+  --on-display-soft: #9da4aa;
+
+  /* ---- 字体：读 / 操作 / 测量 ---- */
+  --f-read: "Noto Serif SC", "Source Han Serif SC", "Songti SC", "SimSun", Georgia, serif;
+  --f-ui: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  --f-measure: "Big Shoulders", "Noto Sans SC", system-ui, sans-serif;
+  /* 等宽只用于代码，永不用于标签——小数据标签用窄体更贴合仪器面板 */
+  --f-code: "JetBrains Mono", "Cascadia Mono", Consolas, "SF Mono", ui-monospace, monospace;
+
+  /* ---- 字阶 ---- */
+  --t-hero: clamp(2.7rem, 7.2vw, 5rem);
+  --t-sect: clamp(1.75rem, 4vw, 2.7rem);
+  --t-post: clamp(1.3rem, 2.3vw, 1.75rem);
+  --t-lead: clamp(1.05rem, 1.6vw, 1.25rem);
+  --t-body: 1.0625rem;
+  --t-ui: 0.8125rem;
+  --t-data: 0.75rem;
+
+  /* ---- 间距（×1.5 数列） ---- */
+  --s-1: 0.25rem;
+  --s-2: 0.5rem;
+  --s-3: 0.75rem;
+  --s-4: 1rem;
+  --s-5: 1.5rem;
+  --s-6: 2.25rem;
+  --s-7: 3.5rem;
+  --s-8: 5rem;
+  --s-9: 7.5rem;
+
+  /* ---- 结构尺寸 ---- */
+  --bar: 3.5rem;
+  --rail: 8.25rem;
+  --gutter: clamp(1.25rem, 3.6vw, 3.5rem);
+  --measure: 34em;         /* 中文正文行宽上限 ≈34 汉字 */
+  --lane: 2.875rem;        /* 卷帘单条轨道高 */
+  --roll-heads: 9.5rem;
+  --roll-keys: 2.75rem;
+
+  --z-bar: 50;
+  --z-sticky: 20;
+
+  color-scheme: light;
+}
+
+/* 夜间调声：另配的一套，不是反相。地面比白天更深一档，暗窗再往里凹一层。 */
+:root[data-theme="dark"] {
+  --paper: #1a1c1e;                     /* 地（对正文 14.2:1） */
+  --paper-deep: rgba(134, 206, 203, 0.08);
+  --card: #2d3033;
+  --ink: #e6ebef;
+  --ink-soft: #9da4aa;                  /* 6.8:1 */
+  --miku-deep: #ff69b4;                 /* 签·地面态（6.45:1） */
+  --miku: #39c5bb;                      /* 签·暗窗态（9.1:1） */
+  --display: #0c0e10;
+  --display-soft: #2d3033;
+  --cuer: #ff69b4;                      /* 此刻在暗色里换成亮樱粉（6.45:1） */
+  --cuer-glow: rgba(255, 105, 180, 0.5);
+  --rule: #44494d;
+  --rule-soft: rgba(68, 73, 77, 0.6);
+  --mark: #4a2038;
+  --key-black: #101214;
+  --key-black-hover: #1c2024;
+  --on-display: #e6ebef;
+  --on-display-soft: #9da4aa;
+  color-scheme: dark;
+}

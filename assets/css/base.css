@@ -1,0 +1,506 @@
+/* ==========================================================================
+   base.css · 重置、外壳（命令栏 / 轨道栏 / 主区 / 页脚）、排版基线
+   ========================================================================== */
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--f-ui);
+  font-size: var(--t-body);
+  line-height: 1.75;
+  font-synthesis-weight: none;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4, p, ul, ol, dl, dd, figure, blockquote, pre { margin: 0; }
+ul, ol { padding: 0; list-style: none; }
+img, svg { display: block; max-width: 100%; }
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* 触摸：点下去是樱粉色的一闪，而不是系统默认的灰蓝框；
+   manipulation 去掉双击缩放那 300ms 的等待，点音量按钮不会顺带把页面放大。 */
+a,
+button { -webkit-tap-highlight-color: rgba(255, 51, 153, 0.22); touch-action: manipulation; }
+
+/* 焦点：樱粉描边，永不裁掉。对浅地面 3.2:1，够 WCAG 2.2 要求的那 3:1——
+   上一轮那条琥珀在青底上只有 1.05:1，其实一直是隐形的。 */
+:focus-visible {
+  outline: 2px solid var(--cuer);
+  outline-offset: 3px;
+  border-radius: 1px;
+}
+:focus:not(:focus-visible) { outline: none; }
+
+::selection {
+  background: var(--mark);
+  color: var(--ink);
+}
+
+.skip {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 99;
+  padding: var(--s-2) var(--s-4);
+  background: var(--ink);
+  color: var(--paper);
+  font-size: var(--t-ui);
+}
+.skip:focus { left: var(--s-4); top: var(--s-4); }
+
+/* ------------------------------------------------------------ 每日一句
+   胡盐乱雨集的一段话，出现在每一页的顶上。小字，24 小时换一次。 */
+.epigraph {
+  background: var(--paper);
+  border-bottom: 1px solid var(--rule-soft);
+}
+.epigraph__inner {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-4);
+  padding: 0.62rem var(--gutter) 0.66rem;
+  /* 横屏刘海机：内容不要钻进圆角里 */
+  padding-inline: max(var(--gutter), env(safe-area-inset-left)) max(var(--gutter), env(safe-area-inset-right));
+}
+.epigraph__label {
+  flex: 0 0 auto;
+  position: relative;
+  font-size: 0.6875rem;
+  letter-spacing: 0.14em;
+  color: var(--miku-deep);
+  white-space: nowrap;
+}
+.epigraph__text {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--f-read);
+  font-size: var(--t-ui);
+  line-height: 1.7;
+  color: var(--ink);
+}
+.epigraph__note {
+  flex: 0 0 auto;
+  font-size: 0.625rem;
+  letter-spacing: 0.12em;
+  color: var(--ink-soft);
+  opacity: 0.78;
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------- 命令栏 */
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-bar);
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: var(--s-5);
+  height: var(--bar);
+  padding: 0 var(--gutter);
+  padding-inline: max(var(--gutter), env(safe-area-inset-left)) max(var(--gutter), env(safe-area-inset-right));
+  background: var(--paper);
+  border-bottom: 1px solid var(--rule);
+}
+
+.bar__id {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  position: relative;
+  flex: 0 1 auto;
+  min-width: 0;
+  font-family: var(--f-ui);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.bar__id span {
+  font-family: var(--f-measure);
+  font-size: 0.875rem;
+  font-weight: 400;
+  letter-spacing: 0.16em;
+  color: var(--miku-deep);
+}
+
+.bar__nav {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  gap: var(--s-5);
+  margin-left: auto;
+  font-size: var(--t-ui);
+  letter-spacing: 0.03em;
+}
+.bar__nav a {
+  position: relative;
+  color: var(--ink-soft);
+  padding-block: var(--s-1);
+  border-bottom: 1px solid transparent;
+  white-space: nowrap;
+}
+.bar__nav a:hover { color: var(--ink); border-bottom-color: var(--miku-deep); }
+.bar__nav a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--cuer); }
+
+.bar__theme,
+.bar__sound {
+  font: inherit;
+  font-size: var(--t-ui);
+  letter-spacing: 0.03em;
+  color: var(--ink-soft);
+  background: none;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+  white-space: nowrap;
+  /* 手指：两个开关各自撑到 40px 高，别按空 */
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.5rem;
+}
+.bar__theme:hover,
+.bar__sound:hover { color: var(--ink); border-color: var(--miku-deep); }
+/* 音效开着时按钮要有"按下"的样子，一眼能看出站点现在会发声 */
+.bar__sound[aria-pressed="true"] {
+  color: var(--paper);
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+/* ---------------------------------------------------------------- 外壳 */
+.shell {
+  display: grid;
+  grid-template-columns: var(--rail) minmax(0, 1fr);
+  align-items: start;
+}
+
+/* ---------------------------------------------------------------- 轨道栏 */
+.rail {
+  position: sticky;
+  top: var(--bar);
+  align-self: start;
+  border-right: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper);
+}
+.rail__label {
+  padding: var(--s-4) var(--s-3) var(--s-3);
+  font-size: 0.6875rem;
+  line-height: 1.4;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+}
+.key {
+  display: grid;
+  grid-template-columns: 1.9rem minmax(0, 1fr);
+  align-items: center;
+  gap: var(--s-1);
+  padding: 0.62rem 0.7rem 0.62rem 0.45rem;
+  border-bottom: 1px solid var(--rule-soft);
+  position: relative;
+  transition: background-color 0.15s ease;
+}
+.key::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: transparent;
+}
+.key__pitch {
+  font-family: var(--f-measure);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--miku-deep);
+}
+.key__name {
+  font-size: 0.875rem;
+  line-height: 1.35;
+  color: var(--ink);
+}
+.key:hover { background: var(--paper-deep); }
+.key:hover::before { background: var(--rule); }
+.key[aria-current="page"]::before { background: var(--miku-deep); }
+.key[aria-current="page"] .key__name { font-weight: 600; }
+/* 当前轨的音高名是"被指认"，用签色；此刻色只留给会动的东西（播放头/焦点环）。
+   两者在这里都不必再借琥珀——它在浅地面上只有 1.9:1。 */
+.key[aria-current="page"] .key__pitch { color: var(--miku-deep); }
+
+/* 黑键：F#3。整条栏里唯一的深色行——它真的是黑键。 */
+.key--black {
+  background: var(--key-black);
+  border-bottom-color: var(--key-black);
+}
+.key--black .key__name { color: var(--on-display); }
+.key--black .key__pitch { color: var(--miku); }
+.key--black:hover { background: var(--key-black-hover); }
+/* 黑键行本身就是深色面，当前轨的音高名改用暗窗态的签色 */
+.key--black[aria-current="page"] .key__pitch { color: var(--miku); }
+
+/* ---------------------------------------------------------------- 主区 */
+.main {
+  min-width: 0;
+  padding: var(--s-6) var(--gutter) var(--s-8);
+  padding-inline: max(var(--gutter), env(safe-area-inset-left)) max(var(--gutter), env(safe-area-inset-right));
+}
+
+/* ---------------------------------------------------------------- 排版 */
+.hero__name {
+  font-family: var(--f-read);
+  font-size: var(--t-hero);
+  line-height: 0.95;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+.hero__latin {
+  margin-top: var(--s-2);
+  font-family: var(--f-measure);
+  font-size: clamp(0.9rem, 1.6vw, 1.15rem);
+  font-weight: 400;
+  letter-spacing: 0.34em;
+  color: var(--miku-deep);
+}
+.hero__note {
+  margin-top: var(--s-4);
+  max-width: 30em;
+  font-family: var(--f-read);
+  font-size: var(--t-lead);
+  line-height: 1.8;
+  color: var(--ink);
+}
+.hero__note em {
+  font-style: normal;
+  border-bottom: 2px solid var(--miku-deep);
+}
+
+.sect-head { margin-bottom: var(--s-6); }
+.sect-head__pitch {
+  font-family: var(--f-measure);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--miku-deep);
+}
+.sect-head__name {
+  margin-top: var(--s-1);
+  font-family: var(--f-read);
+  font-size: var(--t-sect);
+  line-height: 1.12;
+  font-weight: 700;
+}
+.sect-head__def {
+  margin-top: var(--s-3);
+  font-family: var(--f-read);
+  font-size: var(--t-lead);
+  color: var(--ink-soft);
+}
+
+.lede {
+  max-width: var(--measure);
+  padding-bottom: var(--s-5);
+  border-bottom: 1px solid var(--ink);
+  font-family: var(--f-read);
+  font-size: var(--t-lead);
+  line-height: 1.85;
+}
+
+/* ---------------------------------------------------------------- 页脚 */
+.foot {
+  grid-column: 1 / -1;
+  padding: var(--s-7) var(--gutter) var(--s-8);
+  padding-bottom: max(var(--s-8), env(safe-area-inset-bottom));
+  border-top: 1px solid var(--rule);
+  text-align: center;
+}
+.foot__line {
+  font-family: var(--f-read);
+  font-size: 0.9375rem;
+  color: var(--ink);
+}
+.foot__meta {
+  margin-top: var(--s-3);
+  font-family: var(--f-measure);
+  font-size: var(--t-data);
+  letter-spacing: 0.18em;
+  color: var(--ink-soft);
+}
+
+/* ---------------------------------------------------------------- 响应式 */
+@media (max-width: 900px) {
+  /* 单列。这里必须从 grid 换成 block：grid 单列时轨道栏自己独占一行，
+     行高等于自身高度，sticky 就没有可移动的余量，会退化成普通元素。 */
+  .shell { display: block; }
+  .rail {
+    /* 手机上轨道栏由左侧竖排改为顶部横排，并继续粘在命令栏下面——
+       读长文时不必滚回顶部才能换板块。 */
+    position: sticky;
+    top: var(--bar);
+    z-index: var(--z-sticky);
+    display: flex;
+    gap: 0;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    border-right: 0;
+    background: var(--paper);
+    scrollbar-width: none;
+  }
+  .rail::-webkit-scrollbar { display: none; }
+  .rail__label { display: none; }
+  .key {
+    flex: 0 0 auto;
+    grid-template-columns: auto auto;
+    gap: 0.4rem;
+    min-height: 2.25rem;
+    padding: 0.45rem 0.8rem;
+    border-bottom: 0;              /* 底线交给 .rail，免得两把尺子叠在一起 */
+    white-space: nowrap;
+  }
+  .key::before { top: auto; bottom: 0; width: 100%; height: 3px; }
+  .main { padding-top: var(--s-5); }
+  .foot { padding-top: var(--s-6); }
+}
+
+/* 窄机：站点的顶级页面涨到五个（首页/说说/云村/归档/关于）之后，
+   「铭牌 + 五个导航 + 两个开关」在一行里放不下了 —— 320px 下光算宽度就差 70px。
+   所以命令栏在手机上折成两行：上行铭牌与两个开关，下行五个导航平分整宽。
+   顺带把每个导航的点击格子撑到 57×44 以上，比挤在一行里的小字好点得多。 */
+@media (max-width: 480px) {
+  :root {
+    --gutter: clamp(1rem, 3.6vw, 3.5rem);   /* 手机上两边各留 16px 就够 */
+    --bar: calc(5.5rem + 1px);              /* 两行各 2.75rem，加底下那条 1px 细线 */
+  }
+  .bar {
+    height: auto;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "id    .   theme sound"
+      "nav   nav nav   nav";
+    align-items: center;
+    row-gap: 0;
+    column-gap: var(--s-3);
+    padding-block: 0;
+  }
+  .bar__id {
+    grid-area: id;
+    display: flex;
+    align-items: center;
+    height: 2.75rem;
+    font-size: 0.875rem;
+  }
+  .bar__theme { grid-area: theme; }
+  .bar__sound { grid-area: sound; }
+  .bar__theme,
+  .bar__sound {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.45rem;
+    min-height: 2.25rem;
+  }
+  .bar__nav {
+    grid-area: nav;
+    margin-left: 0;
+    gap: 0;
+    height: 2.75rem;
+    align-items: stretch;
+  }
+  .bar__nav a {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-block: 0;
+    border-bottom: 2px solid transparent;
+    font-size: 0.78125rem;
+  }
+  .bar__nav a[aria-current="page"] { border-bottom-color: var(--cuer); }
+}
+
+@media (max-width: 560px) {
+  .bar__id span { display: none; }
+  .epigraph__note { display: none; }   /* 一句小字换来的整行宽度 */
+  .epigraph__text { font-size: 0.78125rem; }
+}
+
+/* 横屏手机：纵向只剩 390px 左右，命令栏和 hero 都收一档，
+   别让标题把正文挤出首屏。
+   只在命令栏还是单行时压矮它——480px 宽的横屏机走的是上面那套两行布局。 */
+@media (max-height: 480px) and (orientation: landscape) and (min-width: 481px) {
+  :root { --bar: 3rem; }
+  .epigraph__inner { padding-block: 0.35rem; }
+  .hero { padding-bottom: var(--s-5); }
+  .hero__name { font-size: clamp(2rem, 5.5vw, 3rem); }
+  .key { min-height: 2rem; }
+}
+
+/* 触摸设备：把偏小的可点区域用透明的 ::after 撑到 40px 上下。
+   视觉一点不动——这是给手指的，不是给眼睛的。 */
+@media (pointer: coarse) {
+  .bar__id::after,
+  .bar__nav a::after,
+  .epigraph__label::after,
+  .article__meta a::after {
+    content: "";
+    position: absolute;
+    inset: -0.55rem -0.25rem;
+  }
+}
+
+/* 两行命令栏里，每个导航本身就是 57×44 的格子，
+   再往外撑只会让相邻两个导航的命中区互相咬住 */
+@media (max-width: 480px) and (pointer: coarse) {
+  .bar__nav a::after { content: none; }
+}
+
+/* 触摸设备没有「悬停」：手指点过之后 :hover 会一直粘着，
+   那些只在指针下才该出现的状态要在这里撤掉 */
+@media (hover: none) {
+  .bar__nav a:hover { color: var(--ink-soft); border-bottom-color: transparent; }
+  .key:hover { background: transparent; }
+  .key--black:hover { background: var(--key-black); }
+  .key:hover::before { background: transparent; }
+  .key[aria-current="page"]::before { background: var(--miku-deep); }
+}
+
+/* ---------------------------------------------------------------- 无障碍 */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* ---------------------------------------------------------------- 打印 */
+@media print {
+  .bar, .rail, .skip, .foot { display: none; }
+  .shell { display: block; }
+  .roll { display: none; }
+  body { background: #fff; color: #000; }
+  a { text-decoration: underline; }
+}

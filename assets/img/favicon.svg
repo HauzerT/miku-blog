@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="CV01">
+  <!-- 站点缩略图：青绿地面 + 一扇暗窗 + 窗里的音符 + 一条「此刻」的游标。
+       地面保持满饱和的 #39C5BB —— 图标是标志，不是页面，浅底在标签栏里会糊掉。 -->
+  <rect width="32" height="32" fill="#39C5BB"/>
+  <rect x="0" y="7" width="32" height="19" fill="#1A1C1E"/>
+  <rect x="5" y="18" width="17" height="4" rx="1" fill="#39C5BB"/>
+  <rect x="5" y="11" width="9" height="4" rx="1" fill="#39C5BB"/>
+  <rect x="25" y="7" width="1.6" height="19" fill="#FF3399"/>
+  <rect x="5" y="24" width="12" height="1.4" fill="#39C5BB" opacity=".45"/>
+</svg>

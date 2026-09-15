@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f5f8f8">
+<title>云村 · 初音ミク CV01</title>
+<meta name="description" content="扫码登录网易云音乐，查看账号信息与红心歌单。">
+<link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/css/tokens.css">
+<link rel="stylesheet" href="assets/css/base.css">
+<link rel="stylesheet" href="assets/css/roll.css">
+<link rel="stylesheet" href="assets/css/page.css">
+<link rel="stylesheet" href="assets/css/studio.css">
+<link rel="stylesheet" href="assets/css/feed.css">
+<link rel="stylesheet" href="assets/css/kumura.css">
+<script>
+/* 先于首屏决定主题与动效，避免闪烁 */
+(function(){var r=document.documentElement,s=null;
+try{s=localStorage.getItem('cv01-theme')}catch(e){}
+if(s==='dark'||s==='light'){r.setAttribute('data-theme',s)}
+else if(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches){r.setAttribute('data-theme','dark')}
+/* 手机浏览器的地址栏跟着主题走，免得浅地面顶上压一条深带 */
+var m=document.querySelector('meta[name="theme-color"]');
+if(m)m.setAttribute('content',r.getAttribute('data-theme')==='dark'?'#1a1c1e':'#f5f8f8');
+if(!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)){r.classList.add('js')}})();
+</script>
+</head>
+<body>
+<a class="skip" href="#main">跳到正文</a>
+<aside class="epigraph" aria-label="每日一句">
+  <div class="epigraph__inner">
+    <a class="epigraph__label" href="sections/suiyu.html">胡盐乱雨集</a>
+    <span class="epigraph__text" data-excerpt title="每 24 小时换一句，全站同一天同一句">雨没有改变任何结果，它只是把结果推迟到我能承受的时候。</span>
+    <span class="epigraph__note">每日一句</span>
+  </div>
+</aside>
+<header class="bar">
+  <a class="bar__id" href="index.html">初音ミク <span>CV01</span></a>
+  <nav class="bar__nav" aria-label="站点">
+    <a href="index.html">首页</a>
+    <a href="feed.html">说说</a>
+    <a href="kumura.html" aria-current="page">云村</a>
+    <a href="archive.html">归档</a>
+    <a href="about.html">关于</a>
+  </nav>
+  <button class="bar__theme" type="button" data-theme-toggle hidden>夜间调声</button>
+  <button class="bar__sound" type="button" data-sound-toggle hidden>开启音效</button>
+</header>
+<div class="shell">
+<nav class="rail" aria-label="板块轨道">
+  <p class="rail__label">轨道 · 九个音</p>
+  <a class="key" data-pitch="A5" href="sections/niji.html"><span class="key__pitch">A5</span><span class="key__name">二次生命</span></a>
+  <a class="key" data-pitch="F#5" href="sections/tongxue.html"><span class="key__pitch">F#5</span><span class="key__name">恰同学少年</span></a>
+  <a class="key" data-pitch="D5" href="sections/suiyu.html"><span class="key__pitch">D5</span><span class="key__name">胡盐乱雨集</span></a>
+  <a class="key" data-pitch="B4" href="sections/worlds.html"><span class="key__pitch">B4</span><span class="key__name">千千千世界</span></a>
+  <a class="key" data-pitch="G4" href="sections/cloud.html"><span class="key__pitch">G4</span><span class="key__name">生活在云上</span></a>
+  <a class="key" data-pitch="E4" href="sections/editing.html"><span class="key__pitch">E4</span><span class="key__name">剪剪又辑辑</span></a>
+  <a class="key" data-pitch="C4" href="sections/fries.html"><span class="key__pitch">C4</span><span class="key__name">整点薯条</span></a>
+  <a class="key" data-pitch="A3" href="sections/prisoner.html"><span class="key__pitch">A3</span><span class="key__name">网上囚徒</span></a>
+  <a class="key key--black" data-pitch="F#3" href="sections/zuoti.html"><span class="key__pitch">F#3</span><span class="key__name">做题区doge</span></a>
+</nav>
+  <main class="main" id="main">
+    <header class="sect-head">
+      <p class="sect-head__pitch">G4 · 生活在云上</p>
+      <h1 class="sect-head__name">云村</h1>
+      <p class="sect-head__def">用网易云扫码登录，在这里看自己的账号与红心歌单。登录凭证只存在本机。</p>
+    </header>
+
+    <div class="km" data-music data-music-state="loading">
+
+      <section class="km-note" data-pane="loading">
+        <span class="km-spinner" aria-hidden="true"></span>正在连接本机的云村小服务…
+      </section>
+
+      <section class="km-note" data-pane="offline">
+        <b>小服务没在跑。</b><br>
+        在博客根目录执行 <code>node tools/ncm-server.mjs</code>，然后刷新这一页。
+        <span data-service-hint hidden></span>
+      </section>
+
+      <section class="km-login" data-pane="login">
+        <div class="km-login__frame">
+          <div class="km-login__code" data-qr></div>
+        </div>
+        <div class="km-login__side">
+          <p class="km-login__title">扫码登录网易云音乐</p>
+          <ol class="km-login__steps">
+            <li>打开手机上的网易云音乐 App</li>
+            <li>点左上角的「扫一扫」</li>
+            <li>对准左边的二维码，然后在手机上确认</li>
+          </ol>
+          <p class="km-login__status">
+            <span data-qr-status>正在准备二维码…</span>
+            <span class="km-login__timer" data-qr-timer></span>
+          </p>
+          <div class="km-profile__act">
+            <button class="km-btn" type="button" data-qr-refresh>换一张</button>
+          </div>
+          <p class="km-login__status">二维码由本站自己画，不经过任何第三方图片服务。<br>登录凭证只写进本机的 <code>.ncm-session.json</code>，浏览器这边不存。</p>
+        </div>
+      </section>
+
+      <section class="km-profile" data-pane="ready">
+        <div class="km-profile__bg" data-profile-bg hidden></div>
+        <div class="km-profile__avatar" data-avatar></div>
+        <div class="km-profile__body">
+          <div class="km-profile__top">
+            <h2 class="km-profile__name" data-nickname></h2>
+            <span class="km-profile__uid" data-uid></span>
+            <span class="km-profile__vip" data-vip hidden></span>
+          </div>
+          <p class="km-profile__sign" data-signature></p>
+          <ul class="km-facts" data-facts></ul>
+          <div class="km-profile__act">
+            <button class="km-btn" type="button" data-logout>退出登录</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="km-liked" data-pane="ready">
+        <div class="km-liked__head">
+          <div class="km-liked__cover" data-liked-cover hidden></div>
+          <div>
+            <div class="km-liked__meta" data-liked-meta></div>
+            <p class="km-liked__note" data-list-note></p>
+          </div>
+        </div>
+        <ol class="km-tracks" data-list></ol>
+        <p class="km-more"><button class="km-btn km-btn--main" type="button" data-more hidden>再读 50 首</button></p>
+      </section>
+
+      <!-- 播放条：平时藏着，点任意一首歌才升起来。
+           音频走网易 CDN 的直链（那边发 CORS 头），不经小服务中转。 -->
+      <div class="km-player" data-player hidden>
+        <div class="km-player__art" data-player-art></div>
+        <div class="km-player__meta">
+          <p class="km-player__name" data-player-name>—</p>
+          <p class="km-player__sub" data-player-sub></p>
+        </div>
+        <div class="km-player__ctrl">
+          <button class="km-player__btn" type="button" data-player-prev aria-label="上一首">◀◀</button>
+          <button class="km-player__btn km-player__btn--main" type="button" data-player-toggle aria-label="播放 / 暂停">▶</button>
+          <button class="km-player__btn" type="button" data-player-next aria-label="下一首">▶▶</button>
+        </div>
+        <div class="km-player__scrub">
+          <input class="km-player__seek" type="range" min="0" max="1000" value="0" step="1"
+                 aria-label="播放进度" data-player-seek>
+          <span class="km-player__clock" data-player-clock>0:00 / 0:00</span>
+        </div>
+        <div class="km-player__vol">
+          <span class="km-player__vol-label" aria-hidden="true">音量</span>
+          <input class="km-player__vol-range" type="range" min="0" max="100" value="80" step="1"
+                 aria-label="音量" data-player-vol>
+        </div>
+        <button class="km-player__btn km-player__btn--close" type="button" data-player-close aria-label="收起播放条">✕</button>
+      </div>
+
+    </div>
+  </main>
+<footer class="foot">
+  <p class="foot__line">初音ミク CV01 · 用卷帘当目录的个人博客骨架</p>
+  <p class="foot__meta">STATIC HTML · ZERO DEPENDENCIES · 2025</p>
+</footer>
+</div>
+<div class="studio" data-studio data-base="" hidden>
+  <div class="studio__panel" data-studio-panel hidden></div>
+  <div class="studio__dock">
+    <button class="ball ball--music" type="button" data-ball="music" aria-expanded="false" aria-label="音乐盒">
+      <span class="ball__glyph" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 18V6l10-2v12"></path><circle cx="6.5" cy="18" r="2.5"></circle><circle cx="16.5" cy="16" r="2.5"></circle>
+        </svg>
+      </span>
+      <span class="ball__dot" aria-hidden="true"></span>
+    </button>
+    <button class="ball ball--post" type="button" data-ball="post" aria-expanded="false" aria-label="发说说">
+      <span class="ball__glyph" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 5h16v11H9l-5 4z"></path><path d="M12 8v5M9.5 10.5h5"></path>
+        </svg>
+      </span>
+    </button>
+    <button class="ball ball--sect" type="button" data-ball="sect" aria-expanded="false" aria-label="新建板块">
+      <span class="ball__glyph" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 6h7v12H4zM13 6h7v5h-7zM13 13h7v5h-7z"></path>
+        </svg>
+      </span>
+    </button>
+  </div>
+  <audio data-bgm preload="metadata"></audio>
+</div>
+<script src="assets/js/excerpts.js" defer></script>
+<script src="assets/js/audio.js" defer></script>
+<script src="assets/js/site.js" defer></script>
+<script src="assets/js/music.js" defer></script>
+<script src="assets/js/feed.js" defer></script>
+<script src="assets/js/composer.js" defer></script>
+<script src="assets/js/sections.js" defer></script>
+<script src="assets/js/studio.js" defer></script>
+<script src="assets/js/music.config.js" defer></script>
+<script src="assets/js/qr.js" defer></script>
+<script src="assets/js/kumura.js" defer></script>
+</body>
+</html>
