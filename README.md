@@ -1,8 +1,12 @@
 # 初音ミク CV01 · 个人博客骨架
 
-一个用**钢琴卷帘当目录**的静态个人博客。零依赖、零构建也能跑：双击 `index.html` 就能看。
+一个用**钢琴卷帘当目录**的静态个人博客。零构建也能跑：双击 `index.html` 就能看。
 主题是一条工程界面式的人声合成器：九个板块 = 九条轨道 = 一个和弦的九个音。
 再双击一次 `start.cmd`，它就多出一套**上传系统**：音乐盒、新建板块。
+
+> **关于「零依赖」**：现在这句话要改一半——除 `assets/vendor/` 里的两个库
+> （marked 与 KaTeX，都是本地文件，见那一节的说明）之外，整站依然是手写的、
+> 零构建的、**不联网也完整可用**的（`file://` 双击照跑）。
 
 ```
 A5  二次生命        二次元
@@ -32,8 +36,8 @@ sections/             板块页（由脚本生成，可手改；界面新建的�
 posts/                文章页 + _template.html 模板
 content/posts.mjs     唯一的内容源（含页顶「每日一句」的句库）
 content/palette.mjs   唯一的配色源：原色 / 职务 / 校验规则 / 轮次（改颜色只动这个文件）
-server/server.mjs     上传服务：零依赖，只用 node: 内置模块
-server/lib/           外壳、数据层、上传落盘、动态页面渲染
+server/server.mjs     上传服务：只用 node: 内置模块 + assets/vendor 里的 marked / KaTeX
+server/lib/           外壳、数据层、上传落盘、动态页面渲染、Markdown 管线（markdown/emoji/htmltext）
 data/*.json           上传产生的记录（板块树 / 文章 / 曲库 / 口令）——服务读写
 media/                上传产生的文件（images / videos / music）
 start.cmd             双击启动上传服务 + 云村小服务（Windows）
@@ -51,6 +55,10 @@ tools/upload-check.mjs 上传自检：从文件选择器走一遍真实的传音
 tools/editor-check.mjs 编辑页自检：写一篇 → 四处页面都跟上 → 再删掉
 tools/login-check.mjs 门厅自检：颜色是不是那三个 token、空/错口令、访客不写钥匙（需要 Chrome）
 tools/edit-check.mjs  右键菜单自检：改名、撤下、恢复、410、页面上直接改字（需要 Chrome）
+tools/md-check.mjs    Markdown / 公式 / emoji 自检：GFM 各种语法、四种公式写法（需要 Chrome）
+server/lib/markdown.mjs 正文管线：marked（GFM）→ emoji 短代码 → KaTeX；decorateBody 给 HTML 用
+server/lib/emoji.mjs  常用 emoji 短代码表 + 只在文本节点上换的 decorateEmoji
+server/lib/htmltext.mjs 把 HTML 拆成标签与文本（code/pre 里不动），emoji 与公式共用
 assets/css/           palette（生成）→ tokens → base → roll → page → studio（工作台）→ editor（编辑页）→ kumura → login（门厅）
 assets/js/palette.js  由生成器写出的配色表 + 换轮次开关，勿手改
 assets/js/excerpts.js 由生成器写出的每日一句句库，勿手改
@@ -68,6 +76,7 @@ assets/js/music.config.js 云村页的可调项（服务地址、每页条数…
 assets/js/kumura.js   云村页：扫码、账号、红心歌单
 assets/audio/         真钢琴采样的投放处 —— 可选，见该目录下的 README
 assets/fonts/         Big Shoulders（OFL，随站自带，只在测量类文本上出现）
+assets/vendor/        仅有的两个第三方库：marked（Markdown）+ KaTeX（公式），本地文件，见该目录 README
 design/               设计计划、设计哲学、海报（PNG + PDF）
 ```
 
@@ -122,13 +131,20 @@ design/               设计计划、设计哲学、海报（PNG + PDF）
 看到的是播放控件和曲库，看不到任何会改硬盘的按钮。
 
 **写文章**：站长球里的「快速写一篇博客」会跳到独立编辑页 `editor.html`（整页跳，不走局部刷新）。
-左边填标题 / 板块 / 子板块 / 日期 / 阅读分钟 / 短标签 / 一句话简介，正文用 Markdown 子集写：
+左边填标题 / 板块 / 子板块 / 日期 / 阅读分钟 / 短标签 / 一句话简介，正文用 **Markdown（GFM 全量）**写：
 
 ```
-## 小标题          - 列表项          > 引用一行
-**粗体** *斜体* `代码` [文字](链接)     ![说明](/media/images/xxx.jpg)
-三个反引号包代码块；一行以 < 开头就整块原样放行（视频、音频靠它插进去）
+# 到 ######        六档标题（也认 === / --- 那种下划线式）
+- 列表 / 1. 列表    可以嵌套；任务列表写 - [x] / - [ ]；表格用 | 列 | 列 | 加 |---|---|
+> 引用             可以套一层
+**粗体** *斜体* ~~划掉~~ `代码` [文字](链接) ![说明](/media/images/xxx.jpg)
+三个反引号包代码块（带上语言名会加 class）；一行以 < 开头就整块原样放行（视频、音频靠它插进去）
+公式：$行内$ 与独立一行的 $$…$$（也认 \(…\) 与 \[…\]）；emoji 直接打，或写 :smile: 这样的短代码
 ```
+
+公式是 **KaTeX** 排的（服务端编译成 HTML + MathML，页面只加载本地 CSS 与字体，
+不跑 JS、不联网），emoji 用的是系统彩色字体 + 一张常用的短代码表。细节见
+下面「Markdown · 公式 · emoji」一节。
 
 图片 / 视频 / 音乐点按钮选、拖进正文框、或者 `Ctrl+V` 粘截图，都能传——
 传完自动把插入语法塞到光标处，右栏实时预览。保存进 `data/articles.json`，
@@ -338,6 +354,64 @@ node tools/edit-check.mjs http://127.0.0.1:4399   # 74 项：访客看不到 · 
                                                   #        直接改字（加粗 / 青下划线 / 划掉 / 一级 / 注释 / 保存 / 恢复）· 手机
 ```
 
+## Markdown · 公式 · emoji
+
+三件事，一条管线（`server/lib/markdown.mjs`）：
+
+```
+Markdown 源 ──► 抠出公式（保护起来）──► marked（GFM）──► emoji 短代码 ──► 公式装回去
+posts.mjs 里的 HTML ────────────────────────────────► emoji 短代码 ──► 公式（字符串版）
+```
+
+### Markdown：GFM 全量
+
+用的是 **marked 18.0.13**（本地文件，见 `assets/vendor/README.md`），所以该有的都有：
+六档 ATX 标题与下划线式标题、段落与硬换行、粗/斜/粗斜、删除线、行内代码与围栏代码（带语言名）、
+缩进代码块、有序/无序/嵌套列表、任务列表、表格与对齐、引用（可嵌套）、分隔线、
+链接（带 title）、自动链接、图片、行内 HTML 与整块 HTML。
+编辑页的右栏预览走 `/api/render`，与最终页面**同一个渲染器**，所见即所得。
+
+两个地方与「教科书 Markdown」不同，都是为了中文：
+
+| 情形 | 处理 |
+|---|---|
+| 裸链接后面跟着中文标点：`https://a.b，然后……` | GFM 会把「，然后」一起吞进链接里。这里在**第一个中文标点处剪断**，标点与后文还给正文；手写的 `[文字](地址)` 一律不碰。中文**汉字**不剪——`/wiki/中文` 是真的地址 |
+| HTML | **原样放行**（以前只放行整块以 `<` 开头的）。正文是站长自己写的，不做转义或白名单；「页面上直接改字」那条路仍然过 `sanitizeHtml` 轻清洗 |
+
+### 公式：KaTeX，服务端编译
+
+| 写法 | 效果 |
+|---|---|
+| `$E = mc^2$` | 行内公式 |
+| `$$…$$` 独立成块（可以跨行） | 独立公式（display 模式） |
+| `\(…\)` / `\[…\]` | 同上两种，LaTeX 那一套写法也认 |
+
+- **在写入时编译**，页面拿到的是排好版的 HTML + MathML：不闪、不需要浏览器跑 JS、
+  静态托管与 `file://` 打开都一样。代价：静态正文里的公式要跑一次 `node tools/build.mjs`。
+- 公式**先于** Markdown 被抠出来保护，所以 `$x_1 + x_2$` 里的下划线不会被当成强调，
+  `\(…\)` 也不会被 Markdown 当转义吃掉；反过来，**代码块与行内代码里的 `$` 与 `:smile:` 保持原样**。
+- 写坏的公式（`$\frac{a}{$`）不会把正文吃掉：KaTeX 把它标成红字，页面照常。
+- 只有真出现公式的页面才加载 `katex.min.css`；字体（20 个 woff2，共 254 KB）由浏览器按需懒加载。
+  「页面上直接改字」存下来的正文里若有公式，`sections.js` 会自己把那张样式表补上。
+
+### emoji：字体 + 短代码 + 面板
+
+- **字体栈**（`assets/css/tokens.css`）：`--f-read` / `--f-ui` / `--f-code` 末尾都挂了
+  Apple Color Emoji / Segoe UI Emoji / Noto Color Emoji——以前 emoji 会掉成黑白豆腐块就是这个原因。
+  浏览器按字符回退，不会抢走中文或拉丁字母。
+- **短代码**（`server/lib/emoji.mjs`）：`:smile:` → 😄，一份**常用**表（不是 GitHub 那 1800 个全量），
+  认不出来的原样留着，不会乱吃字符。给静态正文（`posts.mjs`）也能用，跑一次生成即生效。
+- **面板**：页面上直接改字时，工具条里那颗 ☺ 打开一格常用 emoji，点一个插到光标处——
+  手机上不用切系统键盘。
+
+自检：
+
+```bash
+node server/server.mjs 4399
+node tools/md-check.mjs http://127.0.0.1:4399   # 44 项：GFM 各种语法、四种公式写法、
+                                               #        代码块里不动、emoji 短代码、字体栈、emoji 面板
+```
+
 ## 钢琴声（可选，默认关闭）
 
 顶栏的「开启音效」打开后：**点轨道名 / 点卷帘的轨道头 —— 先响一声，再切模块**；
@@ -471,7 +545,7 @@ node tools/build.mjs
 ## 发布
 
 整站是纯静态的，丢到任何静态托管即可（GitHub Pages / Cloudflare Pages / 自己的机器）。
-`file://` 直接打开也完整可用——字体在本地，没有任何外部请求。
+`file://` 直接打开也完整可用——字体与那两个库都在本地，没有任何外部请求。
 
 **唯一的例外是 `kumura.html`。** 它要问本机的小服务，所以：
 - 只在你自己机器上跑：`node tools/ncm-server.mjs` 开着即可，页面照常；

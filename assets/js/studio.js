@@ -832,7 +832,7 @@
     b.setAttribute('aria-label', title);
     /* 按下鼠标不能让可编辑区丢焦点，不然选区就没了 */
     b.addEventListener('mousedown', function (e) { e.preventDefault(); });
-    b.addEventListener('click', function () { run(); });
+    b.addEventListener('click', function () { run(b); });
     group.appendChild(b);
     return b;
   }
@@ -872,6 +872,10 @@
     rteButton(fx, 'U', '下划线（粉）', function () { underline('var(--cuer)'); }, 'rte__btn--u rte__btn--pink');
     rteButton(fx, 'S', '划掉', function () { execCmd('strikeThrough'); }, 'rte__btn--s');
 
+    /* emoji：点开一格常用的，点一个就插到光标处。
+       手机上尤其有用——不用切到系统键盘去找 emoji。 */
+    rteButton(fx, '☺', '插入 emoji', function (btn) { toggleEmoji(btn); }, 'rte__btn--emoji');
+
     var acts = doc.createElement('div');
     acts.className = 'rte__group rte__group--acts';
     acts.setAttribute('role', 'group');
@@ -882,13 +886,79 @@
 
     var hint = doc.createElement('p');
     hint.className = 'rte__hint';
-    hint.textContent = '选中文字再加效果；Esc 取消，Ctrl+S 保存';
+    hint.textContent = '选中文字再加效果；Markdown 里也可以写 :smile:';
     bar.appendChild(hint);
     return bar;
   }
 
   /* 工具条贴着命令栏往下挂。命令栏是 sticky 的，位置随滚动变（顶上还有「每日一句」
      那一条会滚走），所以不能写死——每次开、每次滚都按它的实际底边算一次。 */
+  /* emoji 面板：一格常用的，点一个插到光标处（走 execCommand('insertText')，
+     所以撤销栈与光标都正常）。面板就挂在工具条里，跟着一起折行。 */
+  var EMOJI_PICKER = [
+    '😄', '😁', '😂', '🤣', '😊', '😍', '😘', '😎',
+    '🤔', '🙄', '😴', '🥺', '😭', '😱', '😤', '🤯',
+    '👍', '👎', '👌', '✌️', '🙏', '👏', '🙌', '🤝',
+    '💪', '👀', '🧠', '✍️', '❤️', '💔', '💖', '✨',
+    '🔥', '⭐', '🎉', '🎁', '🏆', '✅', '❌', '⚠️',
+    '💡', '📌', '📝', '📚', '💻', '🐛', '🔧', '🔍',
+    '🎵', '🎧', '🎸', '🎹', '🎬', '📷', '🎨', '🎮',
+    '☕', '🍰', '🍜', '🍣', '🌸', '🍀', '🌙', '☁️',
+    '🚀', '✈️', '🚲', '🏠', '🐱', '🐼', '🦊', '🐳',
+  ];
+
+  function insertAtCaret(text) {
+    if (!edit) return;
+    edit.el.focus();
+    var sel = window.getSelection();
+    var inside = sel && sel.rangeCount && edit.el.contains(sel.getRangeAt(0).startContainer);
+    if (!inside) {
+      var range = doc.createRange();
+      range.selectNodeContents(edit.el);
+      range.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+    var done = false;
+    try { done = doc.execCommand('insertText', false, text); } catch (e) { done = false; }
+    if (!done) {
+      var r = window.getSelection();
+      if (r && r.rangeCount) {
+        var node = doc.createTextNode(text);
+        r.getRangeAt(0).insertNode(node);
+        r.getRangeAt(0).setStartAfter(node);
+        r.getRangeAt(0).collapse(true);
+      } else {
+        edit.el.appendChild(doc.createTextNode(text));
+      }
+    }
+    markChanged();
+  }
+
+  function toggleEmoji(btn) {
+    if (!edit || !edit.bar) return;
+    var open = edit.bar.querySelector('.rte__emoji');
+    if (open) { open.remove(); btn.classList.remove('is-on'); return; }
+    var grid = doc.createElement('div');
+    grid.className = 'rte__emoji';
+    grid.setAttribute('role', 'group');
+    grid.setAttribute('aria-label', 'emoji');
+    EMOJI_PICKER.forEach(function (ch) {
+      var b = doc.createElement('button');
+      b.type = 'button';
+      b.className = 'rte__emoji-btn';
+      b.textContent = ch;
+      b.title = '插入 ' + ch;
+      b.setAttribute('aria-label', '插入 ' + ch);
+      /* 按下鼠标别让可编辑区丢焦点，不然光标就没了 */
+      b.addEventListener('mousedown', function (e) { e.preventDefault(); });
+      b.addEventListener('click', function () { insertAtCaret(ch); });
+      grid.appendChild(b);
+    });
+    edit.bar.appendChild(grid);
+    btn.classList.add('is-on');
+  }
+
   function placeBar() {
     if (!edit || !edit.bar) return;
     var bar = doc.querySelector('.bar');

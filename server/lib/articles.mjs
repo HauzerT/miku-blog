@@ -5,7 +5,7 @@
    生成静态页；这批只在服务里活着（data/articles.json），页面由服务运行时渲染。
 
    这里负责四件事：
-     · renderBody()   正文：Markdown 子集 → HTML（整块以 < 开头的照样原样放行）
+     · renderBody()   正文：Markdown（marked，见 ./markdown.mjs）+ 公式 + emoji
      · mergeTracks()  把运行时文章接进九条轨道（卷帘的音符位置、相邻文章都靠它）
      · articlePage()  文章页，版式与生成出来的文章页一模一样
      · articleBrief() 给前端合并用的瘦身版（含卷帘上的 x/w）
@@ -13,93 +13,13 @@
 
 import { site, page, escapeHtml, noteWidth, slotOf, rollStrip } from './shell.mjs';
 import { sortByPitch, hiddenIn } from './store.mjs';
+import { renderMarkdown, needsMath } from './markdown.mjs';
 
-/* ------------------------------------------------------------------ 正文 */
-
-const escapeHtmlSoft = (s) =>
-  String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
-/* 行内：先转义再套标记，所以正文里的裸 HTML 只会原样显示（想放 HTML 就整块写） */
-function inline(text) {
-  return escapeHtmlSoft(text)
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, '<img src="$2" alt="$1" loading="lazy">')
-    .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<a href="$2">$1</a>')
-    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-    .replace(/(^|[^*])\*([^*]+)\*/g, '$1<em>$2</em>');
-}
-
-const isBlockStart = (line) =>
-  /^\s*</.test(line) || /^```/.test(line) || /^#{2,4}\s+/.test(line) || /^\s*>\s?/.test(line) ||
-  /^\s*[-*+]\s+/.test(line) || /^\s*\d+[.)]\s+/.test(line) || /^\s*(-{3,}|\*{3,})\s*$/.test(line);
-
-export function renderBody(source) {
-  const lines = String(source || '').replace(/\r\n?/g, '\n').split('\n');
-  const out = [];
-  let i = 0;
-
-  while (i < lines.length) {
-    const line = lines[i];
-
-    if (!line.trim()) { i++; continue; }
-
-    /* 围栏代码块 */
-    if (/^```/.test(line)) {
-      const code = [];
-      i++;
-      while (i < lines.length && !/^```\s*$/.test(lines[i])) { code.push(lines[i]); i++; }
-      i++;                                          // 收尾那行 ```
-      out.push(`<pre><code>${escapeHtmlSoft(code.join('\n'))}</code></pre>`);
-      continue;
-    }
-
-    /* 整块 HTML：一行以 < 开头就一直吃到空行，原样放行（视频、音频、图表都靠它） */
-    if (/^\s*</.test(line)) {
-      const block = [];
-      while (i < lines.length && lines[i].trim()) { block.push(lines[i]); i++; }
-      out.push(block.join('\n'));
-      continue;
-    }
-
-    const h = /^(#{2,4})\s+(.*)$/.exec(line);
-    if (h) {
-      const lv = h[1].length;
-      out.push(`<h${lv}>${inline(h[2])}</h${lv}>`);
-      i++;
-      continue;
-    }
-
-    if (/^\s*(-{3,}|\*{3,})\s*$/.test(line)) { out.push('<hr>'); i++; continue; }
-
-    if (/^\s*>\s?/.test(line)) {
-      const quote = [];
-      while (i < lines.length && /^\s*>\s?/.test(lines[i])) { quote.push(lines[i].replace(/^\s*>\s?/, '')); i++; }
-      out.push(`<blockquote><p>${inline(quote.join(' '))}</p></blockquote>`);
-      continue;
-    }
-
-    if (/^\s*[-*+]\s+/.test(line)) {
-      const items = [];
-      while (i < lines.length && /^\s*[-*+]\s+/.test(lines[i])) { items.push(lines[i].replace(/^\s*[-*+]\s+/, '')); i++; }
-      out.push(`<ul>\n${items.map((x) => `  <li>${inline(x)}</li>`).join('\n')}\n</ul>`);
-      continue;
-    }
-
-    if (/^\s*\d+[.)]\s+/.test(line)) {
-      const items = [];
-      while (i < lines.length && /^\s*\d+[.)]\s+/.test(lines[i])) { items.push(lines[i].replace(/^\s*\d+[.)]\s+/, '')); i++; }
-      out.push(`<ol>\n${items.map((x) => `  <li>${inline(x)}</li>`).join('\n')}\n</ol>`);
-      continue;
-    }
-
-    /* 段落：连着吃到空行或者下一个块级开头 */
-    const para = [];
-    while (i < lines.length && lines[i].trim() && !isBlockStart(lines[i])) { para.push(lines[i]); i++; }
-    out.push(`<p>${inline(para.join('\n')).replace(/\n/g, '<br>')}</p>`);
-  }
-
-  return out.join('\n');
-}
+/* ------------------------------------------------------------------ 正文
+   以前这里是一个手写的 Markdown 子集（标题两档、列表、引用、代码块）。
+   现在交给 marked（GFM 全量）＋ KaTeX：见 server/lib/markdown.mjs。
+   名字保持不变，调用方（/api/render 预览、文章页）不用动。 */
+export const renderBody = renderMarkdown;
 
 /* ------------------------------------------------------------------ 轨道 */
 
@@ -331,6 +251,8 @@ ${pager}
     nav: 'post',
     currentSection: track.id,
     tracks,
+    /* 只有真出现公式的页面才带上 KaTeX 的样式表（字体是懒加载的，只在用到时下载） */
+    styles: needsMath(body) ? ['assets/vendor/katex/katex.min.css'] : [],
     main,
   });
 }

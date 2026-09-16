@@ -28,12 +28,18 @@
 }
 
 :root {
-  /* ---- 字体：读 / 操作 / 测量 ---- */
-  --f-read: "Noto Serif SC", "Source Han Serif SC", "Songti SC", "SimSun", Georgia, serif;
-  --f-ui: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  /* ---- 字体：读 / 操作 / 测量 ----
+     每个栈的最后都挂着 emoji 字体：正文里写个 🙂 不至于掉成黑白豆腐块。
+     浏览器按「字符」回退，所以这几个家族只在 emoji 码位上生效，
+     不会把中文或拉丁字母抢走。 */
+  --f-read: "Noto Serif SC", "Source Han Serif SC", "Songti SC", "SimSun", Georgia,
+            "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Twemoji Mozilla", serif;
+  --f-ui: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system,
+          "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
   --f-measure: "Big Shoulders", "Noto Sans SC", system-ui, sans-serif;
   /* 等宽只用于代码，永不用于标签——小数据标签用窄体更贴合仪器面板 */
-  --f-code: "JetBrains Mono", "Cascadia Mono", Consolas, "SF Mono", ui-monospace, monospace;
+  --f-code: "JetBrains Mono", "Cascadia Mono", Consolas, "SF Mono", ui-monospace, monospace,
+            "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji";
 
   /* ---- 字阶 ---- */
   --t-hero: clamp(2.7rem, 7.2vw, 5rem);

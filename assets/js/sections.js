@@ -362,7 +362,12 @@
       var name = li.querySelector('.entry__name a');
       if (name && name.textContent !== s.name) name.textContent = s.name;
       var blurb = li.querySelector('.entry__blurb');
-      if (blurb && s.def && blurb.textContent !== s.def) blurb.textContent = s.def;
+      if (blurb && s.def) {
+        /* 索引里这行简介是单行的：生成器把 <br> 折成空格，这里也照办——
+           直接塞 textContent 会把 <br> 当字面量摆在页面上 */
+        var oneLine = String(s.def).replace(/<br\s*\/?>/gi, ' ');
+        if (blurb.textContent !== oneLine) blurb.textContent = oneLine;
+      }
       var count = li.querySelector('.entry__count');
       if (count) count.textContent = (s.articles || 0) + ' 篇';
       var recent = li.querySelector('.entry__recent');
@@ -451,12 +456,19 @@
     each(main.querySelectorAll('[data-live]'), function (n) { n.parentNode.removeChild(n); });
 
     /* 两层的文章都要：归档页列的是全部。
+       服务那份 posts 已经合并过「原生 + 运行时」，runtime 又是单独一份，
+       所以按 slug 去重——不去重的话新写的文章会在这里排两行。
        撤下的整行拿掉，改过名的当场换字——静态页里那两样都是旧的。 */
     var posts = [];
     var briefs = {};
+    var seen = {};
     all.forEach(function (s) {
-      (s.posts || []).forEach(function (p) { posts.push(p); briefs[p.slug] = p; });
-      (s.runtime || []).forEach(function (p) { posts.push(p); briefs[p.slug] = p; });
+      (s.posts || []).concat(s.runtime || []).forEach(function (p) {
+        if (!p || seen[p.slug]) return;
+        seen[p.slug] = true;
+        posts.push(p);
+        briefs[p.slug] = p;
+      });
     });
     var gone = {};
     ((hidden && hidden.posts) || []).forEach(function (p) { gone[p.slug] = true; });
@@ -481,6 +493,7 @@
 
     runtime.forEach(function (art) {
       if (known[art.slug]) return;
+      known[art.slug] = true;                        // 这份名单补进去就地记一笔，同一条不会再补第二次
       var year = String(art.date).slice(0, 4);
       var group = null;
       each(main.querySelectorAll('.year'), function (g) {
@@ -731,7 +744,16 @@
         (s.runtime || []).forEach(function (p) { if (p.slug === slug) hit = p; });
       });
       var prose = doc.querySelector('main .prose');
-      if (hit && hit.body && prose && prose.innerHTML !== hit.body) prose.innerHTML = hit.body;
+      if (hit && hit.body && prose && prose.innerHTML !== hit.body) {
+        prose.innerHTML = hit.body;
+        needMathCss(hit.body);
+      }
+      /* 改过名的：文章页的大标题与标签页也照服务那份换——静态页里烤着的是旧标题 */
+      if (hit && hit.title) {
+        var h1 = doc.querySelector('main .article__title');
+        if (h1 && h1.textContent !== hit.title) h1.textContent = hit.title;
+        retitle(hit.title);
+      }
       return;
     }
     var sec = /\/sections\/([^/]+?)(?:\/([^/]+?))?\.html$/.exec(location.pathname);
@@ -740,10 +762,23 @@
     var section = null;
     all.forEach(function (s) { if (s.id === id) section = s; });
     if (!section) return;
+    /* 改过名的板块：页头那个名字（和标签页）也换——轨道栏与索引有人管，就这一处没人管 */
+    var name = doc.querySelector('.sect-head__name');
+    if (name && section.name && name.textContent !== section.name) name.textContent = section.name;
+    retitle(section.name);
     var def = doc.querySelector('.sect-head__def');
     if (def && typeof section.def === 'string') putLine(def, section.def);
     var lede = doc.querySelector('.lede');
     if (lede && typeof section.lede === 'string') putLine(lede, section.lede);
+  }
+
+  /* 标签页上的标题跟着换：页面 <title> 的第一段就是这篇 / 这个板块的名字，
+     把它换掉即可——后面的「· 初音ミク CV01」是站点自己的，不动。 */
+  function retitle(name) {
+    var at = String(doc.title || '').indexOf(' · ');
+    if (!name || at < 0) return;
+    var next = name + doc.title.slice(at);
+    if (doc.title !== next) doc.title = next;
   }
 
   /* 板块那两行是纯文本，只允许 <br> 当换行；服务写的时候就洗过了，这里再挡一道。
@@ -762,6 +797,18 @@
     if (/^(?:[^<>]|<br\s*\/?>)*$/i.test(text)) el.innerHTML = text;
     else el.textContent = text.replace(/[<>]/g, '');
     return true;
+  }
+
+  /* 贴上去的正文里要是有公式（页面上直接改字存下来的那种），这一页可能没带
+     KaTeX 的样式表——静态页是按**生成时**的正文决定带不带的。缺了就补一张：
+     它只是本地的一张 CSS，字体是懒加载的。 */
+  function needMathCss(html) {
+    if (!/class="katex/.test(String(html || ''))) return;
+    if (doc.querySelector('link[href$="katex.min.css"]')) return;
+    var link = doc.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = cv01.base + 'assets/vendor/katex/katex.min.css';
+    doc.head.appendChild(link);
   }
 
   var syncing = false;

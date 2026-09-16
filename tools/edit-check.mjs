@@ -493,6 +493,22 @@ try {
   check('刷新之后：静态页里的标题也跟上了', (await evaluate(rowTitle)) === '自检改过的标题', await evaluate(rowTitle));
   check('标题也进了 /api/posts', ((await api('/api/posts')).data.posts.find((p) => p.slug === 'back-row-three') || {}).title === '自检改过的标题');
 
+  /* 改名之后：文章页的大标题与标签页也要照服务那份换——静态页里烤着的是旧标题 */
+  await goto(`${SITE}/posts/back-row-three.html`);
+  const artH1 = await evaluate(`document.querySelector('.article__title').textContent`);
+  check('刷新之后：文章页的大标题也跟上了', artH1 === '自检改过的标题', artH1);
+  check('刷新之后：文章页的标签页也跟上了', (await evaluate('document.title.indexOf("自检改过的标题") === 0')), await evaluate('document.title'));
+
+  /* 板块改名：板块页页头的名字与标签页同理（轨道栏 / 索引有人管，页头以前没人管） */
+  await api('/api/sections/tongxue', 'PATCH', { name: '恰同学少年自检改名' });
+  restore.push(async () => { await api('/api/sections/tongxue', 'PATCH', { name: '恰同学少年' }); });
+  await goto(`${SITE}/sections/tongxue.html`);
+  const secH1 = await evaluate(`(document.querySelector('.sect-head__name')||{}).textContent || ''`);
+  check('板块改名后：页头的名字刷新后跟上', secH1 === '恰同学少年自检改名', secH1);
+  check('板块改名后：标签页的名字也跟上', (await evaluate('document.title.indexOf("恰同学少年自检改名") === 0')), await evaluate('document.title'));
+  await api('/api/sections/tongxue', 'PATCH', { name: '恰同学少年' });
+  await goto(`${SITE}/sections/tongxue.html`);
+
   /* 撤下这一篇 */
   const rowAt2 = Number(await evaluate(`(function () {
     var rows = Array.prototype.slice.call(document.querySelectorAll('.post-row'));

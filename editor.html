@@ -15,6 +15,8 @@
 <link rel="stylesheet" href="assets/css/page.css">
 <link rel="stylesheet" href="assets/css/studio.css">
 <link rel="stylesheet" href="assets/css/editor.css">
+<!-- 右栏预览里的数学公式要靠它（本地文件，字体是懒加载的） -->
+<link rel="stylesheet" href="assets/vendor/katex/katex.min.css">
 <script>
 /* 先于首屏决定主题与动效，避免闪烁 */
 (function(){var r=document.documentElement,s=null;
@@ -102,8 +104,11 @@ if(!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches))
       <textarea class="ed__text" data-source rows="18" placeholder="正文。空行分段；## 小标题；- 列表；&gt; 引用；三个反引号包代码块。"></textarea>
 
       <p class="ed__tips">
-        <b>##</b> 小标题 · <b>-</b> 列表 · <b>&gt;</b> 引用 · 三个反引号包代码块 · <b>**粗体**</b> · <b>*斜体*</b> ·
-        <b>`代码`</b> · <b>[文字](链接)</b> · 图片用 <b>![说明](地址)</b>。
+        <b>#</b>–<b>######</b> 六档标题 · <b>-</b> / <b>1.</b> 列表（可以嵌套）· <b>&gt;</b> 引用 · 三个反引号包代码块 ·
+        <b>**粗体**</b> · <b>*斜体*</b> · <b>~~划掉~~</b> · <b>`代码`</b> · <b>[文字](链接)</b> · 图片用 <b>![说明](地址)</b> ·
+        表格用 <b>| 列 | 列 |</b> 加一行 <b>|---|---|</b> · 任务列表写 <b>- [x]</b> ·
+        公式 <b>$行内$</b> 与独立一行 <b>$$…$$</b>（也可以写 <b>\(…\)</b> / <b>\[…\]</b>，KaTeX 支持的都认）·
+        emoji 直接打，或者写 <b>:smile:</b> 这样的短代码。
         一行以 <code>&lt;</code> 开头就整块原样放行——视频、音频就是靠它插进去的。
       </p>
 

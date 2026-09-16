@@ -22,6 +22,7 @@ import {
   escapeHtml,
 } from '../server/lib/shell.mjs';
 import { dynamicSubPage } from '../server/lib/pages.mjs';
+import { decorateBody, needsMath } from '../server/lib/markdown.mjs';
 import { run as runTokens } from './tokens.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -185,8 +186,10 @@ function buildPost(post) {
   const next = siblings[post.pi + 1];
   const playX = noteWidth(post.ti, post.pi)[0];
 
+  /* 静态正文是手写的 HTML；过一遍 emoji 与公式，让 :smile: 与 $…$ 也在这儿成立
+     （生成出来的就是排好版的 HTML，静态托管、file:// 打开都一样） */
   const body = post.body
-    ? post.body.trim()
+    ? decorateBody(post.body.trim())
     : `<p class="empty">这篇还没写。骨架先留在这里：打开 <code>content/posts.mjs</code>，把这条记录的 <code>body</code> 填上，再运行 <code>node tools/build.mjs</code>——或者直接编辑这个 HTML 文件。</p>`;
 
   const pager = `<nav class="pager" aria-label="同轨道的相邻文章">
@@ -223,6 +226,8 @@ ${pager}
     nav: 'post',
     currentSection: post.track.id,
     tracks,
+    /* 只有真出现公式的那几篇才带上 KaTeX 的样式表 */
+    styles: needsMath(body) ? ['assets/vendor/katex/katex.min.css'] : [],
     main,
   });
 }

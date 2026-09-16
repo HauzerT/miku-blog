@@ -54,6 +54,9 @@ import {
   sanitizeHtml,
   sectionStats,
 } from './lib/articles.mjs';
+/* 正文的第二道加工：让「页面上直接改字」存下来的那段 HTML 里 :smile: 与 $…$ 也出
+   emoji 与公式（第一道是 sanitizeHtml 的轻清洗） */
+import { decorateBody } from './lib/markdown.mjs';
 
 const PORT = Number(process.argv[2] || process.env.PORT || 4321);
 const HOST = '127.0.0.1';
@@ -637,10 +640,11 @@ async function api(req, res, url) {
       }
       /* 页面上直接改的正文：存 HTML，源文件一个字节不动 */
       if (typeof body.body === 'string') {
-        writeOverride('posts', native.post.slug, { body: sanitizeHtml(body.body) });
+        writeOverride('posts', native.post.slug, { body: decorateBody(sanitizeHtml(body.body)) });
       }
       if (body.hidden === false) writeOverride('posts', native.post.slug, { hidden: false });
       if (body.body === false) writeOverride('posts', native.post.slug, { body: false });
+      if (body.title === false) writeOverride('posts', native.post.slug, { title: false });
       /* reset：把这一条覆盖整个抹掉（标题与正文都回到 content/posts.mjs 里的原样） */
       if (body.reset === true) {
         writeOverride('posts', native.post.slug, { title: false, body: false, hidden: false });
@@ -678,7 +682,7 @@ async function api(req, res, url) {
       delete article.body;
     }
     /* 页面上直接改的正文（富文本）：存 HTML，与 Markdown 源并存但优先 */
-    if (typeof body.body === 'string') article.body = sanitizeHtml(body.body);
+    if (typeof body.body === 'string') article.body = decorateBody(sanitizeHtml(body.body));
     if (body.body === false) delete article.body;
     if ('assets' in body) article.assets = cleanAssets(body.assets);
 
@@ -726,8 +730,8 @@ async function api(req, res, url) {
       name: name.slice(0, 40),
       pitch,
       black: /#/.test(pitch),
-      def: (form.fields.def || '').slice(0, 120),
-      lede: (form.fields.lede || '').slice(0, 400),
+      def: cleanLine(form.fields.def || '').slice(0, 120),
+      lede: cleanLine(form.fields.lede || '').slice(0, 400),
       order: sections.length,
       seed: false,
       at: new Date().toISOString(),

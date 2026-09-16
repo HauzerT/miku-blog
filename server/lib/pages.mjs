@@ -51,7 +51,7 @@ ${subs
   const main = `    <header class="sect-head">
       <p class="sect-head__pitch">${escapeHtml(track.pitch)}${track.black ? ' · 黑键' : ''} · ${posts.length} 篇</p>
       <h1 class="sect-head__name">${escapeHtml(track.name)}</h1>
-      <p class="sect-head__def">${escapeHtml(track.def || '新建板块')}</p>
+      <p class="sect-head__def">${track.def || '新建板块'}</p>
     </header>
 ${track.lede ? `    <p class="lede">${track.lede}</p>\n` : ''}${subNav}
 ${postRows(posts.filter((p) => !p.sub), base)}`;
@@ -75,7 +75,7 @@ export function dynamicSubPage({ track, sub, sections, base = '../../' }) {
     track.pitch
   )} ${escapeHtml(track.name)}</a> · 子板块 · ${posts.length} 篇</p>
       <h1 class="sect-head__name">${escapeHtml(sub.name)}</h1>
-${sub.def ? `      <p class="sect-head__def">${escapeHtml(sub.def)}</p>\n` : ''}    </header>
+${sub.def ? `      <p class="sect-head__def">${sub.def}</p>\n` : ''}    </header>
 ${postRows(posts, base)}`;
 
   return page({

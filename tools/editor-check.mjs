@@ -231,9 +231,11 @@ try {
     })).json();
     const slug2 = made2.article ? made2.article.slug : '';
     const dynHtml = await (await fetch(`${SITE}/sections/${runtimeSec.id}.html`, PAGE)).text();
+    /* 这台机器上的运行时板块可能本来就有文章（站长自己写的），所以篇数按它的底数算 */
+    const want = Number(runtimeSec.articles || 0) + 1;
     ok('运行时板块页列出了它的文章',
-      dynHtml.includes('动态板块自检') && /1 篇/.test(dynHtml),
-      `${runtimeSec.id} · 含标题=${dynHtml.includes('动态板块自检')}`);
+      dynHtml.includes('动态板块自检') && new RegExp(`sect-head__pitch">[^<]*· ${want} 篇`).test(dynHtml),
+      `${runtimeSec.id} · 含标题=${dynHtml.includes('动态板块自检')} · 期望 ${want} 篇`);
     if (slug2) await fetch(`${SITE}/api/articles/${made2.article.id}`, { method: 'DELETE', headers: { 'x-cv01-key': KEY } });
   } else {
     ok('运行时板块页列出了它的文章', false, '这台机器上还没有运行时板块，跳过');
@@ -247,11 +249,20 @@ try {
     var hit = Array.prototype.some.call(document.querySelectorAll('.post-row__title'), function (t) {
       return t.textContent === '编辑页自检文章';
     });
-    return JSON.stringify({ years: years, hit: hit, head: (document.querySelector('.sect-head__pitch')||{}).textContent || '' });
+    var rows = Array.prototype.map.call(document.querySelectorAll('.post-row__link'), function (a) {
+      return a.getAttribute('href');
+    });
+    var seen = {}, dup = [];
+    rows.forEach(function (h) { if (seen[h] && dup.indexOf(h) === -1) dup.push(h); seen[h] = true; });
+    return JSON.stringify({ years: years, hit: hit, rows: rows.length, dup: dup,
+      head: (document.querySelector('.sect-head__pitch')||{}).textContent || '' });
   })()`));
   console.log('归档：' + JSON.stringify(inArchive));
   ok('归档里有新文章', inArchive.hit);
   ok('归档总数 +1（28 篇）', /28 篇/.test(inArchive.head), inArchive.head);
+  /* 服务那份 posts 已经含运行时文章，runtime 又是一份单独的——不去重就会排两行 */
+  ok('归档里同一篇只排一行（新写的不会出现两次）', inArchive.dup.length === 0, inArchive.dup.join(' '));
+  ok('归档的行数跟头部篇数对得上', inArchive.rows === 28, `rows=${inArchive.rows}`);
 
   await goto(SITE + '/index.html');
   const inIndex = JSON.parse(await evaluate(`(function(){
@@ -291,14 +302,30 @@ try {
   /* ---------- 6. 回编辑页删掉（走列表里的「删」） ---------- */
   await goto(SITE + '/editor.html');
   await evaluate('window.confirm = function () { return true; }');
-  await evaluate(`document.querySelector('[data-list] [data-del]').click()`);
-  let gone = '';
-  for (let i = 0; i < 30; i++) {
+  /* 右栏「我写的」里可能还有站长自己的文章，所以认准刚写的这一条（按地址找） */
+  const mineHref = JSON.stringify('/posts/' + madeSlug + '.html');
+  const mineCount = `(function(){
+    return Array.prototype.filter.call(document.querySelectorAll('[data-list] .ed__list-title'), function (a) {
+      return a.getAttribute('href').indexOf(${mineHref}) >= 0;
+    }).length;
+  })()`;
+  const clicked = await evaluate(`(function(){
+    var hit = Array.prototype.filter.call(document.querySelectorAll('[data-list] .ed__list-item'), function (li) {
+      var a = li.querySelector('.ed__list-title');
+      return a && a.getAttribute('href').indexOf(${mineHref}) >= 0;
+    })[0];
+    if (!hit) return '右栏里没找到它';
+    hit.querySelector('[data-del]').click();
+    return 'ok';
+  })()`);
+  let gone = await evaluate(mineCount);
+  for (let i = 0; i < 30 && gone; i++) {
     await new Promise((r) => setTimeout(r, 400));
-    gone = await evaluate(`document.querySelectorAll('[data-list] .ed__list-item').length`);
-    if (String(gone) === '0') break;
+    gone = await evaluate(mineCount);
   }
-  ok('编辑页里能删掉它', String(gone) === '0', `剩下 ${gone} 条`);
+  ok('编辑页里能删掉它', clicked === 'ok' && gone === 0, `${clicked} · 还剩 ${gone} 条自检稿`);
+  const left = await evaluate(`document.querySelectorAll('[data-list] .ed__list-item').length`);
+  console.log(`编辑页右栏还剩 ${left} 条（站长自己写的那些照旧）`);
   const after = await fetch(SITE + '/posts/' + madeSlug + '.html', PAGE);
   ok('删完之后文章页 404', after.status === 404, `status=${after.status}`);
   madeSlug = '';
