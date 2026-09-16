@@ -139,6 +139,8 @@ try {
   })()`);
 
   /* ---------- 1. 打开编辑页 ---------- */
+  /* 先过门厅（站点页面要先盖章），再进编辑页 */
+  await goto(SITE + '/index.html?enter=1');
   await goto(SITE + '/editor.html');
   await evaluate(`localStorage.setItem('cv01-key', ${JSON.stringify(KEY)})`);
   const boot = JSON.parse(await evaluate(`JSON.stringify({
@@ -190,8 +192,12 @@ try {
   const listCount = await evaluate(`document.querySelectorAll('[data-list] .ed__list-item').length`);
   ok('右栏「我写的」里出现了它', listCount >= 1, `n=${listCount}`);
 
+  /* 门厅那枚章：服务在「页面」这一层拦的就是没盖章的人，
+     所以脚本里直接 fetch 页面时也要带上它（接口与资源不用） */
+  const PAGE = { headers: { cookie: 'cv01-enter=1' } };
+
   /* ---------- 4. 文章页 ---------- */
-  const page = await fetch(SITE + '/posts/' + madeSlug + '.html');
+  const page = await fetch(SITE + '/posts/' + madeSlug + '.html', PAGE);
   const html = await page.text();
   ok('动态文章页打得开', page.status === 200, `status=${page.status}`);
   ok('正文渲染正确', html.includes('<strong>粗体</strong>') && html.includes('<h2>小节</h2>') && html.includes('<li>一</li>'));
@@ -224,7 +230,7 @@ try {
       body: JSON.stringify({ title: '动态板块自检', section: runtimeSec.id, source: '一段话。', min: 2 }),
     })).json();
     const slug2 = made2.article ? made2.article.slug : '';
-    const dynHtml = await (await fetch(`${SITE}/sections/${runtimeSec.id}.html`)).text();
+    const dynHtml = await (await fetch(`${SITE}/sections/${runtimeSec.id}.html`, PAGE)).text();
     ok('运行时板块页列出了它的文章',
       dynHtml.includes('动态板块自检') && /1 篇/.test(dynHtml),
       `${runtimeSec.id} · 含标题=${dynHtml.includes('动态板块自检')}`);
@@ -293,7 +299,7 @@ try {
     if (String(gone) === '0') break;
   }
   ok('编辑页里能删掉它', String(gone) === '0', `剩下 ${gone} 条`);
-  const after = await fetch(SITE + '/posts/' + madeSlug + '.html');
+  const after = await fetch(SITE + '/posts/' + madeSlug + '.html', PAGE);
   ok('删完之后文章页 404', after.status === 404, `status=${after.status}`);
   madeSlug = '';
   madeId = '';

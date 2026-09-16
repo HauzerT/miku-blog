@@ -106,33 +106,33 @@ export const windows = {
   },
 
   cyan: {
-    note: '青窗 —— 青底、白块音符、黑字',
-    '--win-ground': paint.miku.main,          /* 地：青 */
-    '--win-ink': paint.black.window,          /* 墨：黑（对青 8.83:1） */
-    '--win-ink-soft': '#20484a',              /* 次墨：深青灰（对青 4.73:1） */
-    '--win-accent': paint.black.window,
-    '--win-cue': paint.black.window,          /* 此刻也是黑的：粉在青上只有 1.60:1 */
-    '--win-note': paint.grey.paper,           /* 音符：白块 */
-    '--win-note-ink': paint.black.window,     /* 块上的字：黑（对白 15.6:1） */
-    '--win-note-idle': paint.black.window,    /* 未点亮：黑，扫光掠过时"被点亮"成白 */
-    '--win-ghost': paint.black.window,        /* 定位条里的其他音符 */
-    '--win-ring': paint.black.window,
-    '--win-cursor': paint.black.window,
-    '--win-cursor-glow': rgba(paint.black.window, 0),  /* 黑线不发光：那圈辉光本来就是给粉的 */
+    note: '青窗 —— 白天青底黑键白字；晚上深底粉键黑字',
+    /* 白天：青底、黑块、白字。晚上这一套整块翻过来——地变深、键变粉、字变黑。
+       为什么晚上不能还是青底：粉 #FF3399 落在青 #39C5BB 上只有 1.60:1，
+       粉块会整块消失（那条黑边救形状不救颜色，见门厅那颗"访客键"）。 */
+    '--win-ground': [paint.miku.main, paint.black.window],          /* 白天青地 / 晚上深地 */
+    '--win-ink': [paint.black.window, paint.grey.onNight],          /* 8.83:1 / 15.64:1 */
+    '--win-ink-soft': ['#20484a', paint.grey.onNightSoft],          /* 4.73:1 / 7.44:1 */
+    '--win-accent': [paint.black.window, paint.miku.main],          /* 晚上让青留在读数上（9.21:1） */
+    '--win-cue': [paint.black.window, paint.sakura.main],           /* 此刻：白天黑，晚上回到粉 */
+    '--win-note': [paint.black.window, paint.sakura.main],          /* 键：黑 / 粉 */
+    '--win-note-ink': [paint.grey.paper, paint.black.window],       /* 字：白 / 黑 */
+    '--win-note-idle': [paint.black.window, paint.sakura.main],     /* 未点亮：同色淡下去，扫光点亮它 */
+    '--win-ghost': [paint.black.window, paint.sakura.main],         /* 定位条里的其他音符 */
+    '--win-ring': [paint.black.window, paint.sakura.main],
+    '--win-cursor': [paint.black.window, paint.sakura.main],        /* 播放头：白天黑线，晚上粉线 */
+    '--win-cursor-glow': [rgba(paint.black.window, 0), rgba(paint.sakura.main, 0.5)],
 
     overrides: {
-      '--roll-line': rgba(paint.black.window, 0.22),
-      '--roll-line-strong': rgba(paint.black.window, 0.3),
-      '--roll-lane': rgba(paint.black.window, 0.15),
-      '--roll-beat': rgba(paint.black.window, 0.26),
-      '--roll-tick': rgba(paint.black.window, 0.1),
-      '--roll-band': rgba(paint.grey.paper, 0.07),    /* 隔小节淡带改用白：青地上才显得亮一点 */
-      '--roll-thumb': rgba(paint.black.window, 0.32),
-      '--roll-cap': rgba(paint.grey.paper, 0.88),     /* 白键：白 */
-      '--roll-cap-line': rgba(paint.black.window, 0.45),
-      '--roll-cap-black': paint.black.window,         /* 黑键：黑 */
-      '--roll-lane-black': rgba(paint.black.window, 0.1),
-      '--note-ring': rgba(paint.black.window, 0.22),
+      '--roll-line': [rgba(paint.black.window, 0.22), rgba(paint.grey.pale, 0.16)],
+      '--roll-line-strong': [rgba(paint.black.window, 0.3), rgba(paint.grey.pale, 0.22)],
+      '--roll-lane': [rgba(paint.black.window, 0.15), rgba(paint.grey.pale, 0.12)],
+      '--roll-thumb': [rgba(paint.black.window, 0.32), rgba(paint.grey.onNightSoft, 0.35)],
+      '--roll-cap': [rgba(paint.grey.paper, 0.88), rgba(paint.grey.pale, 0.14)],   /* 白键 */
+      '--roll-cap-line': [rgba(paint.black.window, 0.45), rgba('#000000', 0.85)],
+      '--roll-cap-black': [paint.black.window, rgba('#000000', 0.55)],             /* 黑键 */
+      '--roll-lane-black': [rgba(paint.black.window, 0.1), rgba('#000000', 0.28)],
+      '--note-ring': [rgba(paint.black.window, 0.22), rgba('#000000', 0.18)],
     },
   },
 };
@@ -189,8 +189,8 @@ export const jobs = {
   '--miku': '签', '--miku-deep': '签',
   '--cuer': '示', '--cuer-glow': '示',
   '--rule': '线', '--rule-soft': '线', '--tap': '线',
-  '--roll-line': '窗', '--roll-line-strong': '窗', '--roll-lane': '窗', '--roll-beat': '窗',
-  '--roll-tick': '窗', '--roll-band': '窗', '--roll-thumb': '窗', '--roll-cap': '窗',
+  '--roll-line': '窗', '--roll-line-strong': '窗', '--roll-lane': '窗',
+  '--roll-thumb': '窗', '--roll-cap': '窗',
   '--roll-cap-line': '窗', '--roll-cap-black': '窗', '--roll-lane-black': '窗',
   '--note-ring': '窗', '--km-seam': '窗', '--km-raise': '窗',
   '--win-ground': '窗·地', '--win-ink': '窗·墨', '--win-ink-soft': '窗·次墨',
@@ -248,9 +248,6 @@ export const rounds = {
       '--roll-line': rgba(paint.miku.light, 0.16),
       '--roll-line-strong': rgba(paint.miku.light, 0.22),
       '--roll-lane': rgba(paint.miku.light, 0.12),
-      '--roll-beat': rgba(paint.miku.light, 0.2),
-      '--roll-tick': rgba(paint.miku.light, 0.08),
-      '--roll-band': rgba(paint.grey.pale, 0.04),
       '--roll-thumb': rgba(paint.grey.onNightSoft, 0.35),
       '--roll-cap': rgba(paint.grey.pale, 0.14),
       '--roll-cap-line': rgba('#000000', 0.85),
@@ -310,9 +307,6 @@ export const rounds = {
       '--roll-line': rgba(paint.miku.light, 0.16),
       '--roll-line-strong': rgba(paint.miku.light, 0.22),
       '--roll-lane': rgba(paint.miku.light, 0.12),
-      '--roll-beat': rgba(paint.miku.light, 0.2),
-      '--roll-tick': rgba(paint.miku.light, 0.08),
-      '--roll-band': rgba(paint.grey.pale, 0.04),
       '--roll-thumb': rgba(paint.grey.onNightSoft, 0.35),
       '--roll-cap': rgba(paint.grey.pale, 0.14),
       '--roll-cap-line': rgba('#000000', 0.85),
@@ -374,9 +368,6 @@ export const rounds = {
       '--roll-line': rgba(paint.miku.light, 0.16),
       '--roll-line-strong': rgba(paint.miku.light, 0.22),
       '--roll-lane': rgba(paint.miku.light, 0.12),
-      '--roll-beat': rgba(paint.miku.light, 0.2),
-      '--roll-tick': rgba(paint.miku.light, 0.08),
-      '--roll-band': rgba(paint.grey.pale, 0.05),
       '--roll-thumb': rgba(paint.grey.onNightSoft, 0.35),
       '--roll-cap': rgba(paint.grey.pale, 0.22),
       '--roll-cap-line': rgba('#000000', 0.85),

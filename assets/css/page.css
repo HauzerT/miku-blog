@@ -190,6 +190,20 @@
 }
 .prose a:hover { background: var(--paper-deep); }
 .prose strong { font-weight: 700; }
+/* 注释：正文里的第四档字号（页面上直接改字时能选）。小一号、淡一档 */
+.prose .prose-note {
+  font-size: var(--t-data);
+  line-height: 1.8;
+  color: var(--ink-soft);
+}
+/* 页面上直接改字：那一段可编辑时的样子。描边用「此刻」色——它正是此刻的事。
+   （html 上那个 data-editing 只管状态，别拿它做选择器：那会给整页描边） */
+[contenteditable="true"] {
+  outline: 2px solid var(--cuer);
+  outline-offset: 0.5rem;
+  border-radius: 2px;
+  caret-color: var(--cuer);
+}
 .prose hr {
   border: 0;
   border-top: 1px solid var(--rule);

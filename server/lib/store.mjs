@@ -153,6 +153,41 @@ export function saveArticles(list) {
   writeJson(ARTICLES_FILE, list);
 }
 
+/* ------------------------------------------------------------------ 覆盖层
+   原生内容（content/posts.mjs 里的九个板块与那批静态文章）由 tools/build.mjs
+   生成 HTML，**服务不许改那个源文件**。所以站长的右键菜单对它们做的是「撤下」：
+   记录落在这里，源文件一个字节不动，删掉其中一条就等于恢复。
+
+     data/overrides.json
+       { "sections": { "<板块 id>": { "hidden": true } },
+         "posts":    { "<文章 slug>": { "title": "改过的标题", "hidden": true } } }
+
+   板块改名不走这里（那是 data/sections.json 里的一行，PATCH 已经能改）；
+   运行时的板块与文章也不走这里——它们是真正存在 data/ 里的东西，直接删真的删。 */
+const OVERRIDES_FILE = join(DATA, 'overrides.json');
+
+export function loadOverrides() {
+  const raw = readJson(OVERRIDES_FILE, null);
+  const out = { sections: {}, posts: {} };
+  if (raw && typeof raw === 'object') {
+    if (raw.sections && typeof raw.sections === 'object') out.sections = raw.sections;
+    if (raw.posts && typeof raw.posts === 'object') out.posts = raw.posts;
+  }
+  return out;
+}
+
+export function saveOverrides(value) {
+  writeJson(OVERRIDES_FILE, {
+    sections: (value && value.sections) || {},
+    posts: (value && value.posts) || {},
+  });
+}
+
+/* 覆盖层里那个「撤下」位：没有记录 / 空记录都算没撤下 */
+export function hiddenIn(map, key) {
+  return Boolean(map && map[key] && map[key].hidden);
+}
+
 /* ------------------------------------------------------------------ 音乐 */
 const MUSIC_FILE = join(DATA, 'music.json');
 

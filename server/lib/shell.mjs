@@ -295,7 +295,6 @@ ${keys}
       <div class="roll__field">
         <div class="roll__ruler" aria-hidden="true"><span>1</span><span>5</span><span>9</span><span>13</span></div>
         <div class="roll__body">
-          <div class="roll__beats" aria-hidden="true"></div>
           <div class="roll__lanes">
 ${lanes}
           </div>
@@ -328,7 +327,6 @@ export function rollStrip(tracks, currentId, currentSlug, playX) {
     <div class="roll__inner">
       <div class="roll__field">
         <div class="roll__body">
-          <div class="roll__beats" aria-hidden="true"></div>
           <div class="roll__lanes">
 ${lanes}
           </div>

@@ -32,6 +32,9 @@ import {
   scanMusicDir,
   loadSettings,
   saveSettings,
+  loadOverrides,
+  saveOverrides,
+  hiddenIn,
   suggestPitch,
   sortByPitch,
   extOf,
@@ -41,7 +44,16 @@ import { parseMultipart, DEFAULT_LIMIT } from './lib/multipart.js';
 import { saveUpload, UploadError, kindOf, KIND_LABEL } from './lib/media.js';
 import { seedTracks } from './lib/shell.mjs';
 import { dynamicSectionPage, dynamicSubPage } from './lib/pages.mjs';
-import { articlePage, articleBrief, mergeTracks, renderBody, sectionStats } from './lib/articles.mjs';
+import {
+  articlePage,
+  articleBrief,
+  postBrief,
+  mergeTracks,
+  applyOverrides,
+  renderBody,
+  sanitizeHtml,
+  sectionStats,
+} from './lib/articles.mjs';
 
 const PORT = Number(process.argv[2] || process.env.PORT || 4321);
 const HOST = '127.0.0.1';
@@ -112,6 +124,54 @@ function sendText(res, status, text) {
   res.end(body);
 }
 
+/* ------------------------------------------------------------------ 门厅这道门
+   进主界面之前先过门厅。门厅会在这台浏览器上盖一枚 `cv01-enter` 的章（三十天），
+   之后就不再拦；`?leave=1` 把那枚章抹掉（门厅里的「锁上门」）。
+
+   说清楚它是什么：**这是门厅，不是锁。** 访客本来就是公开的，谁都能从门口走一趟；
+   真正的权限仍然是口令，而且每一次都由 API 那一层的 requireAuth 现验——
+   所以「访客」档里拿不到任何写操作。这道门管的是「你从门口进来」，不是「你进不来」。
+   不想要它就往 data/settings.json 里加一行 "gate": false。 */
+const ENTER_COOKIE = 'cv01-enter';
+const ENTER_DAYS = 30;
+const ENTER_MAX_AGE = ENTER_DAYS * 24 * 60 * 60;
+
+function cookieOf(req, name) {
+  for (const part of String(req.headers.cookie || '').split(';')) {
+    const i = part.indexOf('=');
+    if (i < 0) continue;
+    if (part.slice(0, i).trim() === name) return decodeURIComponent(part.slice(i + 1).trim());
+  }
+  return '';
+}
+
+const enterCookie = (value, maxAge = ENTER_MAX_AGE) =>
+  `${ENTER_COOKIE}=${value}; Path=/; Max-Age=${maxAge}; SameSite=Lax`;
+
+/* 要过门厅的：站点页面。接口、资源、门厅自己、以及藏起来的那几个目录都不拦。 */
+function gateApplies(pathname) {
+  if (pathname === '/login.html') return false;
+  const top = pathname.split('/').filter(Boolean)[0] || '';
+  if (top && (HIDDEN.has(top) || top === 'assets' || top === 'media' || top === 'api')) return false;
+  if (pathname === '/' || pathname.endsWith('/')) return true;     // 目录（首页）
+  return /\.html?$/i.test(pathname);
+}
+
+/* 302：把查询里的 enter / leave 摘掉，其余原样留着 */
+function cleanQuery(url, drop) {
+  const q = new URLSearchParams(url.search);
+  for (const key of drop) q.delete(key);
+  const rest = q.toString();
+  return `${url.pathname}${rest ? '?' + rest : ''}`;
+}
+
+function redirect(res, location, cookie) {
+  const headers = { location, 'cache-control': 'no-store', 'content-length': 0 };
+  if (cookie) headers['set-cookie'] = cookie;
+  res.writeHead(302, headers);
+  res.end();
+}
+
 function readBody(req, limit = MAX_BODY) {
   return new Promise((resolve, reject) => {
     const tooBig = () => {
@@ -170,10 +230,87 @@ const settings = loadSettings();
 let sections = loadSections(seedTracks);
 let articles = loadArticles();
 let music = loadMusic();
+/* data/overrides.json：站长用右键菜单对「原生内容」做的撤下与改名（源文件不动） */
+let overrides = loadOverrides();
 
-/* 九条原生轨道 + 运行时新建的板块 + 运行时文章，合成一份（卷帘位置、相邻文章都靠它） */
-function tracksNow() {
+/* 九条原生轨道 + 运行时新建的板块 + 运行时文章，合成一份（卷帘位置、相邻文章都靠它）。
+   allPosts() 是不压覆盖层的那一份（找得到已经被撤下的东西，好恢复）；
+   tracksNow() 是服务对外用的那一份：撤下的已经不在里面了。 */
+function allPosts() {
   return mergeTracks(seedTracks, sections, articles);
+}
+
+function tracksNow() {
+  return applyOverrides(allPosts(), overrides);
+}
+
+/* 没被撤下的板块（板块树、动态页、列表都看这一份） */
+function liveSections() {
+  return sections.filter((s) => !hiddenIn(overrides.sections, s.id));
+}
+
+/* 被撤下的东西，列出来给前端（也留着以后做「恢复」界面） */
+function hiddenList() {
+  const goneSections = sections
+    .filter((s) => hiddenIn(overrides.sections, s.id))
+    .map((s) => ({ id: s.id, name: s.name, pitch: s.pitch }));
+  const gonePosts = [];
+  for (const t of allPosts()) {
+    for (const p of t.posts || []) {
+      if (hiddenIn(overrides.posts, p.slug)) {
+        gonePosts.push({ slug: p.slug, title: p.title, section: t.id, sectionName: t.name });
+      }
+    }
+  }
+  return { sections: goneSections, posts: gonePosts };
+}
+
+/* 一条还没被撤下的原生文章（按 slug 或 id 找）。撤下的也找得到——恢复要用 */
+function findPost(key) {
+  for (const t of allPosts()) {
+    for (const p of t.posts || []) {
+      if (p.runtime) continue;
+      if (p.slug === key || p.id === key) return { track: t, post: p };
+    }
+  }
+  return null;
+}
+
+/* 板块的简介 / 导语是纯文本，但 `<br>` 是它的一部分（原生那几条就这么分段）。
+   先把 br 换成占位符、摘掉所有尖括号、再把 br 换回来——其余标签一律不留。 */
+function cleanLine(value) {
+  const MARK = '\u0000';
+  return String(value == null ? '' : value)
+    .replace(/<\s*br\s*\/?\s*>/gi, MARK)
+    .replace(/[<>]/g, '')
+    .replace(new RegExp(MARK, 'g'), '<br>')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/* 一条还没被撤下的原生文章（覆盖层压过之后的样子）——改完正文回去要回它 */
+function findPostNow(key) {
+  for (const t of tracksNow()) {
+    for (const p of t.posts || []) {
+      if (p.runtime) continue;
+      if (p.slug === key || p.id === key) return { track: t, post: p };
+    }
+  }
+  return null;
+}
+
+/* 覆盖层里记一笔，然后落盘 */
+function writeOverride(kind, key, patch) {
+  const bag = overrides[kind] || (overrides[kind] = {});
+  const next = { ...(bag[key] || {}), ...patch };
+  const clean = {};
+  for (const [k, v] of Object.entries(next)) {
+    if (v === '' || v === null || v === undefined || v === false) continue;
+    clean[k] = v;
+  }
+  if (Object.keys(clean).length) bag[key] = clean;
+  else delete bag[key];
+  saveOverrides(overrides);
 }
 
 /* 文章：日期、地址片段、附件清单的归一化 */
@@ -294,7 +431,9 @@ async function api(req, res, url) {
     const key = keyOf(req, url) || '';
     if (!settings.passphrase) throw new HttpError(403, '还没有设置口令：请重启一次服务，终端会打印口令');
     if (key !== settings.passphrase) throw new HttpError(401, '口令不对，再看一眼启动服务的终端');
-    return sendJson(res, 200, { ok: true });
+    /* 验过口令 = 从站长这道门进来了：顺手把门厅那枚章盖上 */
+    res.setHeader('set-cookie', enterCookie('1'));
+    return sendJson(res, 200, { ok: true, entered: true });
   }
 
   /* --- 公开读取：板块树（含运行时文章）/ 文章 / 音乐列表 --- */
@@ -303,8 +442,9 @@ async function api(req, res, url) {
     const stats = sectionStats(tracks);
     const briefs = articles.map((a) => articleBrief(tracks, a));
     return sendJson(res, 200, {
-      sections: sortByPitch(sections).map((s) => {
+      sections: sortByPitch(liveSections()).map((s) => {
         const st = stats.get(s.id) || { count: 0, recent: [] };
+        const track = tracks.find((t) => t.id === s.id) || { id: s.id, name: s.name, posts: [] };
         return {
           id: s.id,
           name: s.name,
@@ -312,18 +452,33 @@ async function api(req, res, url) {
           black: Boolean(s.black),
           seed: Boolean(s.seed),
           def: s.def || '',
+          lede: s.lede || '',
           subs: (s.subs || []).map((x) => ({ id: x.id, name: x.name, def: x.def || '' })),
           articles: st.count,
           recent: st.recent,
           runtime: briefs.filter((b) => b.section === s.id),
+          /* 这个板块上的文章（两层的都算）。前端拿它对静态页：改过名的换字。
+             撤下的不在这里——撤下的名单单列在下面 hidden 里（前端按名字撤行，
+             而不是「不在这个数组里就撤」：静态页与动态页对子板块文章的处理本来
+             就不一样，拿「缺了」当「撤了」会误删）。 */
+          posts: (track.posts || []).map((p) => postBrief(track, p)),
         };
       }),
       articles: {
         total: tracks.reduce((n, t) => n + (t.posts || []).length, 0),
         runtime: articles.length,
       },
+      hidden: hiddenList(),
       suggestPitch: suggestPitch(sections),
     });
+  }
+
+  /* 站点上的全部文章（两层都算，撤下的不在里面）：归档页用它对齐 */
+  if (path === '/api/posts' && method === 'GET') {
+    const posts = [];
+    for (const t of tracksNow()) for (const p of t.posts || []) posts.push(postBrief(t, p));
+    posts.sort((a, b) => (a.date < b.date ? 1 : -1));
+    return sendJson(res, 200, { posts, hidden: hiddenList() });
   }
 
   if (path === '/api/articles' && method === 'GET') {
@@ -469,9 +624,34 @@ async function api(req, res, url) {
   }
 
   if (articleMatch && method === 'PATCH') {
-    const article = articles.find((a) => a.id === articleMatch[1] || a.slug === articleMatch[1]);
-    if (!article) throw new HttpError(404, '没有这篇文章');
     const body = JSON.parse((await readBody(req, 1 << 20)).toString('utf8') || '{}');
+    const article = articles.find((a) => a.id === articleMatch[1] || a.slug === articleMatch[1]);
+    let droppedBody = false;
+
+    /* 原生文章（content/posts.mjs 那批）：源文件不许动，改名 / 换正文 / 恢复都落在这里 */
+    if (!article) {
+      const native = findPost(articleMatch[1]);
+      if (!native) throw new HttpError(404, '没有这篇文章');
+      if (typeof body.title === 'string' && body.title.trim()) {
+        writeOverride('posts', native.post.slug, { title: body.title.trim().slice(0, 120) });
+      }
+      /* 页面上直接改的正文：存 HTML，源文件一个字节不动 */
+      if (typeof body.body === 'string') {
+        writeOverride('posts', native.post.slug, { body: sanitizeHtml(body.body) });
+      }
+      if (body.hidden === false) writeOverride('posts', native.post.slug, { hidden: false });
+      if (body.body === false) writeOverride('posts', native.post.slug, { body: false });
+      /* reset：把这一条覆盖整个抹掉（标题与正文都回到 content/posts.mjs 里的原样） */
+      if (body.reset === true) {
+        writeOverride('posts', native.post.slug, { title: false, body: false, hidden: false });
+      }
+      const after = findPostNow(native.post.slug) || native;
+      return sendJson(res, 200, {
+        ok: true,
+        mode: 'overridden',
+        post: postBrief(after.track, after.post),
+      });
+    }
 
     if (typeof body.title === 'string' && body.title.trim()) article.title = body.title.trim().slice(0, 120);
     if (typeof body.section === 'string' && body.section.trim()) {
@@ -490,20 +670,44 @@ async function api(req, res, url) {
     if ('min' in body) article.min = Math.min(120, Math.max(1, Number(body.min) || 3));
     if (typeof body.short === 'string') article.short = body.short.trim().slice(0, 6) || article.title.slice(0, 4);
     if (typeof body.blurb === 'string') article.blurb = body.blurb.trim().slice(0, 140);
-    if (typeof body.source === 'string') article.source = body.source.slice(0, 200000);
+    if (typeof body.source === 'string') {
+      article.source = body.source.slice(0, 200000);
+      /* 编辑页把 Markdown 重写了一遍：正文的真相回到 source，
+         页面上那次富文本装修（body）就此让位——不然两边会各说各话 */
+      droppedBody = Boolean(article.body);
+      delete article.body;
+    }
+    /* 页面上直接改的正文（富文本）：存 HTML，与 Markdown 源并存但优先 */
+    if (typeof body.body === 'string') article.body = sanitizeHtml(body.body);
+    if (body.body === false) delete article.body;
     if ('assets' in body) article.assets = cleanAssets(body.assets);
 
     saveArticles(articles);
-    return sendJson(res, 200, { ok: true, article: articleDetail(tracksNow(), article) });
+    return sendJson(res, 200, {
+      ok: true,
+      mode: 'rewritten',
+      droppedBody: droppedBody,
+      article: articleDetail(tracksNow(), article),
+    });
   }
 
   if (articleMatch && method === 'DELETE') {
     const i = articles.findIndex((a) => a.id === articleMatch[1] || a.slug === articleMatch[1]);
-    if (i === -1) throw new HttpError(404, '没有这篇文章');
+    /* 原生文章：只撤下，不碰 content/posts.mjs（想恢复就改回 data/overrides.json） */
+    if (i === -1) {
+      const native = findPost(articleMatch[1]);
+      if (!native) throw new HttpError(404, '没有这篇文章');
+      writeOverride('posts', native.post.slug, { hidden: true });
+      return sendJson(res, 200, {
+        ok: true,
+        mode: 'hidden',
+        post: postBrief(native.track, native.post),
+      });
+    }
     const [gone] = articles.splice(i, 1);
     for (const a of gone.assets || []) removeMedia(a.bucket, a.file);
     saveArticles(articles);
-    return sendJson(res, 200, { ok: true, removed: gone.id });
+    return sendJson(res, 200, { ok: true, mode: 'removed', removed: gone.id });
   }
 
   /* 板块与子板块 */
@@ -540,16 +744,27 @@ async function api(req, res, url) {
     if (!section) throw new HttpError(404, '没有这个板块');
     const body = JSON.parse((await readBody(req, 65536)).toString('utf8') || '{}');
     for (const key of ['name', 'def', 'lede']) {
-      if (typeof body[key] === 'string') section[key] = body[key].slice(0, 400);
+      if (typeof body[key] !== 'string') continue;
+      /* 板块的这一行字是**纯文本**（页面上直接改的时候取的是文字），
+         但 `<br>` 得留着——原生那几条导语就是用它分段落的。
+         其余尖括号一律摘掉：静态板块页把 lede 原样插进 HTML，留着就是个洞。 */
+      const text = key === 'name' ? body[key] : cleanLine(body[key]);
+      section[key] = text.slice(0, 400);
     }
     if (typeof body.pitch === 'string' && body.pitch.trim()) section.pitch = body.pitch.trim();
+    /* hidden: false = 把撤下的原生板块放回来（撤下走 DELETE） */
+    if (body.hidden === false) writeOverride('sections', section.id, { hidden: false });
     saveSections(sections);
-    return sendJson(res, 200, { ok: true, section });
+    return sendJson(res, 200, { ok: true, mode: 'rewritten', section });
   }
   if (sectionMatch && method === 'DELETE') {
     const i = sections.findIndex((s) => s.id === sectionMatch[1]);
     if (i === -1) throw new HttpError(404, '没有这个板块');
-    if (sections[i].seed) throw new HttpError(400, 'content/posts.mjs 里的九个原生板块不在这里删（改那个文件然后重新生成）');
+    /* 原生板块（content/posts.mjs 里的九个）：撤下，不动源文件，随时能放回来 */
+    if (sections[i].seed) {
+      writeOverride('sections', sections[i].id, { hidden: true });
+      return sendJson(res, 200, { ok: true, mode: 'hidden', section: sections[i] });
+    }
     const [gone] = sections.splice(i, 1);
     /* 这个板块下用编辑页写的文章也跟着走（连带它们带的图片 / 视频 / 音频） */
     const orphans = articles.filter((a) => a.section === gone.id);
@@ -559,7 +774,12 @@ async function api(req, res, url) {
       saveArticles(articles);
     }
     saveSections(sections);
-    return sendJson(res, 200, { ok: true, removed: gone.id, removedArticles: orphans.length });
+    return sendJson(res, 200, {
+      ok: true,
+      mode: 'removed',
+      removed: gone.id,
+      removedArticles: orphans.length,
+    });
   }
 
   /* 子板块：POST /api/sections/<id>/subs */
@@ -620,12 +840,18 @@ function serveFile(req, res, full, { download = false } = {}) {
     return res.end();
   }
 
+  /* 页面不缓存（no-cache = 存下来可以，但每次都要回来问一句）：
+     门厅那道门是在请求这一层拦的，浏览器要是直接拿一小时前的缓存，
+     就等于绕过了门。加了 ETag，回来问的结果通常就是一个 304，不慢。
+     媒体与样式照旧缓存一小时（它们跟门厅没关系）。 */
+  const isPage = /\.html?$/i.test(full);
+
   const headers = {
     'content-type': type,
     etag,
     /* 媒体文件（尤其视频）要能拖动进度条：支持 Range + 允许缓存 */
     'accept-ranges': 'bytes',
-    'cache-control': 'public, max-age=3600',
+    'cache-control': isPage ? 'no-cache' : 'public, max-age=3600',
   };
   if (download) headers['content-disposition'] = `attachment; filename*=UTF-8''${encodeURIComponent(full.split(sep).pop())}`;
 
@@ -668,6 +894,31 @@ function notFoundPage(res, pathname) {
   res.end(html);
 }
 
+/* 撤下的那一页：它在磁盘上还在（content/posts.mjs 生成的那份），但已经不在站点里了。
+   410 而不是 404——它曾经在，是被主动撤下来的；页面照旧说清楚怎么放回来。 */
+function gonePage(res, key, kind) {
+  const esc = (s) => String(s == null ? '' : s).replace(/[<>&"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
+  const hidden = hiddenList();
+  const found = kind === 'post'
+    ? hidden.posts.find((p) => p.slug === key)
+    : hidden.sections.find((s) => s.id === key);
+  const name = found ? found.title || found.name : key;
+  const from = kind === 'post' ? 'content/posts.mjs 里的原生文章' : 'content/posts.mjs 里的原生板块';
+  const html = `<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>已撤下 · ${esc(name)}</title>
+<link rel="stylesheet" href="/assets/css/palette.css">
+<link rel="stylesheet" href="/assets/css/tokens.css">
+<link rel="stylesheet" href="/assets/css/base.css">
+</head><body><main class="main" style="max-width:34em;margin:12vh auto">
+<p class="sect-head__pitch" style="font-family:var(--f-measure);color:var(--miku-deep)">已撤下</p>
+<h1 class="sect-head__name" style="font-family:var(--f-read)">${esc(name)}</h1>
+<p class="lede" style="font-family:var(--f-read)">这一条被站长从站点上撤下了。它是 ${from}，源文件没有动——想放回来，把 <code>data/overrides.json</code> 里对应的那一条删掉即可。</p>
+<p><a href="/index.html" style="border-bottom:1px solid var(--miku-deep);color:var(--miku-deep)">回首页</a></p>
+</main></body></html>`;
+  res.writeHead(410, { 'content-type': 'text/html; charset=utf-8', 'content-length': Buffer.byteLength(html) });
+  res.end(html);
+}
+
 function serveStatic(req, res, url, pathname) {
   /* /media/… 只能落在 media/ 里 */
   if (pathname.startsWith('/media/')) {
@@ -677,6 +928,15 @@ function serveStatic(req, res, url, pathname) {
     const full = safePath(MEDIA_DIRS[bucket], rest.slice(bucket.length + 1));
     if (!full || !existsSync(full)) return sendText(res, 404, '404');
     return serveFile(req, res, full, { download: url.searchParams.has('download') });
+  }
+
+  /* 被撤下的板块 / 文章：静态文件还在磁盘上，但服务不再认它。
+     不给原页，也不假装 404——明说「这一条撤下了」，以及怎么放回来。 */
+  const gonePost = /^\/posts\/(.+)\.html$/.exec(pathname);
+  if (gonePost && hiddenIn(overrides.posts, gonePost[1])) return gonePage(res, gonePost[1], 'post');
+  const goneSection = /^\/sections\/([^/]+?)(?:\/([^/]+?))?\.html$/.exec(pathname);
+  if (goneSection && hiddenIn(overrides.sections, goneSection[1])) {
+    return gonePage(res, goneSection[1], 'section');
   }
 
   /* 子板块页永远现场渲染：子板块本身就是运行时数据（data/sections.json），
@@ -714,6 +974,7 @@ function serveStatic(req, res, url, pathname) {
 
 /* 动态文章页：编辑页写出来的那些，静态文件不存在时才走到这里 */
 function serveDynamicArticle(req, res, slug) {
+  if (hiddenIn(overrides.posts, slug)) return gonePage(res, slug, 'post');
   const article = articles.find((a) => a.slug === slug);
   if (!article) return notFoundPage(res, req.url || '');
   const body = Buffer.from(articlePage({ article, tracks: tracksNow(), base: '../' }), 'utf8');
@@ -725,6 +986,7 @@ function serveDynamicArticle(req, res, slug) {
    用合并后的轨道（九条原生 + 运行时板块 + 运行时文章）渲染，
    所以用编辑页写的文章会立刻出现在板块页与子板块页的文章列表里。 */
 function serveDynamicSection(req, res, sectionId, subId) {
+  if (hiddenIn(overrides.sections, sectionId)) return gonePage(res, sectionId, 'section');
   const section = findSection(sections, sectionId);
   if (!section) return notFoundPage(res, req.url || '');
   const tracks = tracksNow();
@@ -772,6 +1034,21 @@ const server = createServer(async (req, res) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       return sendText(res, 405, '只支持 GET / HEAD / POST / PATCH / DELETE');
     }
+    /* 门厅这道门：站点页面没盖章就先送回门厅，并把本来要去的地方带上。
+       `?leave=1` 在哪一页都认——门厅里那条「锁上门」就指着它（门厅自己不过门）。 */
+    if (settings.gate !== false) {
+      if (url.searchParams.has('leave')) return redirect(res, '/login.html', enterCookie('', 0));
+      if (gateApplies(pathname)) {
+        if (url.searchParams.has('enter')) {
+          const to = cleanQuery(url, ['enter', 'leave']) || '/index.html';
+          return redirect(res, to, enterCookie('1'));
+        }
+        if (!cookieOf(req, ENTER_COOKIE)) {
+          const next = pathname + (url.search || '');
+          return redirect(res, `/login.html?next=${encodeURIComponent(next)}`);
+        }
+      }
+    }
     serveStatic(req, res, url, pathname);
   } catch (err) {
     const status = err.status || (err instanceof UploadError ? 400 : 500);
@@ -786,6 +1063,11 @@ server.listen(PORT, HOST, () => {
   console.log('  初音ミク CV01 · 上传服务已启动');
   console.log(`  ─────────────────────────────────────────────`);
   console.log(`  站点        http://${HOST}:${PORT}/`);
+  if (settings.gate !== false) {
+    console.log(`  门厅        http://${HOST}:${PORT}/login.html`);
+    console.log('  （站点页面要先过门厅；访客直接进，站长要口令。');
+    console.log('    不想拦就往 data/settings.json 里加一行 "gate": false）');
+  }
   console.log(`  板块 ${counts} 个 · 曲目 ${music.tracks.length} 首 · 自写文章 ${articles.length} 篇`);
   console.log('');
   console.log(`  上传口令    ${settings.passphrase}`);

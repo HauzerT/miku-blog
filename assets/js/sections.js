@@ -273,6 +273,19 @@
     var known = {};
     keys.forEach(function (a) { known[idOf(a.getAttribute('href'))] = true; });
 
+    /* 已经在那儿的那些：名字与音高按服务那份重写一遍。
+       站长右键改过名之后，静态页里烤着的是旧名字——这里把它跟上。 */
+    var byId = {};
+    all.forEach(function (s) { byId[s.id] = s; });
+    keys.forEach(function (a) {
+      var s = byId[idOf(a.getAttribute('href'))];
+      if (!s) return;
+      var name = a.querySelector('.key__name');
+      if (name && name.textContent !== s.name) name.textContent = s.name;
+      var pitch = a.querySelector('.key__pitch');
+      if (pitch && pitch.textContent !== s.pitch) pitch.textContent = s.pitch;
+    });
+
     all.slice().sort(byPitchDesc).forEach(function (s) {
       if (known[s.id]) return;
       var a = doc.createElement('a');
@@ -339,12 +352,17 @@
       insertByPitch(list, li, current, pitchValue(s.pitch), entryPitch);
     });
 
-    /* 「N 篇」与「最近：…」按服务那份重算（运行时文章也算进去） */
+    /* 「N 篇」与「最近：…」按服务那份重算（运行时文章也算进去），
+       板块名与一句话简介也一样——右键改过名之后静态页里那份就旧了 */
     Array.prototype.forEach.call(list.querySelectorAll('.entry'), function (li) {
       var id = entryId(li);
       var s = null;
       all.forEach(function (x) { if (x.id === id) s = x; });
       if (!s) return;
+      var name = li.querySelector('.entry__name a');
+      if (name && name.textContent !== s.name) name.textContent = s.name;
+      var blurb = li.querySelector('.entry__blurb');
+      if (blurb && s.def && blurb.textContent !== s.def) blurb.textContent = s.def;
       var count = li.querySelector('.entry__count');
       if (count) count.textContent = (s.articles || 0) + ' 篇';
       var recent = li.querySelector('.entry__recent');
@@ -365,7 +383,7 @@
   }
 
   /* --- 板块页的文章列表 --- */
-  function syncSectionPosts(all) {
+  function syncSectionPosts(all, hidden) {
     var list = doc.querySelector('main .post-list');
     if (!list) return;
     var m = /\/sections\/([^/]+?)(?:\/([^/]+?))?\.html$/.exec(location.pathname);
@@ -377,6 +395,30 @@
 
     /* 先撤掉上一轮补的，再按服务那份补缺 —— 与轨道栏同一套路 */
     each(list.querySelectorAll('[data-live]'), function (n) { n.parentNode.removeChild(n); });
+
+    /* 被站长撤下的那些：整行拿掉（撤下的名单以服务为准，不是「缺了就删」） */
+    var gone = {};
+    ((hidden && hidden.posts) || []).forEach(function (p) { gone[p.slug] = true; });
+    each(list.querySelectorAll('.post-row'), function (li) {
+      var a = li.querySelector('.post-row__link');
+      if (a && gone[idOf(a.getAttribute('href'))]) li.parentNode.removeChild(li);
+    });
+
+    /* 改过名的：当场换字（静态页里烤着的是旧标题） */
+    var briefs = {};
+    (section.posts || []).forEach(function (p) { briefs[p.slug] = p; });
+    each(list.querySelectorAll('.post-row'), function (li) {
+      var a = li.querySelector('.post-row__link');
+      var p = a ? briefs[idOf(a.getAttribute('href'))] : null;
+      if (!p) return;
+      var title = li.querySelector('.post-row__title');
+      if (title && title.textContent !== p.title) title.textContent = p.title;
+      var date = li.querySelector('.post-row__date');
+      if (date && p.date && date.textContent.trim() !== p.date) date.textContent = p.date;
+      var blurb = li.querySelector('.post-row__blurb');
+      if (blurb && typeof p.blurb === 'string' && blurb.textContent !== p.blurb) blurb.textContent = p.blurb;
+    });
+
     var known = {};
     each(list.querySelectorAll('.post-row'), function (li) {
       var a = li.querySelector('.post-row__link');
@@ -402,19 +444,43 @@
   }
 
   /* --- 归档 --- */
-  function syncArchive(all, total) {
+  function syncArchive(all, total, hidden) {
     var main = doc.querySelector('main#main');
     if (!main || !main.querySelector('.year')) return;
 
     each(main.querySelectorAll('[data-live]'), function (n) { n.parentNode.removeChild(n); });
 
-    var runtime = [];
+    /* 两层的文章都要：归档页列的是全部。
+       撤下的整行拿掉，改过名的当场换字——静态页里那两样都是旧的。 */
+    var posts = [];
+    var briefs = {};
     all.forEach(function (s) {
-      (s.runtime || []).forEach(function (a) { runtime.push(a); });
+      (s.posts || []).forEach(function (p) { posts.push(p); briefs[p.slug] = p; });
+      (s.runtime || []).forEach(function (p) { posts.push(p); briefs[p.slug] = p; });
     });
-    runtime.sort(function (x, y) { return x.date < y.date ? 1 : -1; });
+    var gone = {};
+    ((hidden && hidden.posts) || []).forEach(function (p) { gone[p.slug] = true; });
+    each(main.querySelectorAll('.post-row'), function (li) {
+      var a = li.querySelector('.post-row__link');
+      var slug = a ? idOf(a.getAttribute('href')) : '';
+      if (gone[slug]) { li.parentNode.removeChild(li); return; }
+      var p = briefs[slug];
+      if (!p) return;
+      var title = li.querySelector('.post-row__title');
+      if (title && title.textContent !== p.title) title.textContent = p.title;
+      var date = li.querySelector('.post-row__date');
+      if (date && p.date && date.textContent.trim() !== p.date) date.textContent = p.date;
+    });
+
+    var runtime = posts.slice().sort(function (x, y) { return x.date < y.date ? 1 : -1; });
+    var known = {};
+    each(main.querySelectorAll('.post-row'), function (li) {
+      var a = li.querySelector('.post-row__link');
+      if (a) known[idOf(a.getAttribute('href'))] = true;
+    });
 
     runtime.forEach(function (art) {
+      if (known[art.slug]) return;
       var year = String(art.date).slice(0, 4);
       var group = null;
       each(main.querySelectorAll('.year'), function (g) {
@@ -436,7 +502,9 @@
       insertByDate(list, li, art.date);
     });
 
+    /* 空了的那一年（整年都被撤下）：这一组也拿走 */
     each(main.querySelectorAll('.year'), function (g) {
+      if (!g.querySelectorAll('.post-row').length) { g.parentNode.removeChild(g); return; }
       var count = g.querySelector('.year__count');
       if (count) count.textContent = g.querySelectorAll('.post-row').length + ' 篇';
     });
@@ -480,7 +548,7 @@
   }
 
   /* --- 首页那条大卷帘：轨道头 / 键帽 / 空轨道三列得一起插 --- */
-  function syncRoll(all) {
+  function syncRoll(all, hidden) {
     var roll = doc.querySelector('.roll--hero');
     if (!roll) return;
     var heads = roll.querySelector('.roll__heads');
@@ -563,6 +631,36 @@
         fresh.push(note);
       });
     });
+    /* 名字 / 篇数 / 音符上的字按服务那份刷一遍；站长撤下的音符整块拿掉。
+       这一整段就是「右键改过名或撤下之后，刷新页面也是对的」的保障。 */
+    var byId = {};
+    all.forEach(function (s) { byId[s.id] = s; });
+    each(heads.querySelectorAll('.head'), function (h) {
+      var s = byId[idOf(h.getAttribute('href'))];
+      if (!s) return;
+      var name = h.querySelector('.head__name');
+      if (name && name.textContent !== s.name) name.textContent = s.name;
+      var count = h.querySelector('.head__count');
+      if (count) count.textContent = (s.articles || 0) + ' 篇';
+    });
+
+    var gonePost = {};
+    ((hidden && hidden.posts) || []).forEach(function (p) { gonePost[p.slug] = true; });
+    var briefs = {};
+    all.forEach(function (s) {
+      (s.posts || []).forEach(function (p) { briefs[p.slug] = p; });
+      (s.runtime || []).forEach(function (p) { briefs[p.slug] = p; });
+    });
+    each(lanes.querySelectorAll('a.note'), function (n) {
+      var slug = idOf(n.getAttribute('href'));
+      if (gonePost[slug]) { n.parentNode.removeChild(n); return; }
+      var p = briefs[slug];
+      if (!p) return;
+      if (n.getAttribute('data-title') !== p.title) n.setAttribute('data-title', p.title);
+      var label = p.title + '（' + (p.sectionName || '') + '，' + (p.min || 3) + ' 分钟）';
+      if (n.getAttribute('aria-label') !== label) n.setAttribute('aria-label', label);
+    });
+
     if (fresh.length && cv01.site && cv01.site.bindNotes) cv01.site.bindNotes(fresh);
   }
 
@@ -620,6 +718,52 @@
     });
   }
 
+  /* --- 页面上直接改过的字：正文与板块页那两行 ---
+     静态页里烤着的是生成时的那一份；站长右键改过之后，这里按服务那份换回来。
+     没跑服务时这一整段不执行——静态页一个字节都没变。 */
+  function syncEditedText(all) {
+    var post = /\/posts\/([^/]+?)\.html$/.exec(location.pathname);
+    if (post) {
+      var slug = decodeURIComponent(post[1]);
+      var hit = null;
+      all.forEach(function (s) {
+        (s.posts || []).forEach(function (p) { if (p.slug === slug) hit = p; });
+        (s.runtime || []).forEach(function (p) { if (p.slug === slug) hit = p; });
+      });
+      var prose = doc.querySelector('main .prose');
+      if (hit && hit.body && prose && prose.innerHTML !== hit.body) prose.innerHTML = hit.body;
+      return;
+    }
+    var sec = /\/sections\/([^/]+?)(?:\/([^/]+?))?\.html$/.exec(location.pathname);
+    if (!sec || sec[2]) return;                       /* 子板块页显示的是子板块自己的话 */
+    var id = decodeURIComponent(sec[1]);
+    var section = null;
+    all.forEach(function (s) { if (s.id === id) section = s; });
+    if (!section) return;
+    var def = doc.querySelector('.sect-head__def');
+    if (def && typeof section.def === 'string') putLine(def, section.def);
+    var lede = doc.querySelector('.lede');
+    if (lede && typeof section.lede === 'string') putLine(lede, section.lede);
+  }
+
+  /* 板块那两行是纯文本，只允许 <br> 当换行；服务写的时候就洗过了，这里再挡一道。
+     比较的是「拍平之后的样子」，所以 <br> 与空格的差别不会让它每次都重画一遍。 */
+  function plainOf(html) {
+    return String(html == null ? '' : html)
+      .replace(/<br\s*\/?>/gi, ' ')
+      .replace(/[<>]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function putLine(el, value) {
+    var text = String(value == null ? '' : value);
+    if (plainOf(el.innerHTML) === plainOf(text)) return false;
+    if (/^(?:[^<>]|<br\s*\/?>)*$/i.test(text)) el.innerHTML = text;
+    else el.textContent = text.replace(/[<>]/g, '');
+    return true;
+  }
+
   var syncing = false;
   var again = false;
 
@@ -631,12 +775,14 @@
       .then(function (data) {
         var all = data.sections || [];
         var total = (data.articles && data.articles.total) || 0;
+        var hidden = data.hidden || { sections: [], posts: [] };
         syncRail(all);
         syncEntries(all, total);
-        syncRoll(all);
+        syncRoll(all, hidden);
         syncSubnav(all);
-        syncSectionPosts(all);
-        syncArchive(all, total);
+        syncSectionPosts(all, hidden);
+        syncArchive(all, total, hidden);
+        syncEditedText(all);
         /* 刚补进去的链接也要变成绝对地址，否则换页（局部刷新）之后会解析错 */
         if (cv01.absolutizeShell) cv01.absolutizeShell();
       })

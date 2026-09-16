@@ -276,6 +276,9 @@ try {
   }
 
   /* --- 1. 每一类页面：能不能打开、有没有报错 --- */
+  /* 先过门厅：站点页面现在要先盖章（?enter=1 由服务回应一枚三十天的 cookie），
+     不盖的话下面每一条都会被 302 送回 login.html */
+  await goto(SITE + '/index.html?enter=1');
   const pages = [
     ['首页', '/index.html'],
     ['归档', '/archive.html'],

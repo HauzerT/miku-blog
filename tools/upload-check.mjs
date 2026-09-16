@@ -170,6 +170,8 @@ try {
   };
 
   /* --- 1. 传一首曲子：入口在站长球里（音乐盒那一颗是公开的，不写文件） --- */
+  /* 先过门厅（站点页面要先盖章），再进首页 */
+  await goto(SITE + '/index.html?enter=1');
   await goto(SITE + '/index.html');
   await evaluate(`localStorage.setItem('cv01-key', ${JSON.stringify(KEY)})`);
 

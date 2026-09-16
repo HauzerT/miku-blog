@@ -317,6 +317,7 @@ try {
       ownerExpanded: owner.getAttribute('aria-expanded'),
       passHidden: pass.hidden,
       statusHidden: status ? status.hidden : true,
+      doorHidden: (document.querySelector('[data-door]') || {}).hidden !== false,
       key: (function () { try { return localStorage.getItem('cv01-key') || ''; } catch (e) { return ''; } })(),
       path: location.pathname,
       clue: (document.querySelector('.gate__msg') || {}).textContent || ''
@@ -403,12 +404,58 @@ try {
   check('访客：直接进首页', /index\.html$/.test(guest.path), guest.path);
   check('访客：什么钥匙都不写', guest.key === '', guest.key ? '写进去了' : '干净');
 
-  /* --- 8. #owner 直接停在口令那一行 --- */
+  /* --- 8. 门厅这道门：不盖章进不去，盖了章进得去，锁上门又进不去 --- */
+  /* 先把门锁上（?leave=1），从「这台浏览器没盖过章」开始量 */
+  await goto(url('login.html?leave=1'));
+
+  await goto(url('index.html'));
+  let gate = JSON.parse(await evaluate(`JSON.stringify({
+    path: location.pathname,
+    next: new URLSearchParams(location.search).get('next'),
+    title: document.title
+  })`));
+  check('没盖章：首页被送回门厅', /login\.html$/.test(gate.path) && gate.next === '/index.html', JSON.stringify(gate));
+
+  await goto(url('sections/tongxue.html'));
+  gate = JSON.parse(await evaluate(`JSON.stringify({
+    path: location.pathname,
+    next: new URLSearchParams(location.search).get('next')
+  })`));
+  check('没盖章：板块页也被送回门厅', /login\.html$/.test(gate.path) && gate.next === '/sections/tongxue.html', JSON.stringify(gate));
+
+  check('资源不被拦：CSS 照常取得到',
+    (await evaluate(`fetch('assets/css/base.css').then(function (r) { return r.status; })`)) === 200);
+  check('接口不被拦：/api/health 照常',
+    (await evaluate(`fetch('api/health').then(function (r) { return r.status; })`)) === 200);
+
+  /* 门厅带 next：点访客那颗键 → 盖章 → 直接回本来要去的那一页 */
+  await goto(url('login.html?next=%2Fsections%2Ftongxue.html'));
+  await evaluate('document.querySelector(\'.gate-key--visitor\').click()');
+  await waitPath(/sections\/tongxue\.html$/);
+  gate = JSON.parse(await evaluate(`JSON.stringify({
+    path: location.pathname,
+    stamped: /(?:^|;\\s*)cv01-enter=/.test(document.cookie || '')
+  })`));
+  check('访客进门：盖章了', gate.stamped === true);
+  check('访客进门：回到被拦下来的那一页，不是首页', /sections\/tongxue\.html$/.test(gate.path), gate.path);
+
+  await goto(url('archive.html'));
+  check('盖过章：别的页面直接进得去', /archive\.html$/.test(await evaluate('location.pathname')));
+
+  await goto(url('login.html'));
+  s = await shape();
+  check('门厅会说自己已经开过门', s.doorHidden === false);
+
+  await goto(url('login.html?leave=1'));
+  await goto(url('archive.html'));
+  check('锁上门之后：又被送回门厅', /login\.html$/.test(await evaluate('location.pathname')));
+
+  /* --- 9. #owner 直接停在口令那一行 --- */
   await goto(url('login.html#owner'));
   s = await shape();
   check('#owner：口令行直接展开', s.passHidden === false);
 
-  /* --- 9. 手机上：两颗键并排，页脚那把尺不横向溢出 --- */
+  /* --- 10. 手机上：两颗键并排，页脚那把尺不横向溢出 --- */
   await send('Emulation.setDeviceMetricsOverride', {
     width: 360, height: 640, deviceScaleFactor: 2, mobile: true,
   });

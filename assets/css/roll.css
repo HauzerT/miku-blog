@@ -147,15 +147,14 @@
 .roll__ruler span { flex: 1 1 25%; padding-left: 0.35rem; line-height: var(--ruler); }
 
 .roll__body { position: relative; }
-.roll__beats {
-  position: absolute;
-  inset: 0;
-  /* 三层：小节线、拍线、隔小节淡带。隔小节淡带是"这是卷帘不是甘特图"的关键 */
-  background-image:
-    repeating-linear-gradient(to right, var(--roll-beat) 0 1px, transparent 1px 25%),
-    repeating-linear-gradient(to right, var(--roll-tick) 0 1px, transparent 1px 6.25%),
-    repeating-linear-gradient(to right, var(--roll-band) 0 25%, transparent 25% 50%);
-}
+
+/* 卷帘场里没有网格。
+   原来这里铺着三层 repeating-linear-gradient：小节线、拍线、隔小节淡带。
+   那套东西一铺上去，整块看起来像坐标纸——太像仪表，不像乐器；而且它抢的
+   正是音符块的对比（音符才是这块地上唯一该被看见的东西）。
+   时间轴的信息改由两处承载：上面那排小节号（.roll__ruler），
+   以及音符自己的宽度与位置。行与行的界线留在 .lane 上——那不是网格，
+   是"这个音符属于哪条轨道"的归属线。 */
 .roll__lanes { position: relative; z-index: 1; }
 
 .lane {

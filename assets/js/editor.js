@@ -224,7 +224,10 @@
         paintAssets();
         loadList();
         setState('保存好了 · ' + a.slug + '.html', false, a.url);
-        cv01.toast(isNew ? '发出去了' : '改好了');
+        /* 这一篇要是在页面上直接改过正文（富文本那层），这次保存就把那层撤掉了：
+           Markdown 重新成了正文的真相，得说一声，别让人以为改丢了 */
+        cv01.toast(data.droppedBody ? '改好了——页面上那版富文本正文让位给这份 Markdown 了'
+          : (isNew ? '发出去了' : '改好了'), false, null, Boolean(data.droppedBody));
       })
       .catch(function (err) { setState(cv01.error(err), true); })
       .then(function () { btn.disabled = false; });

@@ -1,7 +1,7 @@
 /* ==========================================================================
    palette.css · 由 content/palette.mjs 生成 —— 不要手改这个文件
    生成命令：node tools/tokens.mjs        当前轮次：r3 第三轮 · 中性地面
-   当前这扇窗：cyan（青窗 —— 青底、白块音符、黑字）
+   当前这扇窗：cyan（青窗 —— 白天青底黑键白字；晚上深底粉键黑字）
    ---------------------------------------------------------------------------
    上一轮满屏饱和青做地面，正文吃力、照片发青，而且卷帘的音符块本身就是
    #39C5BB —— 青底等于把青从音符手里抢走，只好把音符改成粉。
@@ -56,13 +56,13 @@
      --on-display         / --key-black           15.64:1  ≥4.5  黑键行的轨道名
      --on-display-soft    / --display              7.67:1  ≥4.5  暗窗里的次要文本
      --display            / --cuer                 7.30:1  ≥4.5  门厅：粉键上的字（访客键）
-     --win-ink            / --win-ground           8.83:1  ≥4.5  窗里的正文（轨道名 / 读数）
-     --win-ink-soft       / --win-ground           4.73:1  ≥4.5  窗里的次要文本（标尺 / 篇数）
+     --win-ink            / --win-ground          15.64:1  ≥4.5  窗里的正文（轨道名 / 读数）
+     --win-ink-soft       / --win-ground           7.44:1  ≥4.5  窗里的次要文本（标尺 / 篇数）
      --win-accent         / --win-ground           8.83:1  ≥4.5  窗里被指认的东西
-     --win-cue            / --win-ground           8.83:1  ≥4.5  窗里的「此刻」（悬停读数）
-     --win-note-ink       / --win-note            17.58:1  ≥4.5  音符块上的字
-     --win-cursor         / --win-ground           8.83:1  ≥3  播放头（2px 的线，3:1 即可）
-     --win-ring           / --win-ground           8.83:1  ≥3  音符的悬停 / 焦点描边
+     --win-cue            / --win-ground           5.53:1  ≥4.5  窗里的「此刻」（悬停读数）
+     --win-note-ink       / --win-note             5.53:1  ≥4.5  音符块上的字
+     --win-cursor         / --win-ground           5.53:1  ≥3  播放头（2px 的线，3:1 即可）
+     --win-ring           / --win-ground           5.53:1  ≥3  音符的悬停 / 焦点描边
    ========================================================================== */
 
 :root {
@@ -90,9 +90,6 @@
   --roll-line:          rgba(16, 18, 20, 0.22);    /* 窗 */
   --roll-line-strong:   rgba(16, 18, 20, 0.3);     /* 窗 */
   --roll-lane:          rgba(16, 18, 20, 0.15);    /* 窗 */
-  --roll-beat:          rgba(16, 18, 20, 0.26);    /* 窗 */
-  --roll-tick:          rgba(16, 18, 20, 0.1);     /* 窗 */
-  --roll-band:          rgba(245, 248, 248, 0.07); /* 窗 */
   --roll-thumb:         rgba(16, 18, 20, 0.32);    /* 窗 */
   --roll-cap:           rgba(245, 248, 248, 0.88); /* 窗 */
   --roll-cap-line:      rgba(16, 18, 20, 0.45);    /* 窗 */
@@ -112,8 +109,8 @@
   --win-ink-soft:       #20484a;                   /* 窗·次墨 · 对 --win-ground 4.73:1 */
   --win-accent:         #101214;                   /* 窗·签 · 对 --win-ground 8.83:1 */
   --win-cue:            #101214;                   /* 窗·示 · 对 --win-ground 8.83:1 */
-  --win-note:           #f5f8f8;                   /* 窗·音符块 */
-  --win-note-ink:       #101214;                   /* 窗·块上的字 · 对 --win-note 17.58:1 */
+  --win-note:           #101214;                   /* 窗·音符块 */
+  --win-note-ink:       #f5f8f8;                   /* 窗·块上的字 · 对 --win-note 17.58:1 */
   --win-note-idle:      #101214;                   /* 窗·未点亮 */
   --win-ghost:          #101214;                   /* 窗·定位条的幽灵音符 */
   --win-ring:           #101214;                   /* 窗·描边 · 对 --win-ground 8.83:1 */
@@ -139,4 +136,25 @@
   --key-black:          #101214;                   /* 地 */
   --key-black-hover:    #1c2024;                   /* 地 */
   --tap:                rgba(255, 105, 180, 0.22); /* 线 */
+  --roll-line:          rgba(230, 235, 239, 0.16); /* 窗 */
+  --roll-line-strong:   rgba(230, 235, 239, 0.22); /* 窗 */
+  --roll-lane:          rgba(230, 235, 239, 0.12); /* 窗 */
+  --roll-thumb:         rgba(157, 164, 170, 0.35); /* 窗 */
+  --roll-cap:           rgba(230, 235, 239, 0.14); /* 窗 */
+  --roll-cap-line:      rgba(0, 0, 0, 0.85);       /* 窗 */
+  --roll-cap-black:     rgba(0, 0, 0, 0.55);       /* 窗 */
+  --roll-lane-black:    rgba(0, 0, 0, 0.28);       /* 窗 */
+  --note-ring:          rgba(0, 0, 0, 0.18);       /* 窗 */
+  --win-ground:         #101214;                   /* 窗·地 */
+  --win-ink:            #e6ebef;                   /* 窗·墨 · 对 --win-ground 15.64:1 */
+  --win-ink-soft:       #9da4aa;                   /* 窗·次墨 · 对 --win-ground 7.44:1 */
+  --win-accent:         #39c5bb;                   /* 窗·签 · 对 --win-ground 8.83:1 */
+  --win-cue:            #ff3399;                   /* 窗·示 · 对 --win-ground 5.53:1 */
+  --win-note:           #ff3399;                   /* 窗·音符块 */
+  --win-note-ink:       #101214;                   /* 窗·块上的字 · 对 --win-note 5.53:1 */
+  --win-note-idle:      #ff3399;                   /* 窗·未点亮 */
+  --win-ghost:          #ff3399;                   /* 窗·定位条的幽灵音符 */
+  --win-ring:           #ff3399;                   /* 窗·描边 · 对 --win-ground 5.53:1 */
+  --win-cursor:         #ff3399;                   /* 窗·播放头 · 对 --win-ground 5.53:1 */
+  --win-cursor-glow:    rgba(255, 51, 153, 0.5);   /* 窗·播放头的辉光 */
 }

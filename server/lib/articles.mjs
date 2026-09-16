@@ -12,7 +12,7 @@
    ========================================================================== */
 
 import { site, page, escapeHtml, noteWidth, slotOf, rollStrip } from './shell.mjs';
-import { sortByPitch } from './store.mjs';
+import { sortByPitch, hiddenIn } from './store.mjs';
 
 /* ------------------------------------------------------------------ 正文 */
 
@@ -103,7 +103,9 @@ export function renderBody(source) {
 
 /* ------------------------------------------------------------------ 轨道 */
 
-/* 文章 → 卷帘上那个音符（以及板块页列表里的一行）认得的形状 */
+/* 文章 → 卷帘上那个音符（以及板块页列表里的一行）认得的形状。
+   `edited` 是「站长在页面上直接改过的那一版正文」——
+   原生文章的 `body` 是 content/posts.mjs 里的源，两者不能混。 */
 export function articleAsPost(a) {
   return {
     id: a.id,
@@ -116,6 +118,7 @@ export function articleAsPost(a) {
     runtime: true,
     section: a.section,
     sub: a.sub || '',
+    edited: a.body || '',
   };
 }
 /* 九条原生轨道 + 运行时新建的板块 + 运行时文章，合成一份 tracks。
@@ -190,6 +193,79 @@ export function articleBrief(tracks, a) {
   };
 }
 
+/* 轨道里的一条文章记录（原生的那批没有 runtime 标记）→ 前端用的瘦身版。
+   字段与 articleBrief 对齐，sections.js 才能用同一套代码处理两种文章。
+   正文被「页面上直接改」过的那种（post.body）也捎上——静态页靠它回填。 */
+export function postBrief(track, post) {
+  const brief = {
+    id: post.id || post.slug,
+    slug: post.slug,
+    title: post.title,
+    short: post.short || String(post.title || '').slice(0, 4),
+    blurb: post.blurb || '',
+    date: post.date,
+    min: post.min || 3,
+    sub: post.sub || '',
+    section: track.id,
+    sectionName: track.name,
+    runtime: Boolean(post.runtime),
+    url: `/posts/${encodeURIComponent(post.slug)}.html`,
+  };
+  if (post.edited) brief.body = post.edited;
+  return brief;
+}
+
+/* ------------------------------------------------------------- 富文本清洗
+   正文可以在页面上直接改（右键 → 编辑正文），存下来的是 HTML。
+   这里做一遍**轻**清洗，它不假装是一道安全边界——写的人手上本来就有口令；
+   它挡的是「手滑」和「粘贴带进来的东西」：脚本、事件、外链协议一律去掉，
+   行内样式只留 text-decoration-color（下划线可选青或粉，就靠它）。 */
+const KEEP_STYLE = /^text-decoration-color\s*:/i;
+
+export function sanitizeHtml(input) {
+  let html = String(input == null ? '' : input).slice(0, 400000);
+  html = html.replace(/<\s*(script|style|iframe|object|embed|link|meta)\b[\s\S]*?<\s*\/\s*\1\s*>/gi, '');
+  html = html.replace(/<\s*(script|style|iframe|object|embed|link|meta)\b[^>]*>/gi, '');
+  html = html.replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+  html = html.replace(/(href|src)\s*=\s*("|')?\s*javascript:[^"'>\s]*("|')?/gi, '$1="#"');
+  html = html.replace(/\s(contenteditable|spellcheck|data-editing)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+  html = html.replace(/\sstyle\s*=\s*(?:"([^"]*)"|'([^']*)')/gi, (whole, dq, sq) => {
+    const kept = String(dq != null ? dq : sq || '')
+      .split(';')
+      .map((bit) => bit.trim())
+      .filter((bit) => KEEP_STYLE.test(bit))
+      .join('; ');
+    return kept ? ` style="${kept}"` : '';
+  });
+  return html;
+}
+
+/* ------------------------------------------------------------------ 覆盖层
+   把 data/overrides.json 压到合成好的 tracks 上：
+   撤下的板块 / 文章整条拿掉，改过名的换成新名字，正文被改过的换成那一份。
+   源文件与 data/ 都不动。服务端所有对外的地方（接口、动态页、文章页）都从
+   这里过一道，所以「撤下」在服务跑着的时候是真的不见了，而不是只藏了个 DOM。 */
+export function applyOverrides(tracks, overrides) {
+  const os = (overrides && overrides.sections) || {};
+  const op = (overrides && overrides.posts) || {};
+  return tracks
+    .filter((t) => !hiddenIn(os, t.id))
+    .map((t) => {
+      const posts = (t.posts || [])
+        .filter((p) => !hiddenIn(op, p.slug))
+        .map((p) => {
+          const o = op[p.slug];
+          if (!o) return p;
+          const next = { ...p };
+          if (o.title) next.title = o.title;
+          /* 页面上直接改的那一版：放 `edited`，别盖掉原生文章自己的 `body`（那是源） */
+          if (o.body) next.edited = o.body;
+          return next;
+        });
+      return { ...t, posts };
+    });
+}
+
 /* 每条轨道「一共几篇」（原生 + 运行时）、最近两篇的标题（首页索引那行） */
 export function sectionStats(tracks) {
   const map = new Map();
@@ -226,7 +302,8 @@ ${next ? `        <a href="${href(next)}"><span class="pager__label">下一首 �
       </div>
     </nav>`;
 
-  const body = renderBody(article.source) ||
+  /* 正文：页面上直接改过的那种（body）优先，否则用 Markdown 源现渲染 */
+  const body = article.body || renderBody(article.source) ||
     '<p class="empty">这篇还没写。回到编辑页把正文填上就能看见。</p>';
 
   const main = `${rollStrip(tracks, track.id, article.slug, playX)}

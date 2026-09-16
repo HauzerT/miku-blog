@@ -757,6 +757,124 @@
 }
 .keygate__cancel:hover { color: var(--ink); }
 
+/* ---------------------------------------------------------------- 右键菜单
+   站长右键轨道栏的板块 / 文章行 / 卷帘上的音符时出来的那一小条。
+   壳与浮层面板同一套：白底、一根细边、两个字号的按钮。
+   「删除 / 撤下」靠一条更重的墨区分——这一页没有表示危险的颜色，
+   粉只表示「此刻」，所以破坏性的那一条用加粗加一条细线，不用红。 */
+.ctx {
+  position: fixed;
+  z-index: 65;
+  min-width: 9.5rem;
+  padding: 0.25rem;
+  background: var(--card);
+  border: 1px solid var(--ink);
+  border-radius: 3px;
+}
+.ctx__item {
+  display: block;
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  font: inherit;
+  font-family: var(--f-ui);
+  font-size: var(--t-ui);
+  line-height: 1.5;
+  text-align: left;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  border-radius: 2px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ctx__item:hover,
+.ctx__item:focus-visible { background: var(--paper-deep); }
+.ctx__item--danger {
+  margin-top: 0.2rem;
+  padding-top: 0.5rem;
+  font-weight: 600;
+  border-top: 1px solid var(--rule-soft);
+  border-radius: 0 0 2px 2px;
+}
+
+/* 改名那一格是中文标题，不用等宽（口令那一格才用） */
+.keygate__input--text { font-family: var(--f-ui); letter-spacing: 0; }
+
+/* ---------------------------------------------------------------- 文字工具条
+   右键 → 编辑正文之后，页面上多出来的那一条（像 Word 顶上那条）。
+   贴着命令栏往下挂：宽屏一行排开，窄屏折行。按钮用文字不用图标——
+   这一站里 B / I / U / S 这四个字母人人都认得，配一条彩色下边就够说明颜色。
+   U 的两颗（青 / 粉）靠底边那条 2px 的线说清是哪一种。 */
+.rte {
+  position: fixed;
+  left: 50%;
+  top: 4.5rem;              /* 首帧的落点；真位置由 studio.js 按命令栏底边算 */
+  z-index: 68;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  width: max-content;
+  max-width: calc(100vw - 2 * var(--s-4));
+  transform: translateX(-50%);
+  padding: var(--s-2) var(--s-3);
+  background: var(--card);
+  border: 1px solid var(--ink);
+  border-radius: 3px;
+}
+.rte__label {
+  padding-right: var(--s-1);
+  font-family: var(--f-read);
+  font-size: 0.875rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.rte__group {
+  display: flex;
+  gap: 0.15rem;
+  padding-left: var(--s-2);
+  border-left: 1px solid var(--rule);
+}
+.rte__group:first-of-type { border-left: 0; padding-left: 0; }
+.rte__group--acts { margin-left: auto; }
+.rte__btn {
+  padding: 0.3rem 0.5rem;
+  font: inherit;
+  font-family: var(--f-ui);
+  font-size: var(--t-ui);
+  line-height: 1.4;
+  color: var(--ink);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.rte__btn:hover { background: var(--paper-deep); border-color: var(--rule); }
+.rte__btn--b { font-weight: 700; }
+.rte__btn--i { font-style: italic; }
+.rte__btn--s { text-decoration: line-through; }
+.rte__btn--u {
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+  text-decoration-thickness: 2px;
+}
+.rte__btn--cyan { text-decoration-color: var(--miku); }
+.rte__btn--pink { text-decoration-color: var(--cuer); }
+.rte__btn--save {
+  color: var(--paper);
+  background: var(--ink);
+  border-color: var(--ink);
+}
+.rte__btn--save:hover { color: var(--miku); background: var(--ink); }
+.rte__btn--cancel { color: var(--ink-soft); }
+.rte__hint {
+  font-size: var(--t-data);
+  line-height: 1.5;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
 /* ---------------------------------------------------------------- 提示条 */
 .studio__toast {
   position: fixed;
@@ -776,18 +894,37 @@
 }
 .studio__toast.is-on { opacity: 1; transform: translateY(0); }
 .studio__toast.is-bad { background: var(--display); color: var(--miku); border-left: 3px solid var(--cuer); }
+/* 「撤下」之后那次「撤销」：提示条本身是 pointer-events: none，按钮自己收回点击 */
+.studio__toast-act {
+  margin-left: var(--s-3);
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.studio__toast-act:hover { color: var(--miku); }
 
 /* ---------------------------------------------------------------- 响应式 */
 @media (max-width: 560px) {
   .studio__panel { width: calc(100vw - 2 * var(--s-3)); max-height: 70vh; }
   .ball { width: 2.875rem; height: 2.875rem; }
   .studio__toast { bottom: calc(2.875rem * 2 + var(--s-3) * 4); right: var(--s-3); }
+  /* 工具条折两行，「选中文字再加效果」那句提示就让位给按钮 */
+  .rte { gap: var(--s-1); padding: var(--s-2); }
+  .rte__hint { display: none; }
+  .rte__label { display: none; }
 }
 
 /* 触摸设备没有悬停：别留下粘着的状态 */
 @media (hover: none) {
   .ball:hover { transform: none; background: var(--paper); }
   .mp__btn:hover { color: var(--ink); border-color: var(--rule); }
+  .ctx__item:hover { background: none; }
 }
 
 /* 减少动效：环和灯都不动，只留静态提示 */
@@ -797,5 +934,6 @@
 }
 
 @media print {
-  .studio { display: none; }
+  .studio,
+  .ctx { display: none; }
 }

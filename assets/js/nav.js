@@ -64,9 +64,13 @@
   function fetchDoc(url) {
     return fetch(url.href, { credentials: 'same-origin' }).then(function (res) {
       if (!res.ok) throw new Error('HTTP ' + res.status);
+      /* 门厅那道门有时候会把我们送回 login.html（cookie 过期了，
+         或者在另一个标签页里点了「锁上门」）。那不是我想要的那一页——
+         返回 null，下面会退回整页跳转，让浏览器老老实实停在门厅。 */
+      if (new URL(res.url, location.href).pathname !== url.pathname) return null;
       return res.text();
     }).then(function (html) {
-      return new DOMParser().parseFromString(html, 'text/html');
+      return html === null ? null : new DOMParser().parseFromString(html, 'text/html');
     });
   }
 
@@ -163,6 +167,7 @@
     var mine = ++token;
     return fetchDoc(url).then(function (next) {
       if (mine !== token) return;            // 期间又点了别的链接，这一次作废
+      if (!next) { location.href = url.href; return; }   // 被门厅拦下了：整页走
       if (mode === 'push') rememberScroll();
       apply(next, url, mode !== 'pop');
       if (mode === 'push') history.pushState({ cv01: true, scroll: 0 }, '', url.href);
@@ -185,6 +190,8 @@
 
   doc.addEventListener('click', function (e) {
     if (e.defaultPrevented) return;                 // 音效已经接过手了，它会调 cv01.go
+    /* 正在页面上直接改字：正文里的链接点一下不该跳走（那是在挑字，不是在导航） */
+    if (doc.documentElement.hasAttribute('data-editing')) return;
     if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
     if (!a) return;
