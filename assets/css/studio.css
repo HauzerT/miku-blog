@@ -900,6 +900,48 @@
   white-space: nowrap;
 }
 
+/* ---------------------------------------------------------------- 全局编辑模式
+   顶栏按钮按下之后，页面上认得出来的那些字（板块名 / 简介 / 导语 / 标题 /
+   正文，以及轨道栏、索引、卷帘轨道头、文章行里的名字）都描一条虚线：
+   虚线是「这里可以动笔」，不是「这里坏了」——所以用浅浅的规尺色，
+   指针停上来才换成青。正在改的那一段走 [contenteditable] 自己的粉描边
+   （page.css），两不抢。 */
+html[data-editmode] [data-gm] {
+  outline: 1.5px dashed var(--rule);
+  outline-offset: 3px;
+  border-radius: 2px;
+  cursor: text;
+  transition: outline-color 0.15s ease;
+}
+html[data-editmode] [data-gm]:hover { outline-color: var(--miku-deep); }
+/* 空着的简介 / 导语：框本来就看不见，给一条实一点的线，让人知道这儿有个空位 */
+html[data-editmode] [data-gm].is-gm-empty {
+  outline: 1.5px dashed var(--ink-soft);
+  min-height: 1.75rem;
+}
+
+/* 「＋ 新建简介 / 导语」：空位上那颗按钮。虚线边、淡墨，点下去就地开工。 */
+.gm-chip {
+  display: inline-block;
+  margin-block: 0.1rem;
+  padding: 0.08rem 0.55rem;
+  font: inherit;
+  font-size: var(--t-data);
+  letter-spacing: 0.03em;
+  color: var(--ink-soft);
+  background: none;
+  border: 1px dashed var(--ink-soft);
+  border-radius: 2px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.gm-chip:hover { color: var(--ink); border-color: var(--ink); }
+
+/* 编辑模式开着的时候，顶部那颗按钮自己也要被看见：反白（与按钮 aria-pressed 同款，
+   写在 base.css）。这里只管一件事——模式开着时正文里的链接别用手指头骗人：
+   指针挪上去还是 text，提醒「现在是字，不是门」。 */
+html[data-editmode] .prose a { cursor: text; }
+
 /* ---------------------------------------------------------------- 提示条 */
 .studio__toast {
   position: fixed;

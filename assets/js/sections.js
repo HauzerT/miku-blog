@@ -735,6 +735,9 @@
      静态页里烤着的是生成时的那一份；站长右键改过之后，这里按服务那份换回来。
      没跑服务时这一整段不执行——静态页一个字节都没变。 */
   function syncEditedText(all) {
+    /* 正在被直接编辑的那一段（页面上改字 / 全局编辑模式）不能动：
+       这里的对齐跑在输入的半路上，会把人正在打的那几个字盖掉 */
+    var beingEdited = function (el) { return Boolean(el && el.getAttribute('contenteditable') === 'true'); };
     var post = /\/posts\/([^/]+?)\.html$/.exec(location.pathname);
     if (post) {
       var slug = decodeURIComponent(post[1]);
@@ -744,14 +747,14 @@
         (s.runtime || []).forEach(function (p) { if (p.slug === slug) hit = p; });
       });
       var prose = doc.querySelector('main .prose');
-      if (hit && hit.body && prose && prose.innerHTML !== hit.body) {
+      if (hit && hit.body && prose && prose.innerHTML !== hit.body && !beingEdited(prose)) {
         prose.innerHTML = hit.body;
         needMathCss(hit.body);
       }
       /* 改过名的：文章页的大标题与标签页也照服务那份换——静态页里烤着的是旧标题 */
       if (hit && hit.title) {
         var h1 = doc.querySelector('main .article__title');
-        if (h1 && h1.textContent !== hit.title) h1.textContent = hit.title;
+        if (h1 && h1.textContent !== hit.title && !beingEdited(h1)) h1.textContent = hit.title;
         retitle(hit.title);
       }
       return;
@@ -764,12 +767,12 @@
     if (!section) return;
     /* 改过名的板块：页头那个名字（和标签页）也换——轨道栏与索引有人管，就这一处没人管 */
     var name = doc.querySelector('.sect-head__name');
-    if (name && section.name && name.textContent !== section.name) name.textContent = section.name;
+    if (name && section.name && name.textContent !== section.name && !beingEdited(name)) name.textContent = section.name;
     retitle(section.name);
     var def = doc.querySelector('.sect-head__def');
-    if (def && typeof section.def === 'string') putLine(def, section.def);
+    if (def && typeof section.def === 'string' && !beingEdited(def)) putLine(def, section.def);
     var lede = doc.querySelector('.lede');
-    if (lede && typeof section.lede === 'string') putLine(lede, section.lede);
+    if (lede && typeof section.lede === 'string' && !beingEdited(lede)) putLine(lede, section.lede);
   }
 
   /* 标签页上的标题跟着换：页面 <title> 的第一段就是这篇 / 这个板块的名字，
@@ -792,6 +795,10 @@
   }
 
   function putLine(el, value) {
+    /* 编辑模式的「＋ 新建」占位还挂在框里时，这一段归编辑模式管：
+       服务这边空空如也，一写就会把占位擦掉。等站长真写了字（占位收走），
+       之后的同步照常认它。 */
+    if (el.querySelector && el.querySelector('.gm-chip')) return false;
     var text = String(value == null ? '' : value);
     if (plainOf(el.innerHTML) === plainOf(text)) return false;
     if (/^(?:[^<>]|<br\s*\/?>)*$/i.test(text)) el.innerHTML = text;

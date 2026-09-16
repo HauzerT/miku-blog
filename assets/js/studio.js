@@ -837,16 +837,19 @@
     return b;
   }
 
+  var BAR_LABEL = { body: '编辑正文', text: '编辑这段文字', name: '编辑板块名', title: '编辑文章标题' };
+
   function buildBar(kind) {
+    var label = BAR_LABEL[kind] || '编辑这段文字';
     var bar = doc.createElement('div');
     bar.className = 'rte';
     bar.setAttribute('role', 'toolbar');
-    bar.setAttribute('aria-label', kind === 'body' ? '编辑正文' : '编辑这段文字');
+    bar.setAttribute('aria-label', label);
 
-    var label = doc.createElement('p');
-    label.className = 'rte__label';
-    label.textContent = kind === 'body' ? '编辑正文' : '编辑这段文字';
-    bar.appendChild(label);
+    var head = doc.createElement('p');
+    head.className = 'rte__label';
+    head.textContent = label;
+    bar.appendChild(head);
 
     /* 字号四档：一级 / 二级 / 正文 / 注释。板块页那两行字是版式的一部分，不给改字号 */
     if (kind === 'body') {
@@ -969,11 +972,16 @@
   window.addEventListener('scroll', placeBar, true);
   window.addEventListener('resize', placeBar);
 
-  function startEdit(kind, target, info) {
+  /* startEdit(kind, target, info, point)
+     kind：'body'（正文）/ 'text'（板块的简介或导语）/ 'name'（板块名）/ 'title'（文章标题）
+     target 里带身份（{id, field} 或 {slug}），el 是要编辑的那个节点。
+     point 是光标该落在哪儿（右键菜单传来指针的位置；全局编辑模式传来点击的位置；
+     都不给就落在开头）。全局编辑模式（editmode.js）也走这一个入口——两条路，一套机器。 */
+  function startEdit(kind, target, info, point) {
     if (edit) return;
     closeMenu(false);
     var el = target.el;
-    var point = menuAt || { x: 0, y: 0 };
+    var at = point || menuAt || { x: 0, y: 0 };
     edit = {
       kind: kind,
       el: el,
@@ -988,7 +996,7 @@
     el.setAttribute('spellcheck', 'false');
     doc.documentElement.setAttribute('data-editing', kind);
     el.focus();
-    placeCaret(el, point.x, point.y);
+    placeCaret(el, at.x, at.y);
     el.addEventListener('input', markChanged);
     doc.addEventListener('keydown', onEditKey, true);
     edit.bar = buildBar(kind);
@@ -999,6 +1007,8 @@
   function stopEdit(restore) {
     if (!edit) return;
     var el = edit.el;
+    var kind = edit.kind;
+    var target = edit.target;
     el.removeEventListener('input', markChanged);
     doc.removeEventListener('keydown', onEditKey, true);
     if (restore) el.innerHTML = edit.before;
@@ -1007,6 +1017,9 @@
     doc.documentElement.removeAttribute('data-editing');
     if (edit.bar) edit.bar.remove();
     edit = null;
+    /* 全局编辑模式（editmode.js）靠这一声把「＋ 新建」的占位补回来：
+       取消了一次新建，或者存完之后空位已经填上了，两边都要重新看一眼 */
+    doc.dispatchEvent(new CustomEvent('cv01:edit-ended', { detail: { kind: kind, target: target } }));
   }
 
   function onEditKey(e) {
@@ -1053,6 +1066,11 @@
       .trim();
   }
 
+  /* 单行的那几样（板块名 / 文章标题）只认一行纯文本：把空白拍平 */
+  function oneLine(el) {
+    return String((el && el.textContent) || '').replace(/\s+/g, ' ').trim();
+  }
+
   function saveEdit() {
     if (!edit) return;
     var kind = edit.kind;
@@ -1073,24 +1091,51 @@
       patch[target.field] = text;
       request = patchSection(target.id, patch);
       where = 'data/sections.json';
+    } else if (kind === 'name') {
+      /* 板块名：改的是显示名，音高、地址、文章都不动 */
+      var name = oneLine(el);
+      if (!name) { cv01.toast('名字不能空着', true); return; }
+      if (name === String(beforeText || '').trim()) { stopEdit(true); return; }
+      request = patchSection(target.id, { name: name });
+      where = 'data/sections.json';
+    } else if (kind === 'title') {
+      /* 文章标题：同样是显示名，地址不动 */
+      var title = oneLine(el);
+      if (!title) { cv01.toast('标题不能空着', true); return; }
+      if (title === String(beforeText || '').trim()) { stopEdit(true); return; }
+      request = patchPost(target.slug, { title: title });
+      where = info.runtime ? 'data/articles.json' : 'data/overrides.json（源文件没动）';
     } else {
       request = patchPost(target.slug, { body: el.innerHTML });
       where = info.runtime ? 'data/articles.json' : 'data/overrides.json（源文件没动）';
     }
 
     request.then(function () {
+      var name = kind === 'name' ? oneLine(el) : '';
+      var title = kind === 'title' ? oneLine(el) : '';
       stopEdit(false);
       forgetLayers();
+      /* 名字与标题要当场铺到页面上每一处：轨道栏 / 首页索引 / 卷帘 / 文章行 / 标签页 */
+      if (kind === 'name') paintSection(target.id, name);
+      if (kind === 'title') {
+        paintPost(target.slug, title);
+        doc.title = doc.title.replace(/^[^·]+/, title + ' ');
+      }
       cv01.toast('改好了，存进了 ' + where, false, {
         label: '撤销',
         run: function () {
-          var back = kind === 'text'
-            ? (function () {
-                var p = {};
-                p[target.field] = beforeText;
-                return patchSection(target.id, p);
-              })()
-            : patchPost(target.slug, { body: before });
+          var back;
+          if (kind === 'text') {
+            var p = {};
+            p[target.field] = beforeText;
+            back = patchSection(target.id, p);
+          } else if (kind === 'name') {
+            back = patchSection(target.id, { name: String(beforeText || '').trim() });
+          } else if (kind === 'title') {
+            back = patchPost(target.slug, { title: String(beforeText || '').trim() });
+          } else {
+            back = patchPost(target.slug, { body: before });
+          }
           Promise.resolve(back).then(function () {
             cv01.toast('改回来了，刷新一下就看到');
             window.setTimeout(function () { window.location.reload(); }, 700);
@@ -1117,6 +1162,21 @@
       });
     }).catch(function (err) { cv01.error(err); });
   }
+
+  /* ------------------------------------------------------------ 对外：直接改字这一套
+     全局编辑模式（editmode.js）不走右键菜单，但用的是同一台机器：
+     start 开一段编辑（kind 见 startEdit 的注释），active 问现在改着没有，
+     cancel 按一次 Esc，postInfo 查一篇文章住在哪一层（决定提示条怎么说）。 */
+  cv01.direct = {
+    start: startEdit,
+    active: function () { return Boolean(edit); },
+    cancel: cancelEdit,
+    postInfo: function (slug) {
+      return loadLayers().then(function (map) {
+        return map.posts[slug] || { slug: slug, runtime: false, title: '' };
+      });
+    },
+  };
 
   /* ------------------------------------------------------------ 谁来喊菜单 */
   doc.addEventListener('contextmenu', function (e) {

@@ -126,6 +126,7 @@ ${items
   )
   .join('\n')}
   </nav>
+  <button class="bar__edit" type="button" data-edit-toggle hidden>全局编辑</button>
   <button class="bar__theme" type="button" data-theme-toggle hidden>夜间调声</button>
   <button class="bar__sound" type="button" data-sound-toggle hidden>开启音效</button>
 </header>`;
@@ -226,6 +227,7 @@ ${studio(base)}
 <script src="${base}assets/js/sections.js" defer></script>
 <script src="${base}assets/js/owner.js" defer></script>
 <script src="${base}assets/js/studio.js" defer></script>
+<script src="${base}assets/js/editmode.js" defer></script>
 <script src="${base}assets/js/nav.js" defer></script>
 ${scripts.map((s) => `<script src="${base}${s}" defer></script>`).join('\n')}
 </body>

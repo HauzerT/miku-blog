@@ -159,7 +159,8 @@ button { -webkit-tap-highlight-color: var(--tap); touch-action: manipulation; }
 .bar__nav a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--cuer); }
 
 .bar__theme,
-.bar__sound {
+.bar__sound,
+.bar__edit {
   font: inherit;
   font-size: var(--t-ui);
   letter-spacing: 0.03em;
@@ -170,20 +171,26 @@ button { -webkit-tap-highlight-color: var(--tap); touch-action: manipulation; }
   padding: 0.3rem 0.6rem;
   cursor: pointer;
   white-space: nowrap;
-  /* 手指：两个开关各自撑到 40px 高，别按空 */
+  /* 手指：三个开关各自撑到 40px 高，别按空 */
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   min-height: 2.5rem;
 }
 .bar__theme:hover,
-.bar__sound:hover { color: var(--ink); border-color: var(--miku-deep); }
-/* 音效开着时按钮要有"按下"的样子，一眼能看出站点现在会发声 */
-.bar__sound[aria-pressed="true"] {
+.bar__sound:hover,
+.bar__edit:hover { color: var(--ink); border-color: var(--miku-deep); }
+/* 音效开着时按钮要有"按下"的样子，一眼能看出站点现在会发声。
+   全局编辑模式同理：开着就是「此刻正在改」，用同一种反白。 */
+.bar__sound[aria-pressed="true"],
+.bar__edit[aria-pressed="true"] {
   color: var(--paper);
   background: var(--ink);
   border-color: var(--ink);
 }
+/* 自己写了 display 就得自己补一条 [hidden]——不然作者样式会盖过
+   UA 那条 display:none，访客会看见一把用不了的钥匙（login.css 同款注释） */
+.bar__edit[hidden] { display: none; }
 
 /* ---------------------------------------------------------------- 外壳 */
 .shell {
@@ -394,10 +401,10 @@ button { -webkit-tap-highlight-color: var(--tap); touch-action: manipulation; }
   .bar {
     height: auto;
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-columns: auto minmax(0, 1fr) auto auto auto;
     grid-template-areas:
-      "id    .   theme sound"
-      "nav   nav nav   nav";
+      "id    .   edit  theme sound"
+      "nav   nav nav   nav   nav";
     align-items: center;
     row-gap: 0;
     column-gap: var(--s-3);
@@ -412,8 +419,10 @@ button { -webkit-tap-highlight-color: var(--tap); touch-action: manipulation; }
   }
   .bar__theme { grid-area: theme; }
   .bar__sound { grid-area: sound; }
+  .bar__edit { grid-area: edit; }
   .bar__theme,
-  .bar__sound {
+  .bar__sound,
+  .bar__edit {
     font-size: 0.75rem;
     padding: 0.25rem 0.45rem;
     min-height: 2.25rem;

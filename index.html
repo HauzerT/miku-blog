@@ -43,6 +43,7 @@ if(!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches))
     <a href="archive.html">归档</a>
     <a href="about.html">关于</a>
   </nav>
+  <button class="bar__edit" type="button" data-edit-toggle hidden>全局编辑</button>
   <button class="bar__theme" type="button" data-theme-toggle hidden>夜间调声</button>
   <button class="bar__sound" type="button" data-sound-toggle hidden>开启音效</button>
 </header>
@@ -253,7 +254,7 @@ if(!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches))
         <p class="entry__pitch">A3</p>
         <div>
           <h3 class="entry__name"><a href="sections/prisoner.html">网上囚徒</a></h3>
-          <p class="entry__blurb">！？猪猪？！ *闭嘴*：只猪谐音蜘蛛，蜘蛛生活在网上，猪猪也生活在网上，您是否觉得忍俊不禁？</p>
+          <p class="entry__blurb">！？猪猪？！ *闭嘴*：只猪谐音蜘蛛，蜘蛛生活在网上，猪猪也生活在网上，您是否觉得忍俊不禁？我：闭嘴。 </p>
           <p class="entry__recent">最近：<a href="posts/rss-bookshelf.html">我把 RSS 读成了书架</a><span aria-hidden="true">·</span><a href="posts/info-diet.html">凌晨三点的信息食谱</a></p>
         </div>
         <p class="entry__count">3 篇</p>
@@ -262,7 +263,7 @@ if(!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches))
         <p class="entry__pitch">F#3</p>
         <div>
           <h3 class="entry__name"><a href="sections/zuoti.html">做题区doge</a></h3>
-          <p class="entry__blurb">这是原子神技大学EE学生的自我修养tanhz在复数域上，haoze tang也生活在复杂的领域上</p>
+          <p class="entry__blurb">📚原子神技大学EE学生的自我修养 tanhz在复数域上，haoze tang也生活在复杂的领域上</p>
           <p class="entry__recent">最近：<a href="posts/monotonic-stack.html">单调栈的三个不变式</a><span aria-hidden="true">·</span><a href="posts/binary-search.html">二分的四种写法，和它们的边界</a></p>
         </div>
         <p class="entry__count">3 篇</p>
@@ -302,6 +303,7 @@ if(!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches))
 <script src="assets/js/sections.js" defer></script>
 <script src="assets/js/owner.js" defer></script>
 <script src="assets/js/studio.js" defer></script>
+<script src="assets/js/editmode.js" defer></script>
 <script src="assets/js/nav.js" defer></script>
 
 </body>
