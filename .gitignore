@@ -13,3 +13,12 @@ node_modules/
 
 # 云村小服务的登录凭证（相当于你的网易云登录态，绝对不要提交）
 .ncm-session.json
+
+# Cloudflare Tunnel（长期部署用，见 deploy/CLOUDFLARE-TUNNEL.md）
+# 后台源站的日志开头就印着上传口令，不能进仓库
+deploy/*.log
+# cloudflare-tunnel-skill 助手的运行时状态（里面可能有 tunnel 地址与 pid）
+.cloudflare-tunnel/
+# cloudflared 的凭据与 token：只放在 %USERPROFILE%\.cloudflared\，永远不要进来
+*.cfargotunnel.json
+cert.pem

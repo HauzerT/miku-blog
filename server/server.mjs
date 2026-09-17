@@ -14,7 +14,7 @@
 import { createServer } from 'node:http';
 import { createReadStream, existsSync, statSync, readFileSync, writeFileSync, rmSync, mkdirSync } from 'node:fs';
 import { join, extname, normalize, sep } from 'node:path';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { URL } from 'node:url';
 
 import {
@@ -57,13 +57,39 @@ import {
 /* 正文的第二道加工：让「页面上直接改字」存下来的那段 HTML 里 :smile: 与 $…$ 也出
    emoji 与公式（第一道是 sanitizeHtml 的轻清洗） */
 import { decorateBody } from './lib/markdown.mjs';
+/* 口令试错限速：本机跑随便错，挂上 tunnel 之后它是那道摩擦 */
+import { createAuthLimit, clientKey, AUTH_LIMIT_DEFAULTS } from './lib/authlimit.mjs';
 
 const PORT = Number(process.argv[2] || process.env.PORT || 4321);
 const HOST = '127.0.0.1';
 const MAX_BODY = DEFAULT_LIMIT;
 
-/* 站点根目录下不允许被静态服务读出来的东西：服务端源码和原始数据 */
-const HIDDEN = new Set(['server', 'data', '.git', 'node_modules', 'tools', 'content']);
+/* 公网部署时的两个开关。两个都默认关着——默认值必须是「本机跑」的那一套，
+   要暴露到公网的人自己知道自己在做什么，再由他自己打开。 */
+const TRUST_PROXY = /^(1|true|yes)$/i.test(String(process.env.CV01_TRUST_PROXY || ''));
+const AUTH_FREE_ATTEMPTS = Number(process.env.CV01_AUTH_FREE || AUTH_LIMIT_DEFAULTS.freeAttempts);
+const authLimit = createAuthLimit({ freeAttempts: AUTH_FREE_ATTEMPTS });
+const authKey = (req) => clientKey(req, { trustProxy: TRUST_PROXY });
+
+/* 同时在进行中的 /api/render 次数。见那一段的注释：它不落盘但白算。 */
+let renderInFlight = 0;
+
+/* 站点根目录下不允许被静态服务读出来的东西：服务端源码、原始数据、部署脚本。
+   `.ncm-session.json`（网易云登录态）也在这里——它躺在站点根目录下，
+   而原来的 HIDDEN 是一个**目录名**白名单，拦不住根目录下的单个点文件：
+   公网上直接 GET /.ncm-session.json 就能把你的登录 cookie 整份拿走。
+   （tools/preflight-check.mjs 抓到的就是这个。）
+   `deploy` 同理：那里有 blog-server.log，日志开头就印着口令。 */
+const HIDDEN = new Set([
+  'server', 'data', 'tools', 'content', 'deploy',
+  'node_modules', '.git', '.ncm-session.json',
+]);
+
+/* 除了上面的名单，**任何一段以 `.` 开头的路径都不发**（.gitignore、.env、
+   以后新加的 .credentials.yaml……）。名单是会忘的，这条不会。 */
+function hasDotSegment(pathname) {
+  return String(pathname).split('/').some((seg) => seg.length > 1 && seg.charCodeAt(0) === 46);
+}
 
 /* ------------------------------------------------------------------ 小工具 */
 
@@ -386,9 +412,21 @@ function keyOf(req, url) {
   return url.searchParams.get('key') || '';
 }
 
+/* 口令比对。字符串 === 会在第一个不同的字节上短路，理论上能把口令一位一位试出来；
+   本机无所谓，公网上就换成定长比较。两边长度不同时 timingSafeEqual 会直接抛，
+   所以先用长度挡一下——长度本身不是秘密（看下面，口令是定长的）。
+
+   比的是 UTF-8 字节，所以中文口令也算数。 */
+function keyMatches(candidate, expected) {
+  const a = Buffer.from(String(candidate || ''), 'utf8');
+  const b = Buffer.from(String(expected || ''), 'utf8');
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
+}
+
 function requireAuth(req, url) {
   if (!settings.passphrase) throw new HttpError(403, '这台机器上还没有口令，请看启动服务的那个终端窗口');
-  if (keyOf(req, url) !== settings.passphrase) throw new HttpError(401, '口令不对');
+  if (!keyMatches(keyOf(req, url), settings.passphrase)) throw new HttpError(401, '口令不对');
 }
 
 /* ------------------------------------------------------------------ 音乐 */
@@ -433,7 +471,34 @@ async function api(req, res, url) {
   if (path === '/api/auth' && method === 'POST') {
     const key = keyOf(req, url) || '';
     if (!settings.passphrase) throw new HttpError(403, '还没有设置口令：请重启一次服务，终端会打印口令');
-    if (key !== settings.passphrase) throw new HttpError(401, '口令不对，再看一眼启动服务的终端');
+
+    /* 试错限速。原来的 /api/auth 是「比对一下，不通过就 401」——
+       本机这么写没问题，公网上就是一个零摩擦的猜口令入口。
+       现在：同一个来客错够 freeAttempts 次之后，每错一次要等的时长翻倍（封顶 15 分钟）。
+       来客是谁由 clientKey() 判断，默认不信任任何转发头；挂 tunnel 的人
+       用 CV01_TRUST_PROXY=1 打开按真实 IP 计数。见 server/lib/authlimit.mjs。 */
+    const who = authKey(req);
+    const gate = authLimit.check(who);
+    if (!gate.allowed) {
+      const waitMinutes = Math.ceil(gate.retryAfterMs / 60000);
+      const waitText = gate.retryAfterMs >= 60000 ? `${waitMinutes} 分钟` : `${Math.ceil(gate.retryAfterMs / 1000)} 秒`;
+      res.setHeader('retry-after', String(Math.ceil(gate.retryAfterMs / 1000)));
+      throw new HttpError(429, `口令错的次数太多了，请等 ${waitText} 再试`);
+    }
+
+    if (!keyMatches(key, settings.passphrase)) {
+      const after = authLimit.recordFailure(who);
+      /* 服务端自己也要留一行：公网上的口令试错是唯一值得盯着的事件。
+         只记来客与次数，不记试的是什么。 */
+      const attemptsLeft = Math.max(0, AUTH_FREE_ATTEMPTS - after.fails);
+      console.warn(`[口令] 不对 · 来客 ${who} · 这是第 ${after.fails} 次` +
+        (after.retryAfterMs
+          ? ` · 下次要等 ${Math.ceil(after.retryAfterMs / 1000)}s`
+          : ` · 还能白试 ${attemptsLeft} 次`));
+      throw new HttpError(401, '口令不对，再看一眼启动服务的终端');
+    }
+
+    authLimit.recordSuccess(who);
     /* 验过口令 = 从站长这道门进来了：顺手把门厅那枚章盖上 */
     res.setHeader('set-cookie', enterCookie('1'));
     return sendJson(res, 200, { ok: true, entered: true });
@@ -503,8 +568,27 @@ async function api(req, res, url) {
 
   /* 正文预览：编辑器要一边写一边看渲染结果，所以这一个不需要口令 */
   if (path === '/api/render' && method === 'POST') {
-    const body = JSON.parse((await readBody(req, 1 << 20)).toString('utf8') || '{}');
-    return sendJson(res, 200, { ok: true, html: renderBody(String(body.source || '')) });
+    /* 渲染预览是**不需要口令**的（写文章时右栏实时预览要用它）。
+       它不落盘，但白算：marked 与 KaTeX 都在同一条管线里，
+       一次塞进去几 MB 的公式就能把这一颗 CPU 占住。所以给它两道闸：
+
+         · 正文上限 256KB —— 一篇博客用不到更多；
+         · 同时最多 RENDER_MAX 个在渲染 —— 超了就 429，等一会儿再来。
+
+       这不是安全边界（本站真正的边界是口令），是**别让一个来客把服务拖死**。 */
+    const RENDER_LIMIT = 256 * 1024;
+    const RENDER_MAX = 2;
+    const body = JSON.parse((await readBody(req, RENDER_LIMIT)).toString('utf8') || '{}');
+    if (renderInFlight >= RENDER_MAX) {
+      res.setHeader('retry-after', '2');
+      throw new HttpError(429, '预览排着队呢，过一两秒再敲一次');
+    }
+    renderInFlight += 1;
+    try {
+      return sendJson(res, 200, { ok: true, html: renderBody(String(body.source || '')) });
+    } finally {
+      renderInFlight -= 1;
+    }
   }
 
   if (path === '/api/music' && method === 'GET') {
@@ -953,6 +1037,9 @@ function serveStatic(req, res, url, pathname) {
   /* /assets/… 与站点根目录下的静态文件（index.html / archive.html / sections/*.html …） */
   const top = pathname.split('/').filter(Boolean)[0] || '';
   if (top && HIDDEN.has(top)) return notFoundPage(res, pathname);
+  /* 点文件一律不发。放在 HIDDEN 之后：上面那几条给的是 404 页面（人话），
+     这里给纯 404 就够——没有人应该在找 .env。 */
+  if (hasDotSegment(pathname)) return sendText(res, 404, '404');
 
   let relative = pathname;
   if (relative === '/') relative = '/index.html';
@@ -1013,11 +1100,33 @@ function serveDynamicSection(req, res, sectionId, subId) {
 
 ensureStartup();
 
+/* 口令是**首次启动随机生成**的。原来是 randomBytes(4).toString('hex')：8 位十六进制
+   = 32 bit 熵，本机跑够用，挂到公网上就不够了（而且很长一段时间里 data/settings.json
+   里存着一串 6 位数字口令）。现在生成的是 32 个字符、约 186 bit 熵。
+
+   口令里不放 l/1/I/0/O 这种会看错的字符（它要被人从终端抄到另一个窗口里），
+   字母数字混排，从随机字节里取模——下面的拒绝采样保证了不会因为取模而偏向前面几个字符。 */
+const PP_ALPHABET = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const PP_LENGTH = 32;
+
+function generatePassphrase(length = PP_LENGTH) {
+  const limit = 256 - (256 % PP_ALPHABET.length); // 拒绝采样：超出这条线的字节丢掉
+  let out = '';
+  while (out.length < length) {
+    for (const byte of randomBytes(length * 2)) {
+      if (byte >= limit) continue;
+      out += PP_ALPHABET[byte % PP_ALPHABET.length];
+      if (out.length === length) break;
+    }
+  }
+  return out;
+}
+
 function ensureStartup() {
   for (const dir of [DATA, ...Object.values(MEDIA_DIRS)]) mkdirSync(dir, { recursive: true });
 
   if (!settings.passphrase) {
-    settings.passphrase = randomBytes(4).toString('hex');
+    settings.passphrase = generatePassphrase();
     settings.createdAt = new Date().toISOString();
     saveSettings(settings);
   }
@@ -1073,6 +1182,14 @@ server.listen(PORT, HOST, () => {
     console.log('    不想拦就往 data/settings.json 里加一行 "gate": false）');
   }
   console.log(`  板块 ${counts} 个 · 曲目 ${music.tracks.length} 首 · 自写文章 ${articles.length} 篇`);
+  /* 口令试错限速按谁计数——这个必须写在启动横幅里。
+     它默认是「全站共用一个桶」（只认 socket 地址），挂 tunnel 的人
+     很容易忘了打开 CV01_TRUST_PROXY，然后在日志里看到一堆 127.0.0.1。
+     这行不打印口令，只报状态，可以放心留在终端里。 */
+  console.log(`  口令限速    ${TRUST_PROXY
+    ? '按真实来客（CF-Connecting-IP）· 免费 ' + AUTH_FREE_ATTEMPTS + ' 次'
+    : '全局（只认本机地址）· 免费 ' + AUTH_FREE_ATTEMPTS + ' 次' +
+      ' · 挂 tunnel 请设 CV01_TRUST_PROXY=1'}`);
   console.log('');
   console.log(`  上传口令    ${settings.passphrase}`);
   console.log('  （第一次上传时输入这个口令，之后这个浏览器就记住了；');
