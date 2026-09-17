@@ -1,0 +1,23 @@
+{
+  "name": "miku-blog",
+  "version": "1.7.5",
+  "private": true,
+  "type": "module",
+  "description": "初音ミク CV01 · 用钢琴卷帘当目录的个人博客（Nuxt 3 全栈）",
+  "scripts": {
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "legacy:build": "node tools/build.mjs",
+    "legacy:server": "node server/server.mjs"
+  },
+  "dependencies": {
+    "katex": "^0.18.7",
+    "marked": "^18.0.13",
+    "nuxt": "^3.21.11",
+    "vue": "^3.5.43",
+    "vue-router": "^4.5.0"
+  }
+}

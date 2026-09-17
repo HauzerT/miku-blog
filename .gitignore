@@ -11,6 +11,13 @@ media/*
 node_modules/
 *.tmp
 
+# Nuxt 3 构建产物与缓存（见 nuxt.config.ts）
+.nuxt/
+.output/
+.nitro/
+.cache/
+dist/
+
 # 云村小服务的登录凭证（相当于你的网易云登录态，绝对不要提交）
 .ncm-session.json
 
