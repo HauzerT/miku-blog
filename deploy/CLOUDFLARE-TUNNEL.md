@@ -3,6 +3,10 @@
 > 本文只写**流程**。按本文走完，站点的对外地址就真的能被别人打开了——
 > 所以每一步都标了「这一步会不会已经上网」。**不按第 6、7 步启动，就一个字节都没有上线。**
 >
+> 站点是 **Nuxt 3 应用**：先构建一次，再跑构建产物 `.output/server/index.mjs`
+> （它同时提供页面与 `/api/**` 接口，门厅也在这一台上）。**没有零构建那条路了**——
+> 1.x 那套 `node tools/build.mjs` 生成静态页 + `node server/server.mjs` 的组合已经删除。
+>
 > **已经做完的准备**（本机侧，全程没出网）：
 >
 > ```
@@ -29,7 +33,8 @@ Tunnel 不是「把本机的端口开到公网」，而是**反向**的：
 
 - `cloudflared` 从本机**往外**拨号（出站 7844/QUIC 或 443/HTTP2），
   所以**路由器不用端口转发、不需要公网 IP、也没有入站端口被打开**。
-- 本机的 `server/server.mjs` 仍然只监听 `127.0.0.1:4321`（`server/server.mjs` 里的 `HOST`），
+- 本机的 Nuxt 服务只听 `127.0.0.1:4321`（`start.ps1` 与 `deploy\start-blog-background.ps1`
+  都写死了 `NITRO_HOST=127.0.0.1`；Nitro 自己的默认值是**所有网卡**，公网部署绝不能用那个），
   这一点**不用改**，也不该改。Tunnel 与它是同一台机器上的邻居。
 - 键一拔（停掉 cloudflared），外网立刻访问不到，本机一切照旧。
 
@@ -40,7 +45,7 @@ Tunnel 不是「把本机的端口开到公网」，而是**反向**的：
 | `cloudflared` | 已装（winget 包 `Cloudflare.cloudflared`，2026.9.1，在 `C:\Program Files (x86)\cloudflared\cloudflared.EXE`） |
 | 一个 Cloudflare 账号 | 需要你自己注册 |
 | 一个**托管在 Cloudflare 上的域名**（NS 已经指到 CF） | 需要你自己有；长期映射必须用它，`trycloudflare.com` 那种临时地址不能长期用 |
-| 本机服务能跑起来 | `node server/server.mjs`，默认 `http://127.0.0.1:4321/` |
+| 本机服务能跑起来 | `pnpm install && pnpm build` 之后 `node .output/server/index.mjs`，默认 `http://127.0.0.1:4321/` |
 
 验证 cloudflared：
 
@@ -57,20 +62,25 @@ python "$env:USERPROFILE\.dsh\skills\cloudflare-tunnel-skill\scripts\tunnel_help
 
 ```powershell
 cd <仓库根>
-.\start.cmd                 # 或 node server/server.mjs 4321
+pnpm install
+pnpm build                  # 只需要一次；之后改了代码要重新跑
+$env:PORT=4321; node .output/server/index.mjs
 ```
+
+日常更省事的一条：双击 `start.cmd`（它跑的就是上面那条命令，并且顺手把云村小服务也拉起来，
+还会把上传口令打在横幅上）。**没构建过 `start.cmd` 会明确报错并退出非零**，不会起个空壳。
 
 另一个窗口：
 
 ```powershell
 curl.exe -I http://127.0.0.1:4321/
-# 200 / 302 都算通（有门厅时是 302 → login.html）
+# 200 / 302 都算通（有门厅时是 302 → /login）
 ```
 
 **两件必须知道的事：**
 
 1. **门厅默认是开的。** `data/settings.json` 里没有 `"gate": false`，所以站点页面会被 302 到
-   `login.html`。这条门对公网同样生效——拿到地址的人会先看到门厅。
+   `/login`。这条门对公网同样生效——拿到地址的人会先看到门厅。
    访客按「访客进入」就能进（这是设计），站长按「站长登录」要口令。
 2. **门厅只挡「是不是从门口进来的」，不是锁。** 真正的权限是口令，由每个写接口的
    `requireAuth` 现验。上线前请看第 9 节。
@@ -109,7 +119,7 @@ ingress:
     service: http://127.0.0.1:4321
     originRequest:
       connectTimeout: 30s
-      # 本站上传上限 256MB（server/lib/multipart.js 的 DEFAULT_LIMIT）
+      # 本站上传上限 256MB（server/utils/paths.ts 的 MAX_BODY，沿用 1.x 的 DEFAULT_LIMIT）
       # tunnel 侧默认不限制 body，但 CF 免费版单请求 100MB，传大视频会撞墙
   - service: http_status:404       # 兜底，必须留，且必须是最后一条
 ```
@@ -138,7 +148,7 @@ cloudflared service install eyJhIjoi...          # ← token 只在这条命令�
 
 ## 4. 让它长期活着（Windows 开机自启）
 
-Tunnel 要一直活着，源站也要一直活着，**两个都要自启**，缺一个就是 502。
+Tunnel 要一直活着，站点也要一直活着，**两个都要自启**，缺一个就是 502。
 
 ### 4.1 cloudflared
 
@@ -175,7 +185,7 @@ C:\Program Files (x86)\cloudflared\cloudflared.EXE --config=C:\Users\<你的用�
 > 与「使用最高权限运行」），程序填 `cloudflared.exe`，参数填
 > `tunnel --config <yml 全路径> run miku-blog`。效果一样，且不碰注册表。
 
-### 4.2 源站（本站的 node 服务）
+### 4.2 源站（本站的 Nuxt 服务）
 
 用仓库里带的 `deploy\start-blog-background.cmd`（纯 ASCII 的 .cmd，中文在 .ps1 里——
 理由见 README「为什么 .cmd 里一个中文都没有」）。**公网部署要加 `-PublicDeploy`**：
@@ -187,16 +197,18 @@ deploy\start-blog-background.cmd -PublicDeploy
 它做三件事：
 
 1. 确认 `127.0.0.1:4321` 没人听，就把 `start.ps1` 在后台拉起来
-   （日志与口令写在 `deploy\blog-server.log` / `deploy\blog-server.err.log`）。
+   （日志与口令横幅写在 `deploy\blog-server.log` / `deploy\blog-server.err.log`）。
+   `start.ps1` 跑的是 Nuxt 的构建产物 `.output\server\index.mjs`，所以
+   **这台机器必须先 `pnpm install && pnpm build`**；没构建过 `start.ps1` 明确报错退出。
    **已经在跑就不重复启动**，可以放心让任务计划程序反复调它。
 2. `-PublicDeploy` 时不启动**云村小服务**（`start.ps1 -NoKumura`）。
    它的 3170 端口旁边就是 `.ncm-session.json`——你的网易云登录态。
    公网部署时它没有任何理由在跑，最省事的保证就是根本不起来。
    （不带这个开关时，它跟 `start.cmd` 一样会把云村也拉起来。）
-3. `-PublicDeploy` 时给上传服务设 `CV01_TRUST_PROXY=1`：`/api/auth` 的试错限速
+3. `-PublicDeploy` 时给服务设 `CV01_TRUST_PROXY=1`：`/api/auth` 的试错限速
    按**真实来客**（`CF-Connecting-IP`）计数，而不是全站共用一个 127.0.0.1 的桶。
-   这条只在你确实只让 cloudflared 连这台服务时成立，而 `server.mjs` 只监听
-   127.0.0.1，这就是那条保证。
+   这条只在你确实只让 cloudflared 连这台服务时成立，而它只听 127.0.0.1
+   （脚本里写死的 `NITRO_HOST`），这就是那条保证。
 
 启动横幅会自己说明限速是按谁计数的，不用猜：
 
@@ -216,7 +228,7 @@ deploy\start-blog-background.cmd -PublicDeploy
 | 条件 | 取消「只有在计算机使用交流电源时才启动」（笔记本电池下也要跑） |
 | 设置 | 勾「如果任务失败，按以下频率重新启动：1 分钟 / 3 次」 |
 
-口令在终端里打印，用后台方式起来就打印到日志里了——**别去日志里翻，用
+口令在 `start.ps1` 的横幅里打印，用后台方式起来就落到日志开头了——**别去日志里翻，用
 `tools\copy-key.cmd` 把它放进剪贴板**（日志里那条明文只是个兜底）。
 
 ## 5. 验证
@@ -259,6 +271,7 @@ python "$env:USERPROFILE\.dsh\skills\cloudflare-tunnel-skill\scripts\tunnel_help
 ```powershell
 # 临时停：Ctrl+C，或
 Stop-Service cloudflared          # 管理员
+stop.cmd                          # 顺手把本机的 Nuxt 应用与云村小服务也停掉
 
 # 彻底不要了
 cloudflared tunnel delete miku-blog     # 连带 DNS 记录一起删
@@ -269,8 +282,8 @@ cloudflared service uninstall
 
 ## 8. 先把 `deploy\` 里的运行时文件排除掉
 
-`deploy\blog-server.err.log` 里可能有口令。`.gitignore` 里已经加了一行 `deploy/*.log`，
-另外 `cloudflared` 的凭据（`%USERPROFILE%\.cloudflared\*.json`、`cert.pem`）
+`deploy\blog-server.log` 里可能有口令（`start.ps1` 的横幅就在开头）。`.gitignore` 里已经加了一行
+`deploy/*.log`，另外 `cloudflared` 的凭据（`%USERPROFILE%\.cloudflared\*.json`、`cert.pem`）
 以及任何 `.cloudflare-tunnel/` 目录**永远不要进仓库**。
 
 ## 9. 上线前必须想清楚的安全问题（**这一节最重要**）
@@ -278,7 +291,7 @@ cloudflared service uninstall
 先跑一次预检——它真的去敲每一页，告诉你「挂出去之后别人能拿到什么」：
 
 ```powershell
-node server/server.mjs 4399                     # 另开一个窗口
+$env:PORT=4399; node .output/server/index.mjs   # 另开一个窗口（仓库根目录）
 node tools/preflight-check.mjs http://127.0.0.1:4399
 ```
 
@@ -286,21 +299,21 @@ node tools/preflight-check.mjs http://127.0.0.1:4399
 
 | 位置 | 现在是什么状态 |
 |---|---|
-| **`.ncm-session.json`（网易云登录态）** | **已经修好了。** 它躺在站点根目录下，而静态服务挡的是**目录名**白名单——所以公网上 `GET /.ncm-session.json` 曾经能整份拿走你的登录 cookie。预检抓到了这个；现在 `server.mjs` 多了一道「任何一段以 `.` 开头的路径都不发」，`deploy/` 也进了名单（那里有 `blog-server.log`，日志开头就印着口令）。 |
+| **`.ncm-session.json`（网易云登录态）** | **已经修好了。** 它躺在站点根目录下，而 1.x 那台静态服务挡的是**目录名**白名单——所以公网上 `GET /.ncm-session.json` 曾经能整份拿走你的登录 cookie。预检抓到了这个；那台服务后来加了一道「任何一段以 `.` 开头的路径都不发」，`deploy/` 也进了名单（那里有 `blog-server.log`，日志开头就印着口令）。现在这条路由从 Nuxt 发出：`data/`、`server/`、`tools/`、`deploy/` 与所有点文件都不在静态资源目录里，一个都发不出去。 |
 | 口令 `data/settings.json` | 已换成 32 位随机串（约 186 bit 熵）。轮换用 `node tools/set-passphrase.mjs`；换完每个浏览器里记着的旧口令都失效，门厅会重问一次。 |
-| `POST /api/auth` 爆破 | 已加试错限速：同一来客错 5 次不罚，之后 2s → 4s → 8s…封顶 15 分钟，带 `Retry-After`。公网部署时设 `CV01_TRUST_PROXY=1` 才会按**真实来客**计数（默认只认 socket 地址 = 全局限速）。见 `server/lib/authlimit.mjs`。 |
+| `POST /api/auth` 爆破 | 已加试错限速：同一来客错 5 次不罚，之后 2s → 4s → 8s…封顶 15 分钟，带 `Retry-After`。公网部署时设 `CV01_TRUST_PROXY=1` 才会按**真实来客**计数（默认只认 socket 地址 = 全局限速）。见 `server/lib/authlimit.mjs` 与 `server/utils/auth.ts`。 |
 | 口令比对 | 已从 `===` 换成 `timingSafeEqual`（定长比较，不再按第一个不同的字节短路）。 |
 | `POST /api/render` | 不要口令是**设计如此**（编辑页右栏靠它）。现在有闸：正文上限 256KB、同时最多渲 2 个，超了 429。它不落盘。 |
 | `/api/health` `/api/sections` `/api/posts` `/api/articles` `/api/music` `/api/state` | **仍然公开可读**（板块树、文章元数据、曲库、音量设置）。这是当前的设计，不是疏漏——不想公开就上 Access。 |
 | `/media/**` | **仍然公开可读**，按 URL 直取。你传的图片 / 视频 / 音乐公网可下。 |
 | 门厅 cookie `cv01-enter` | 访客可自取（设计如此）。伪造它拿不到额外权限，**真正的权限仍是口令**。 |
 | 写接口 | 每个都过 `requireAuth`，预检逐个确认过是 401。口令一泄 = 整站可写。 |
-| 后台编辑（`editor.html`、全局编辑） | 要口令。 |
-| **`tools/ncm-server.mjs`（3170）** | **绝对不要给它开 tunnel 或 Public Hostname**——它旁边就是 `.ncm-session.json`。`kumura.html` 那页同理（README 里也是这么说的）。 |
+| 后台编辑（`/editor`、全局编辑） | 要口令。 |
+| **`tools/ncm-server.mjs`（3170）** | **绝对不要给它开 tunnel 或 Public Hostname**——它旁边就是 `.ncm-session.json`。`/kumura` 那一页同理（README 里也是这么说的）。 |
 
 ### 9.1 门厅留着，当「开屏过场」
 
-门厅**不用关**，也不该关：`gate` 保持打开，访客进门先看到 `login.html`，按「访客进入」
+门厅**不用关**，也不该关：`gate` 保持打开，访客进门先看到 `/login`，按「访客进入」
 （那是个普通链接，没有 JS 也进得去），然后回到本来要去的那一页。Access 在前、门厅在后，
 两层并不打架——它们回答的是不同的问题：
 
@@ -316,7 +329,7 @@ node tools/preflight-check.mjs http://127.0.0.1:4399
 4. 加一条策略：Action = **Allow**，Include = **Emails**，填你自己的邮箱。
    （多个人就多填几个，或者用 Email domain。）
 5. Identity provider 用 One-time PIN（邮箱验证码）就够了，不需要接 Google/GitHub。
-6. 保存。**从这一刻起，没通过 CF 登录的人连 `login.html` 都看不到。**
+6. 保存。**从这一刻起，没通过 CF 登录的人连 `/login` 都看不到。**
 
 代价说清楚：你自己访问也要过一次 CF 登录（浏览器会记着，直到 session 到期）；
 手机上第一次也要过一遍。Cloudflare 免费额度够个人博客用。
@@ -331,10 +344,11 @@ node tools/preflight-check.mjs http://127.0.0.1:4399
 winget install --id Cloudflare.cloudflared --exact
 
 # 上线前（本机，不出网）
+pnpm install && pnpm build                # 构建成品（.output/server/index.mjs）
 node tools/preflight-check.mjs            # 读配置那一半
-node server/server.mjs 4399               # 另开窗口
+$env:PORT=4399; node .output/server/index.mjs   # 另开窗口
 node tools/preflight-check.mjs http://127.0.0.1:4399   # 真的去敲
-node tools/authlimit-check.mjs            # 限速规则（19 项）
+node tools/authlimit-check.mjs http://127.0.0.1:4399   # 限速规则（24 项）
 node tools/set-passphrase.mjs             # 换口令（需要时）
 
 # 建（路线 B 更省事）
@@ -362,7 +376,8 @@ stop.cmd
 |---|---|---|
 | `CV01_TRUST_PROXY` | 关 | `1` 时按 `CF-Connecting-IP` 给限速计数。**只在「除了 cloudflared 没别的路能连上这台服务」时才开**——那个头谁都能自己填。 |
 | `CV01_AUTH_FREE` | `5` | 头几次口令试错不罚。调小便于自检。 |
-| `PORT` / 命令行参数 | `4321` | 上传服务端口。 |
+| `PORT` | `4321` | Nuxt 服务的端口（`start.ps1` 的端口参数就是写进它的）。 |
+| `NITRO_HOST` | `127.0.0.1` | 监听地址。`start.ps1` 与 `deploy\start-blog-background.ps1` 都会设它。**别改成 `0.0.0.0`**：那会让同一个局域网里的人绕开 tunnel 直接连上这台服务（`CV01_TRUST_PROXY` 那条保证也就跟着失效了）。 |
 
 ## 11. 本机实况不在这份文档里
 
@@ -404,6 +419,8 @@ Copy-Item deploy\local.config.example.ps1 deploy\local.config.ps1
 5. **DSH web 远控入口值得单独上一道 Cloudflare Access**：它背后是一个能读写本机
    文件的 AI 代理，目前只有 URL 里的 launch token 一道锁。做法见第 9.2 节，
    域名换成远控那条即可。
+6. **改了代码要重新构建**：`pnpm build` 之后 `.output/server/index.mjs` 才是新的。
+   `deploy\start-blog-background.cmd` 只看端口，不会替你重新构建。
 
 ## 12. 提交前扫一遍密钥
 

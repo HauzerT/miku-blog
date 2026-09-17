@@ -107,7 +107,7 @@ const base = process.argv[2] || '';
 if (!base) {
   console.log('');
   console.log('  B. 真接口：跳过（没给地址）。要跑就：');
-  console.log('     $env:CV01_AUTH_FREE=1; node server/server.mjs 4399');
+  console.log('     $env:PORT=4399; $env:CV01_AUTH_FREE=1; node .output/server/index.mjs');
   console.log('     node tools/authlimit-check.mjs http://127.0.0.1:4399');
 } else {
   console.log('');

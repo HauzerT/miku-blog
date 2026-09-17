@@ -9,8 +9,8 @@
 
    文章存在 data/articles.json，由 server/utils/content.ts 并进板块页 / 归档 /
    首页索引与卷帘——建完立刻看得见。
-   与旧的 assets/js/editor.js 一一对应；它当年靠的 cv01.fetchJSON / withKey / upload
-   现在住在 composables/useApi.ts 与 composables/useOwnerKey.ts 里。
+   这里的取数、带口令重放与上传分别住在 composables/useApi.ts 与
+   composables/useOwnerKey.ts 里。
    ========================================================================== */
 definePageMeta({ layout: 'editor' })
 

@@ -8,9 +8,8 @@
      · 几个小工具（cn / hash / brToSpace）
 
    谁在用：
-     server/lib/shell.mjs   —— 生成器（tools/build.mjs）与旧上传服务渲染页面时用
-     Vue 组件（components/RollHero.vue 等）—— Nuxt 应用 SSR 时用
-     未来浏览器那份（assets/js/site.js 的 layoutTimeline）—— 仍按老规矩两边一起改
+     Vue 组件（components/RollHero.vue / RollStrip.vue）—— SSR 与浏览器都用它算位置
+     composables/useRoll.ts       —— 运行时按同一把尺重排（补进来的文章、换尺度）
 
    这个文件**不碰 node: 也不碰 DOM**，谁都能 import。
    ========================================================================== */
@@ -68,8 +67,8 @@ export const slotOf = (track, index) => (Number.isFinite(track.slot) ? track.slo
    · 相邻两篇之间空 REST 天当休止；同一天的多篇也依次往右排，挤不重叠；
    · 左端留 HEAD 天、右端留 TAIL 天——右端那格是「还没写的下一篇」。
    · 画布按这些压缩过的天算宽（--days × --roll-day），文章越写越多，轴往右长。
-   生成器、Nitro 与浏览器用同一套算式（浏览器那份在 assets/js/site.js 的
-   layoutTimeline，改要两边一起改）。 */
+   这一套算式只有一份：content/roll.mjs。SSR 时组件按它算位置，
+   运行时补进来的文章由 composables/useRoll.ts 的 layoutTimeline 用同一把尺重排。 */
 const REST = 4;   /* 相邻两篇之间的休止（压缩天） */
 const HEAD = 2;   /* 左端留白 */
 const TAIL = 14;  /* 右端留白 */

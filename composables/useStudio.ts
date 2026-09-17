@@ -1,14 +1,14 @@
 /* ==========================================================================
    composables/useStudio.ts · 悬浮工作台：探服务 / 口令 / 面板开合
    ---------------------------------------------------------------------------
-   与旧的 assets/js/studio.js 是同一件事，只搬这一份工作流用得着的那几段：
+   悬浮工作台这条工作流用得着的就这几段：
 
-     1) 探一探上传服务在不在（/api/health，不在就整体隐身）
-     2) 口令的存取（cv01.key / cv01.setKey）与询问框（cv01.askKey）
-     3) 带着口令重放一次请求（cv01.withKey：401/403 时先把口令问来）
+     1) 探一探服务在不在（/api/health，不在就整体隐身）
+     2) 口令的存取与询问框
+     3) 带着口令重放一次请求（401/403 时先把口令问来）
      4) 面板的开合（同一时刻只开一个，Esc 关，点外面关）
 
-   右键菜单与全局编辑模式是另一条工作流（studio.js 里那两大段），不在这里。
+   右键菜单与全局编辑模式是另一条工作流（useContextMenu / useEditMode），不在这里。
 
    状态为什么放在模块级：两颗球住在 layouts/default.vue 的 StudioDock 里，
    换页时它不重建，而面板里的组件会挂上挂下——「服务在不在」「开着哪个面板」
@@ -29,7 +29,7 @@ const keyValue = ref('');
 const keyDialog = ref({ on: false, message: '', error: '', busy: false });
 let waiting = null;
 
-/* 面板换过内容之后把焦点收回第一个能按的东西上（旧站是 cv01.focusPanel）：
+/* 面板换过内容之后把焦点收回第一个能按的东西上：
    怎么找那个元素由 StudioDock 挂载时登记进来，面板里的「← 工具箱」再喊一声。 */
 let focusHook = null;
 
@@ -76,7 +76,7 @@ export const useStudio = () => {
   };
 
   /* ------------------------------------------------------------ 探服务 */
-  /* 连不上就什么都不做：工作台隐身，站点照常（file:// 或静态托管也一样）。 */
+  /* 连不上就什么都不做：工作台隐身，站点照常（构建产物没起、静态托管也一样）。 */
   const probe = async () => {
     try {
       const res = await fetch('/api/health', { headers: { accept: 'application/json' } });
@@ -152,8 +152,7 @@ export const useStudio = () => {
   };
 
   /* 需要口令的操作统一从这里走：401/403 时问一次再重放。
-     （旧站 cv01.withKey 一个字不差：服务端的 401 是权限的真边界，
-     这里只负责不让人卡在死胡同里。） */
+     （服务端的 401 是权限的真边界，这里只负责不让人卡在死胡同里。） */
   const withKey = async (run) => {
     try {
       return await run();
@@ -175,7 +174,7 @@ export const useStudio = () => {
     openName.value = '';
   };
 
-  /* 同一个球再点一次就是收起（与旧站的 openPanel 一致） */
+  /* 同一个球再点一次就是收起 */
   const togglePanel = (name) => {
     openName.value = openName.value === name ? '' : name;
   };

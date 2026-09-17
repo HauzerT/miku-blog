@@ -1,6 +1,5 @@
 <script setup>
-/* 板块页：迷你定位条 + 板块头 + 导语 + 子板块 + 文章列表
-   （与 tools/build.mjs 的 buildSection() 同构） */
+/* 板块页：迷你定位条 + 板块头 + 导语 + 子板块 + 文章列表 */
 import { noteWidth, slotOf } from '../content/roll.mjs'
 
 const route = useRoute()

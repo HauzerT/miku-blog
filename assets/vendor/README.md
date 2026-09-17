@@ -24,8 +24,8 @@ katex/LICENSE                    MIT
   所以另外两份没带——省下约 500 KB。真要照顾很老的浏览器，把 woff 一起拷进来即可。
 - **不装 `katex.min.js`（浏览器版）。** 公式是在**服务端**编译好的（`server/lib/markdown.mjs`
   里的 `renderMath`），页面不需要再跑一遍 KaTeX，也就不需要那个 266 KB 的 UMD 包。
-  代价：正文里的公式要在「写入时」编译——编辑页保存、页面上直接改字保存、
-  生成静态页（`node tools/build.mjs`）这三处都会走到，所以照旧不用手工做别的。
+  代价：正文里的公式要在「写入时」编译——编辑页保存、页面上直接改字保存这两处都会走到，
+  所以照旧不用手工做别的。
 - **不装 `contrib/auto-render`。** 它是给浏览器 DOM 用的，我们是字符串管线，逻辑短得多。
 - **marked 只用 ESM 那一份**（`marked.esm.js`），服务端 `import` 它；
   浏览器不需要 marked（Markdown 只在服务端渲染，预览也走 `/api/render`）。
@@ -35,7 +35,7 @@ katex/LICENSE                    MIT
 ```bash
 npm view marked version && npm view katex version
 # 取这两个 tgz，拷回上表列出的那几个文件，然后跑一遍自检：
-node tools/md-check.mjs
+node tools/nuxt-edit-check.mjs http://127.0.0.1:3987   # 它会把富文本正文存下来再看页面，公式与 emoji 都过一遍
 ```
 
 升级完记得把这两个数字（版本号）在本文件与根 `README.md` 里一起改掉。

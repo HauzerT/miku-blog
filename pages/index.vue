@@ -1,5 +1,5 @@
 <script setup>
-/* 首页：卷帘 hero + 九板块索引（与 tools/build.mjs 的 buildIndex() 同构） */
+/* 首页：卷帘 hero + 九板块索引 */
 import { cn } from '../content/roll.mjs'
 
 const site = useSiteMeta()
@@ -7,7 +7,7 @@ const tracks = useTracks()
 const allPosts = computed(() => tracks.value.reduce((n, t) => n + (t.posts || []).length, 0))
 const voiceCn = computed(() => cn(tracks.value.length))
 
-/* 索引里那行小字的老规矩：data 里写过 def 就用它，否则退回导语（buildIndex 同款） */
+/* 索引里那行小字的规矩：data 里写过 def 就用它，否则退回导语（def 是覆盖层优先级更高的那一个） */
 const blurbOf = (track) => String((track.hasDefOverride ? track.def : track.lede) || '').replace(/<br\s*\/?>/gi, ' ')
 
 useHead(() => ({

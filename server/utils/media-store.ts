@@ -8,9 +8,8 @@
    文件名统一重写成 `<日期>-<8位十六进制>-<安全主干><后缀>`：原始文件名只留一份在
    JSON 里，磁盘上永远不会有中文空格括号带来的路径问题，也不会互相覆盖。
 
-   这份是从 server/lib/media.js 照抄的，只改了 MEDIA_DIRS 的来源：那个模块
-   `import { MEDIA_DIRS, extOf } from './store.mjs'`，而 store.mjs 的 ROOT 是
-   import.meta.url 推出来的——打包之后是错的（见 paths.ts）。规则一条没动：
+   目录来源是 server/utils/paths.ts（它按 Nitro 的运行时布局推仓库根，
+   1.x 那套 import.meta.url 推法打包之后是错的）。规则没动：
    **先认后缀、MIME 只作兜底**，因为 Windows 有时候对 .m4a 报 audio/x-m4a
    或干脆 application/octet-stream。
    ========================================================================== */
@@ -142,13 +141,13 @@ export function cleanAssets(list: unknown) {
 }
 
 /* ------------------------------------------------------------------ 表单
-   旧服务用的是自己手写的 parseMultipart（server/lib/multipart.js），这里换成 h3 的
-   readMultipartFormData，契约对回同一份 { fields, files:[{name,filename,type,data,size}] }——
-   调用方（/api/music、/api/media、/api/sections…）就一个字都不用改。
+   解析交给 h3 的 readMultipartFormData，契约是
+   { fields, files:[{name,filename,type,data,size}] }——调用方
+   （/api/music、/api/media、/api/sections…）只管照着这个形状取。
 
    一处差别要说明：h3 的解析器不带上限，所以「读之前先看 content-length」这一步
-   必须我们自己来；没有 content-length 的分块上传（浏览器正常不会这么发）就少了
-   旧服务那种边读边数的第二道闸。 */
+   必须我们自己来（见 paths.ts 的 MAX_BODY）；没有 content-length 的分块上传
+   （浏览器正常不会这么发）就没有边读边数的第二道闸。 */
 export async function readForm(event: H3Event) {
   const type = getRequestHeader(event, 'content-type') || '';
   if (!/multipart\/form-data/i.test(type)) throw new HttpError(400, '需要 multipart/form-data');

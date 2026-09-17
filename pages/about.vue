@@ -7,11 +7,11 @@ const site = useSiteMeta()
 const specs = [
   {
     key: '建站方式',
-    val: '外壳是 <b>Nuxt 3</b>（Vue 3 + Vite）：页面是 Vue 组件，服务端由 Nitro 提供接口与内容装配，第三方库（Vue、marked、KaTeX）全部随站打包，不联网、不 CDN。仓库里那条<b>零构建的静态路线</b>仍然留着：<code>node tools/build.mjs</code> 照旧把 <code>content/posts.mjs</code> 生成成 <code>index.html</code> / <code>sections/</code> / <code>posts/</code>，与 Nuxt 应用读同一份内容、用同一套卷帘算式。',
+    val: '外壳是 <b>Nuxt 3</b>（Vue 3 + Vite）：页面是 Vue 组件，服务端由 Nitro 提供接口与内容装配，第三方库（Vue、marked、KaTeX）全部随站打包，不联网、不 CDN。站点<b>只有这一条线</b>：先 <code>pnpm install &amp;&amp; pnpm build</code>，再跑成品 <code>node .output/server/index.mjs</code>。1.x 那条零构建静态线（<code>tools/build.mjs</code> 生成 <code>*.html</code>、双击 <code>index.html</code> 就能看）已经删掉了——老地址只是被 301 到新路由，仓库里那些页面文件不在了。',
   },
   {
     key: '内容源',
-    val: '两个源，各管一半。<b>手写的一半</b>：<code>content/posts.mjs</code>（板块、文章、每日一句、首页那一句），<code>node tools/build.mjs</code> 重新生成全部静态页，生成出来的 HTML 也可以直接手改。<b>界面写的一半</b>：编辑页写的文章、工具箱建的板块落在 <code>data/*.json</code>——跑着服务时由 <code>server/utils/content.ts</code> 把两半合成一份，页面与接口看到的都是它。',
+    val: '两个源，各管一半。<b>手写的一半</b>：<code>content/posts.mjs</code>（板块、文章、每日一句、首页那一句）——应用直接读它，<b>没有生成步骤</b>。<b>界面写的一半</b>：编辑页写的文章、工具箱建的板块落在 <code>data/*.json</code>——由 <code>server/utils/content.ts</code> 把两半合成一份，页面与接口看到的都是它。',
   },
   {
     key: '门厅',
@@ -43,7 +43,7 @@ const specs = [
   },
   {
     key: '上传',
-    val: '双击 <code>start.cmd</code> 起一个零依赖的 Node 服务（顺手把云村那个小服务也一起拉起来），右下角就多出两颗悬浮球。<b>音乐盒</b>是公开的：谁都能开、能听、能选歌、能把某一首设成「进页面自动播的那一首」。<b>站长工具箱</b>要口令（就是门厅那把），里面三件事：新建板块 / 子板块、上传音乐盒的音乐、快速写一篇博客；音乐盒里换歌、改名、删歌也归它管。文件落在 <code>media/</code>，记录落在 <code>data/*.json</code>。想关掉就双击 <code>stop.cmd</code>，它自己按进程找，不用记端口。',
+    val: '双击 <code>start.cmd</code> 起构建好的 Nuxt 应用（顺手把云村那个小服务也一起拉起来，口令打在启动横幅上），右下角就多出两颗悬浮球。<b>音乐盒</b>是公开的：谁都能开、能听、能选歌、能把某一首设成「进页面自动播的那一首」。<b>站长工具箱</b>要口令（就是门厅那把），里面三件事：新建板块 / 子板块、上传音乐盒的音乐、快速写一篇博客；音乐盒里换歌、改名、删歌也归它管。文件落在 <code>media/</code>，记录落在 <code>data/*.json</code>。想关掉就双击 <code>stop.cmd</code>，它自己按进程找，不用记端口。',
   },
   {
     key: '写文章',

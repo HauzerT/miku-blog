@@ -23,7 +23,10 @@ import { createInterface } from 'node:readline';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { loadSettings, saveSettings } from '../server/lib/store.mjs';
+/* 只读 / 只写 data/settings.json 的那一小块。旧的数据层 server/lib/store.mjs 跟着
+   1.x 静态线一起删了（Nuxt 的数据层是 server/utils/store.ts，走打包，命令行进不去），
+   所以工具侧留一份最小的——见 tools/lib/settings.mjs 顶部那段。 */
+import { loadSettings, saveSettings } from './lib/settings.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SETTINGS_FILE = join(ROOT, 'data', 'settings.json');

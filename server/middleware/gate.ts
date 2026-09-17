@@ -36,9 +36,10 @@ if (released) console.log(`[门厅] 让 ${released} 个预渲染页面改走运�
    要么本来就该公开（/assets、/_nuxt）。 */
 const NOT_PAGES = new Set(['api', 'assets', 'media', 'design', '_nuxt', '_ipx']);
 
-/* 要过门厅的：站点页面。判据是「没有后缀」——旧路由是 .html，新路由是 /archive、
-   /posts/<slug> 这种干净地址；带后缀的（.css/.json/.mjs/…）都当静态资源放走，
-   于是 /data/settings.json、/server/server.mjs 这些连门厅都不过，Nitro 直接 404。 */
+/* 要过门厅的：站点页面。判据是「有没有后缀」——页面路由是 /archive、/posts/<slug>
+   这种干净地址（旧址的 .html 也只由 legacy-urls 那条中间件转手）；带后缀的
+   （.css/.json/.mjs/…）都当静态资源放走，于是 /data/settings.json、
+   /server/utils/store.ts 这些连门厅都不过，Nitro 直接 404。 */
 function isPagePath(pathname: string): boolean {
   if (hasDotSegment(pathname)) return false;
   const segments = pathname.split('/').filter(Boolean);

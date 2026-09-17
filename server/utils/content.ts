@@ -7,12 +7,11 @@
      data/*.json         界面写的一半：新建的板块、编辑页写的文章、
                          改过的名字与正文（overrides）、撤下的记录
 
-   合并规则与旧服务端一致（server/lib/articles.mjs 的 mergeTracks /
-   applyOverrides 那一套）：data/sections.json 里的定义 / 导语 / 子板块盖过种子，
+   合并规则是唯一的、只写在这里：data/sections.json 里的定义 / 导语 / 子板块盖过种子，
    overrides 里的 name / body 盖过正文，hidden 的整条撤掉。
 
    正文在这里就排好版（Markdown → marked → emoji → KaTeX），页面拿到的
-   是成品 HTML —— 公式、emoji 与静态页一样，浏览器不用跑渲染器。
+   是成品 HTML —— 服务端渲染与客户端 hydration 看到的是同一份。
    整份结果按 data/ 那几个文件的 mtime 缓存，改完文件下次请求就重算。
    ========================================================================== */
 import { existsSync, readFileSync, statSync } from 'node:fs';

@@ -1,6 +1,6 @@
 <script setup>
 /* 迷你定位条：显示「我现在在卷帘的哪一格」。
-   与 server/lib/shell.mjs 的 rollStrip() 同构。 */
+   与首页那条大卷帘共用同一套位置算式（content/roll.mjs），只是压成一条。 */
 import { noteWidth, slotOf } from '../content/roll.mjs'
 
 const props = defineProps({

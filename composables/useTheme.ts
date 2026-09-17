@@ -1,14 +1,14 @@
 /* ==========================================================================
    composables/useTheme.ts · 夜间调声
    ---------------------------------------------------------------------------
-   assets/js/site.js 里那一半搬到这里。主题本身在首帧之前就由 nuxt.config.ts
-   内联的 BOOT 决定好了（避免闪烁），这里只管按钮：文案、aria、切换、记住，
+   主题本身在首帧之前就由 nuxt.config.ts 内联的 BOOT 决定好了（避免闪烁），
+   这里只管按钮：文案、aria、切换、记住，
    以及切完把地址栏颜色重算一遍（算式在 assets/js/palette.js 里）。
    ========================================================================== */
 export const useTheme = () => {
   const dark = ref(false);
   const narrow = ref(false);
-  /* hidden 到挂载后才解开——与静态页一样：没有 JS 就不摆一颗按不动的按钮 */
+  /* hidden 到挂载后才解开——没有 JS 就不摆一颗按不动的按钮 */
   const ready = ref(false);
 
   const label = computed(() =>

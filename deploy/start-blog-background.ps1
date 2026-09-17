@@ -19,9 +19,14 @@
 #    2. 给上传服务设 CV01_TRUST_PROXY=1：/api/auth 的试错限速按**真实来客**
 #       （CF-Connecting-IP）计数，而不是全站共用一个 127.0.0.1 的桶。
 #       这条只在「除了 cloudflared 没有别的路能连上这台服务」时才成立，
-#       而 server.mjs 只监听 127.0.0.1，这就是那条保证。
+#       而服务只听 127.0.0.1 —— start.ps1 里写死了 NITRO_HOST=127.0.0.1
+#       （Nitro 的默认值是所有网卡，公网部署不能用那个默认值），
+#       这就是那条保证。
 #
-#  日志：deploy\blog-server.log（标准输出，口令也会打在开头）
+#  起的是 Nuxt 的构建产物 .output\server\index.mjs（由 start.ps1 负责），
+#  所以这台机器必须先 pnpm install && pnpm build；没构建过 start.ps1 会明确报错。
+#
+#  日志：deploy\blog-server.log（标准输出；start.ps1 的口令横幅也在开头）
 #        deploy\blog-server.err.log（标准错误）
 #  中文只写在 .ps1 里并存成带 BOM 的 UTF-8；.cmd 保持纯 ASCII。
 # ============================================================================
@@ -53,7 +58,7 @@ if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
 
 if (Test-Port $Port) {
   if (-not $Force) {
-    Write-Host "  源站已经在跑（端口 $Port），这次不重复启动。" -ForegroundColor DarkGray
+    Write-Host "  Nuxt 应用已经在跑（端口 $Port），这次不重复启动。" -ForegroundColor DarkGray
     if ($PublicDeploy -and (Test-Port 3170)) {
       Write-Host '  -PublicDeploy：但云村小服务（3170）也在跑。公网部署时不该让它起来，' -ForegroundColor Yellow
       Write-Host '  它旁边就是 .ncm-session.json。用完记得 stop.cmd。' -ForegroundColor Yellow
@@ -75,7 +80,7 @@ if ($PublicDeploy) { $psArgs += '-NoKumura' }
 
 $env:CV01_TRUST_PROXY = if ($PublicDeploy) { '1' } else { '0' }
 
-"[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] 后台启动源站 · 端口 $Port · PublicDeploy=$([bool]$PublicDeploy) · TRUST_PROXY=$($env:CV01_TRUST_PROXY)" |
+"[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] 后台启动 Nuxt 应用 · 端口 $Port · PublicDeploy=$([bool]$PublicDeploy) · TRUST_PROXY=$($env:CV01_TRUST_PROXY)" |
   Out-File -FilePath $outLog -Append -Encoding utf8
 
 $proc = Start-Process -FilePath 'powershell.exe' `
@@ -88,7 +93,7 @@ $proc = Start-Process -FilePath 'powershell.exe' `
 $deadline = (Get-Date).AddSeconds(20)
 while ((Get-Date) -lt $deadline) {
   if (Test-Port $Port) {
-    Write-Host "  源站已启动（PID $($proc.Id)），监听 127.0.0.1:$Port" -ForegroundColor Cyan
+    Write-Host "  Nuxt 应用已启动（PID $($proc.Id)），监听 127.0.0.1:$Port" -ForegroundColor Cyan
     if ($PublicDeploy) {
       Write-Host '  公网部署模式：云村小服务没有启动；限速按真实来客计数。' -ForegroundColor Cyan
     }

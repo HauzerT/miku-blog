@@ -2,11 +2,10 @@
 /* ==========================================================================
    云村（/kumura）· 扫码登录网易云，看账号、歌单架、每日推荐与红心歌单
    ---------------------------------------------------------------------------
-   这一页的标记一字不差地等于 tools/build.mjs 的 buildKumura()：
-   四段内容用 [data-pane] 标出来，显示哪一段交给 assets/css/kumura.css
+   这一页的标记是对着 assets/css/kumura.css 写的：
+   四段内容用 [data-pane] 标出来，显示哪一段交给 CSS
    按容器上的 data-music-state 决定；所以这里只摆挂载点和文案，
-   取数 / 轮询 / 播放全在 composables/useKumura.ts 里（与旧的
-   assets/js/kumura.js 一一对应）。
+   取数 / 轮询 / 播放全在 composables/useKumura.ts 里。
 
    两个 classic script 是从 <head> 现挂的，不走打包：
      · assets/js/music.config.js —— 服务地址、页大小、轮询间隔这些可调项
@@ -17,7 +16,7 @@
 const site = useSiteMeta()
 
 /* 容器交给 composable。查节点、改状态属性都在它里面发生，
-   页面这一层不碰 DOM——SSR 出来的 HTML 与静态页完全一致。 */
+   页面这一层不碰 DOM——SSR 出来的 HTML 与客户端 hydration 完全一致。 */
 const music = ref(null)
 useKumura(music)
 

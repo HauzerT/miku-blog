@@ -40,14 +40,15 @@ git config core.hooksPath .githooks
 
 ### 模块 scope 对照
 
+站点只有一条线：Nuxt 应用（仓库根就是 srcDir）。
+
 | scope | 覆盖范围 |
 | --- | --- |
-| sections | sections/*.html 各板块页 |
-| assets | assets/css、assets/js、media |
-| server | server/**（含 server/lib） |
-| tools | tools/**、start/stop 脚本 |
-| content | content/**、posts/**、data/** |
-| pages | 根目录独立页面（index / editor / login / about / archive / kumura.html） |
+| app | Nuxt 应用本体：`app.vue`、`pages/**`、`components/**`、`composables/**`、`layouts/**`、`plugins/**`、`nuxt.config.ts` |
+| assets | assets/css、assets/js（palette.js / qr.js / music.config.js）、assets/fonts、assets/audio、assets/vendor、media |
+| server | server/**：`api/**`、`utils/**`、`middleware/**`，以及被运行时直接 import 的 `lib/**`（markdown / emoji / htmltext / authlimit） |
+| tools | tools/**、start/stop 脚本、`tools/nuxt-*-check.mjs` 自检 |
+| content | content/**、data/** |
 | deploy | deploy/**、design/** |
 | release | VERSION、CHANGELOG.md、.releaserc.yml、AGENTS.md |
 | repo | 仓库机制：.gitignore、.gitattributes、.gitleaks.toml、.githooks/**、.github/**、.secret-scan-baseline.json |
@@ -55,6 +56,10 @@ git config core.hooksPath .githooks
 ### 约定
 
 - 破坏性变更必须在提交正文标注 `BREAKING CHANGE: 说明`。
+- **1.x 那条零构建静态线已经删除**（生成出来的 `*.html`、`server/server.mjs`、`server/lib` 里的
+  渲染层、`assets/js` 里那批页面脚本、`tools/build.mjs` 与它那批自检）。
+  别再往那条线上加东西：老地址只剩 `server/middleware/legacy-urls.ts` 里的一张 301 跳转表。
 - `data/*`、`media/*`、`.ncm-session.json` 不入库（见 .gitignore），不参与版本记录。
+- `.ps1` 一律存成**带 BOM 的 UTF-8**，`.cmd` 保持纯 ASCII（cmd.exe 会读错字节偏移）。
 - 发布机制配置在 `.releaserc.yml`；要改发布流程（版本文件、日志文件、小节标题、
   提交信息格式）时，同步更新该文件与上面第 2、3 条。

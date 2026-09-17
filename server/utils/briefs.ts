@@ -4,18 +4,11 @@
    页面上看到的「板块树 / 文章 / 归档 / 卷帘上的位置」都从这里出。它只读状态、
    不写盘，所以是纯的投影层（真正的落盘在 store.ts）。
 
-   这一层是从旧 server/lib/articles.mjs 搬过来的：mergeTracks / applyOverrides /
-   postBrief / articleBrief / articleNote / sectionStats 一个字都没改，
-   外加旧 server.mjs 顶部那几个 allPosts()/tracksNow()/liveSections()/hiddenList()/
-   findPost()/findPostNow()/writeOverride 的调用关系。
+   这一层只做投影：mergeTracks 那一套合并（板块树 + 覆盖层 + 撤下）、
+   postBrief / articleBrief / sectionStats 这些形状，都从这里出。
 
-   为什么不直接 import 那个模块：articles.mjs 的头一行 import 了 shell.mjs，而
-   shell.mjs 用 `new URL('../../content/posts.mjs', import.meta.url)` 加顶层
-   await import 找内容源——那个相对路径在 Nitro 产物里是错的（预渲染时更明显）。
-   它转出去的卷帘几何本来住在 content/roll.mjs，那条路有别名，可以直接走。
-
-   唯一改了的地方是**网址**：urlFor() 吐的是新路由（/posts/<slug>、
-   /sections/<id>），不再是 .html。字段名与结构一个没动。
+   唯一与「网址」有关的一条：urlFor() 吐的是新路由（/posts/<slug>、
+   /sections/<id>）。旧的 `.html` 地址由 server/middleware/legacy-urls.ts 301 过去。
    ========================================================================== */
 import { noteWidth, slotOf, timelineChain } from '#content/roll.mjs';
 import { tracks as seedTracks } from '#content/posts.mjs';

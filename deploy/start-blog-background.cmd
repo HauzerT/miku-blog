@@ -6,6 +6,9 @@ REM  Used by Windows Task Scheduler for the Cloudflare Tunnel deployment.
 REM  It calls deploy\start-blog-background.ps1, which is idempotent: if something
 REM  is already listening on 127.0.0.1:4321 it does nothing and exits 0.
 REM
+REM  It starts the Nuxt build output (.output\server\index.mjs, via start.ps1),
+REM  so this machine must have run "pnpm install && pnpm build" at least once.
+REM
 REM  Usage:
 REM    deploy\start-blog-background.cmd                 local use (as start.cmd)
 REM    deploy\start-blog-background.cmd -PublicDeploy   public deploy, see below

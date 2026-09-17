@@ -1,12 +1,12 @@
 /* ==========================================================================
-   composables/useEditMode.ts · 全局编辑模式（旧站 assets/js/editmode.js）
+   composables/useEditMode.ts · 全局编辑模式
    ---------------------------------------------------------------------------
    页顶那颗「全局编辑」按钮一按，整站进入编辑模式：
 
      · 虚线框里的文字点一下就变成可编辑的（不用右键）：
        板块页的板块名 / 简介 / 导语，文章页的标题 / 正文，
        以及任何页面上的轨道栏板块名、首页索引、卷帘轨道头、文章行标题。
-     · 简介或导语是空的（动态板块页连那个 <p> 都没有）时，框里摆一颗
+     · 简介或导语是空的（板块页连那个 <p> 都没有）时，框里摆一颗
        「＋ 新建」：点它就地开工，存进去的就是从零新建的那一句。
      · Esc 退出；正在改的那一段先按它自己的规矩来（改过会问你一句）。
 
@@ -14,12 +14,11 @@
    （见 components/CommandBar.vue）。访客的页面一个字节都不动。真正的权限
    仍然在服务端那一层（每一次 PATCH 都要口令），这里只是把手递到明处。
 
-   与旧站的两处写法差异（行为一样）：
-     · 旧站把 slot 挂在 DOM 节点的 __gm 上；这里用 WeakMap，且每次描点都是
-       「从零认一遍」（Nuxt 的内容变了就是一次重渲染，旧节点会消失，
-       挂着的东西也就没有意义了）。
-     · 旧站换页时听 cv01:navigated；这里是 watch(route) + 一个对站点共享状态
-       的 watch——改完名字 / 撤下一条之后 refreshSite() 一跑，整页重渲染，
+   两条实现上的规矩：
+     · 描点用 WeakMap 记，而且每次都是「从零认一遍」——Nuxt 的内容变了就是
+       一次重渲染，旧节点会消失，挂在旧节点上的东西也就没有意义了。
+     · 换页时不监听任何自定义事件：靠 watch(route) + 一个对站点共享状态的
+       watch——改完名字 / 撤下一条之后 refreshSite() 一跑，整页重渲染，
        描点要跟着重来。
    ========================================================================== */
 import { editActive, startEdit } from './useInlineEdit';
@@ -75,8 +74,9 @@ const isEmptyText = (el: Element | null): boolean => {
   return Boolean(EMPTY_MARKS[plainOf((el as HTMLElement).innerHTML)] || EMPTY_MARKS[oneLine(el)]);
 };
 
-/* href → 板块 id / 文章 slug。两代网址都认（见 composables/usePageRoutes.ts）：
-   旧静态站是 sections/x.html（绝对或相对都行），Nuxt 是干净路由 /sections/x。 */
+/* href → 板块 id / 文章 slug（见 composables/usePageRoutes.ts）：
+   干净路由 /sections/x 与 /posts/x 是正身，老地址 sections/x.html、posts/x.html
+   也照认——它们会被 301 过来，但页面上可能还留着旧链接。 */
 import { sectionIdOf, slugOf } from './usePageRoutes';
 
 /* Nuxt 的干净路由：/posts/<slug>、/sections/<id>、/sections/<id>/<sub>。
@@ -147,12 +147,10 @@ const computeTargets = (): Slot[] => {
 
 /* ------------------------------------------------------------ 占位与「＋ 新建」 */
 
-/* 导语「整段缺失」的动态页，先给它把 <p class="lede"> 造出来
-   （摆在与静态页同一处：板块页头的后面）。
-   两种情形一起管：元素真的不在（旧站 server/lib/pages.mjs 在 lede 为空时
-   连那个 <p> 都不吐），或者元素在但里面什么都没有（Nuxt 这边 v-html=""
-   仍然会吐出空的 <p class="lede"></p>）。后者也算「整段缺失」——
-   不把这种情况认出来，动态页上那颗「＋ 新建导语」就永远不出现。 */
+/* 导语「整段缺失」的页面，先给它把 <p class="lede"> 造出来（摆在板块页头的后面）。
+   两种情形一起管：元素真的不在（lede 为空时模板连那个 <p> 都不吐），
+   或者元素在但里面什么都没有（v-html="" 仍然会吐出空的 <p class="lede"></p>）。
+   后者也算「整段缺失」——不把这种情况认出来，那颗「＋ 新建导语」就永远不出现。 */
 const ensureLedeEl = (slot: Slot): HTMLElement | null => {
   const empty = (el: HTMLElement) => !plainOf(el.innerHTML) || Boolean(EMPTY_MARKS[plainOf(el.innerHTML)]);
   if (slot.el) {

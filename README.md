@@ -3,21 +3,21 @@
 一个用**钢琴卷帘当目录**的个人博客。主题是一条工程界面式的人声合成器：
 九个板块 = 九条轨道 = 一个和弦的九个音。
 
-站点现在有两条线，读的是同一份内容、穿的是同一身 CSS：
+站点只有一条线，就是 Nuxt 应用：
 
 | 线路 | 是什么 | 怎么跑 |
 |---|---|---|
-| **Nuxt 应用** —— 2.0 起的主线 | Vue 3 + Vite 页面 + Nitro 服务端：首页 / 归档 / 板块 / 文章 / 关于 / 云村 / 写博客 / 门厅都是 Vue 组件，上传、鉴权、门厅与内容装配全在 `server/**` | `pnpm install` 之后 `pnpm dev`；要跑成品就 `pnpm build` 再 `node .output/server/index.mjs` |
-| **零构建静态页** —— 1.x 那条线，原样留着 | `node tools/build.mjs` 把 `content/posts.mjs` 生成成 `index.html` / `sections/*.html` / `posts/*.html`，双击就能看，`file://` 照跑；另有那套上传系统（`server/server.mjs`） | `node tools/build.mjs`，然后双击 `index.html`；要上传系统就双击 `start.cmd` |
+| **Nuxt 应用** —— 唯一的线路 | Vue 3 + Vite 页面 + Nitro 服务端：首页 / 归档 / 板块 / 文章 / 关于 / 云村 / 写博客 / 门厅都是 Vue 组件，上传、鉴权、门厅与内容装配全在 `server/**` | `pnpm install` 之后 `pnpm dev`；要跑成品就 `pnpm build` 再 `node .output/server/index.mjs`（双击 `start.cmd` 就是这一条） |
 
-两条线共用一份真相：内容来自 `content/posts.mjs`（外加界面写进 `data/*.json` 的那一半），
+内容来自 `content/posts.mjs`（外加界面写进 `data/*.json` 的那一半），
 卷帘的位置算式都在 `content/roll.mjs`，颜色只写在 `content/palette.mjs`，
-样式还是 `assets/css/` 里那几张——Nuxt 这一侧不重画 CSS，只把同一批 class 名交给 Vue 组件去吐。
+样式还是 `assets/css/` 里那几张——组件不重画 CSS，只把同一批 class 名交给 Vue 去吐。
 
-> **1.x 的两条底线，在 2.0 里只属于静态那条线**：零构建、双击 `index.html` 就能看、
-> `file://` 照跑，这些都还是 `tools/build.mjs` 那条路的事；Nuxt 应用需要一次
-> `pnpm install` 与一次构建。两边都不碰网络：Vue、marked、KaTeX 全部随站打包，
-> 字体与音频都在本地。
+> **1.x 那两条底线已经不在了，是决定不要的。** 零构建、双击 `index.html` 就能看、
+> `file://` 照跑，这些原本属于「零构建静态页」那条线：2.0.0 把它留着，**这一次的整合把它删掉了**。
+> 现在跑起来必须先 `pnpm install` 再 `pnpm build`，站点通过一台 Node 服务访问。
+> 不受影响的只有一件事：**老地址还认得路**（见下面「老地址还认得路」）。
+> 仍然成立的底线是：**不碰网络**——Vue、marked、KaTeX 全部随站打包，字体与音频都在本地。
 
 ```
 A5  二次生命        二次元
@@ -53,7 +53,7 @@ F#3 做题区doge      EE学生的自我迭代
 - [站长右键：改名与撤下](#站长右键改名与撤下) —— 含[页面上直接改字](#页面上直接改字像-word-那样)
 - [全局编辑模式（页顶那颗按钮）](#全局编辑模式页顶那颗按钮)
 - [Markdown · 公式 · emoji](#markdown--公式--emoji)
-- [改内容](#改内容) —— 生成器或直接改 HTML，两条路线
+- [改内容](#改内容) —— 改 `content/posts.mjs` 就行，没有生成步骤
 - [页顶「每日一句」](#页顶每日一句)
 
 **可选的体验**
@@ -63,7 +63,7 @@ F#3 做题区doge      EE学生的自我迭代
 
 **上线**
 
-- [发布](#发布) —— 静态托管 / Cloudflare Tunnel（[挂到公网之前先跑一次预检](#挂到公网之前先跑一次预检) ·
+- [发布](#发布) —— Node 服务 / 静态托管 / Cloudflare Tunnel（[挂到公网之前先跑一次预检](#挂到公网之前先跑一次预检) ·
   [部署实况不进仓库](#部署实况不进仓库) · [提交前扫一遍](#提交前扫一遍)）
 
 **设计**
@@ -77,7 +77,7 @@ F#3 做题区doge      EE学生的自我迭代
 
 ## 文件地图
 
-### Nuxt 应用（2.0 起的主线）
+### Nuxt 应用（唯一的线路）
 
 | 目录 / 文件 | 说明 |
 |---|---|
@@ -87,74 +87,64 @@ F#3 做题区doge      EE学生的自我迭代
 | `components/` | 卷帘（`RollHero` / `RollStrip`）、外壳零件、音乐盒与站长工具箱、口令框、提示条、编辑工具条 |
 | `composables/` | 行为：主题、钢琴声、每日一句、卷帘交互、内容状态、HTTP 与口令、音乐、悬浮球、编辑模式 |
 | `plugins/site-data.server.ts` | 服务端把装配好的内容灌进共享状态（客户端从 payload 里拿） |
-| `server/api/**` | Nitro 接口，一个方法一个文件；形状与 1.x 的 `server/server.mjs` 一致 |
+| `server/api/**` | Nitro 接口，一个方法一个文件 |
 | `server/utils/**` | 数据层与内容装配：`store`（五个 JSON）/ `briefs` / `auth` / `content` / `media-store` |
-| `server/middleware/` | `gate.ts` 是门厅这道门；`legacy-urls.ts` 把旧的 `.html` 地址 301 到新路由 |
-| `content/roll.mjs` | 卷帘的几何（节奏槽 + 时间轴接龙）：生成器、Nitro 与浏览器共用这一份 |
+| `server/middleware/` | `gate.ts` 是门厅这道门；`legacy-urls.ts` 把旧地址 301 到新路由 |
+| `content/roll.mjs` | 卷帘的几何（节奏槽 + 时间轴接龙）：Nitro 与浏览器共用这一份 |
 | `.output/` | 构建产物：`server/` 是 Node 服务，`public/` 是预渲染出来的静态页 |
 
-### 静态页那条线（1.x，仍在）
+### 老地址还认得路（唯一留着的一件 1.x 遗产）
 
-双击 `index.html` 就能看的纯静态站；跑起 `server/server.mjs` 之后，多出上传、门禁与云村。
-下面这几张表说的都是它——2.0 之后它们依然成立，只是不再是唯一的路。
+生成出来的 `*.html` 已经删了，但**发出去过的地址不作废**：`server/middleware/legacy-urls.ts`
+把它们 301 到新路由。所以老书签、老外链、搜索引擎里那条旧记录都还进得来。
+这不是「第二条线」，只是一张跳转表。
 
-### 页面
-
-| 文件 | 说明 |
+| 老地址 | 现在 301 到 |
 |---|---|
-| `index.html` | 首页：卷帘 hero + 九板块索引 |
-| `archive.html` | 归档（按年份倒序） |
-| `editor.html` | 编辑页：写博客（Markdown 正文 + 图片 / 视频 / 音乐上传） |
-| `kumura.html` | 云村：扫码登录网易云、账号信息、红心歌单（需要小服务） |
-| `about.html` | 关于 / 关于本站的设计参数（配色、字体、结构） |
-| `login.html` | 门厅：访客直接进，站长要输口令（口令印在启动服务的终端里） |
-| `sections/` | 板块页（由脚本生成，可手改；界面新建的板块由服务运行时渲染） |
-| `posts/` | 文章页 + `_template.html` 模板 |
+| `index.html` · `archive.html` · `about.html` | `/` · `/archive` · `/about` |
+| `login.html` | `/login` |
+| `editor.html` | `/editor` |
+| `kumura.html` | `/kumura` |
+| `sections/<id>.html` · `sections/<id>/<sub>.html` | `/sections/<id>` · `/sections/<id>/<sub>` |
+| `posts/<slug>.html` | `/posts/<slug>` |
 
 ### 内容与配色（唯一真源）
 
 | 文件 | 说明 |
 |---|---|
-| `content/posts.mjs` | 唯一的内容源（含页顶「每日一句」的句库） |
+| `content/posts.mjs` | 唯一的内容源（含页顶「每日一句」的句库）；应用直接读它，没有构建步骤 |
 | `content/palette.mjs` | 唯一的配色源：原色 / 职务 / 校验规则 / 轮次（改颜色只动这个文件） |
 
-### 上传服务（跑起来才有的部分）
+### 服务端与运行时（跑起来才有的部分）
 
 | 文件 | 说明 |
 |---|---|
-| `start.cmd` / `start.ps1` | 双击启动上传服务 + 云村小服务（Windows）；PowerShell 版 `.\start.ps1 8080` 换端口，`-NoKumura` 只要上传服务 |
+| `start.cmd` / `start.ps1` | 双击启动 Nuxt 应用 + 云村小服务（Windows）；PowerShell 版 `.\start.ps1 8080` 换端口，`-NoKumura` 只要应用。跑的是构建产物，没构建过会明确报错并退出非零 |
 | `stop.cmd` / `stop.ps1` | 双击停掉这两个服务；`-List` 只看在跑什么，`-Port 8080` 只停那一个 |
-| `server/server.mjs` | 上传服务：只用 `node:` 内置模块 + `assets/vendor` 里的 marked / KaTeX |
-| `server/lib/` | 外壳、数据层、上传落盘、动态页面渲染 |
-| `server/lib/markdown.mjs` | 正文管线：marked（GFM）→ emoji 短代码 → KaTeX；`decorateBody` 给 HTML 用 |
+| `server/api/**` | Nitro 接口，一个方法一个文件：鉴权、内容、上传、渲染、音乐、状态 |
+| `server/utils/**` | 数据层与内容装配：`store`（五个 JSON）/ `paths` / `briefs` / `auth` / `content` / `media-store` / `http` / `text` |
+| `server/middleware/` | `gate.ts` 是门厅这道门；`legacy-urls.ts` 是上面那张跳转表 |
+| `server/lib/markdown.mjs` | 正文管线：marked（GFM）→ emoji 短代码 → KaTeX；`decorateBody` 给 HTML 用（**Nuxt 服务端直接 import 它**，不是遗留物） |
 | `server/lib/emoji.mjs` | 常用 emoji 短代码表 + 只在文本节点上换的 `decorateEmoji` |
 | `server/lib/htmltext.mjs` | 把 HTML 拆成标签与文本（code/pre 里不动），emoji 与公式共用 |
-| `data/*.json` | 上传产生的记录（板块树 / 文章 / 曲库 / 口令）——服务读写，不进仓库 |
-| `media/` | 上传产生的文件（images / videos / music），不进仓库 |
+| `server/lib/authlimit.mjs` | `/api/auth` 的试错退避（纯逻辑、无 import，`server/utils/auth.ts` 装配它） |
+| `data/*.json` | 界面产生的记录（板块树 / 文章 / 曲库 / 口令）——服务读写，不进仓库 |
+| `media/` | 界面传上来的文件（images / videos / music），不进仓库 |
 
 ### 工具与自检
 
 | 命令 | 说明 |
 |---|---|
-| `node tools/build.mjs` | 生成器：重建 index / archive / sections / posts |
 | `node tools/tokens.mjs` | 配色校验 + 生成 palette.css / palette.js（`--list` / `--diff` / `--use`，见「设计系统速查」） |
 | `node tools/ncm-server.mjs` | 云村小服务（`start.cmd` 会顺手拉起来，默认 3170） |
 | `node tools/set-passphrase.mjs` | 生成 / 更换上传口令（`--print` 只看现在这条，`--ask` 自己敲一条） |
 | `tools\owner.cmd` | 站长一键进门：起服务 + 口令进剪贴板 + 浏览器打开门厅 |
 | `tools\copy-key.cmd` | 口令进剪贴板，双击可用（中文与逻辑在配对的 `.ps1` 里） |
-| `python tools/check-links.py` | 站内链接体检 |
 | `node tools/check-qr.mjs` | 二维码编码器的实扫验证（需要 python + opencv） |
-| `node tools/dom-check.mjs` | 页面自检：无头浏览器开每一页，查控制台报错并截图 |
-| `node tools/nuxt-check.mjs http://127.0.0.1:3987` | Nuxt 应用的浏览器自检：一页一页看控制台、该有的元素、主题按钮、卷帘扫光、每日一句、门厅两颗键；零依赖（Node 自带 WebSocket 直接跟无头 Chrome 说话），`--shot` 顺带截图 |
-| `node tools/nuxt-parity.mjs` | 迁移期对照：拿 Nuxt 预渲染出来的页面与生成器产出的静态页比外壳骨架与每颗音符的（音高，宽度） |
-| `node tools/upload-check.mjs` | 上传自检：从文件选择器走一遍真实的传音乐 |
-| `node tools/editor-check.mjs` | 编辑页自检：写一篇 → 四处页面都跟上 → 再删掉 |
-| `node tools/login-check.mjs` | 门厅自检：颜色、空 / 错口令、门禁、访客不写钥匙（需要 Chrome） |
-| `node tools/edit-check.mjs` | 右键菜单自检：改名、撤下、恢复、410、页面上直接改字（需要 Chrome） |
-| `node tools/globaledit-check.mjs` | 全局编辑模式自检：顶栏按钮、点字即改、空简介 / 导语新建（需要 Chrome） |
-| `node tools/md-check.mjs` | Markdown / 公式 / emoji 自检：GFM 各种语法、四种公式写法（需要 Chrome） |
-| `node tools/authlimit-check.mjs` | 试错限速自检：19 项纯逻辑；接上服务再多 5 项真接口 |
-| `node tools/check-kumura.mjs` | 云村页的浏览器自检（需要 Chrome 或 Edge） |
+| `node tools/nuxt-check.mjs http://127.0.0.1:3987` | 应用级浏览器自检（21 项）：一页一页看控制台、该有的元素、主题按钮、卷帘扫光、每日一句、门厅两颗键；零依赖（Node 自带 WebSocket 直接跟无头 Chrome 说话），`--shot` 顺带截图 |
+| `node tools/nuxt-studio-check.mjs http://127.0.0.1:3987` | 悬浮球工作流自检（42 项）：两颗球、自动播放被拦与解禁、口令框、站长工具箱、建板块、传 / 换 / 改名 / 删歌，全程对着真文件 |
+| `node tools/nuxt-edit-check.mjs http://127.0.0.1:3987` | 编辑与右键自检（83 项）：访客看不到按钮、点字即改、改名 / 撤下 / 恢复 / 410、富文本正文覆盖层、Esc 语义 |
+| `node tools/authlimit-check.mjs` | 试错限速自检：19 项纯逻辑；接上服务再多 5 项真接口（共 24 项） |
 | `node tools/preflight-check.mjs` | 公网部署前自检：口令强度、门厅、哪些文件真的能被人读到、写接口有没有漏（见「发布」） |
 | `node tools/secret-scan.mjs` | 提交前扫密钥：通用凭据规则 + 「本机实况有没有漏回仓库」（见「提交前扫一遍」） |
 | `tools\secret-scan.cmd` | 同上，双击可用（报告留在窗口里） |
@@ -164,21 +154,9 @@ F#3 做题区doge      EE学生的自我迭代
 | 文件 | 说明 |
 |---|---|
 | `assets/css/` | palette（生成）→ tokens → base → roll → page → studio（工作台）→ editor（编辑页）→ kumura → login（门厅） |
-| `assets/js/palette.js` | 由生成器写出的配色表 + 换轮次开关，勿手改 |
-| `assets/js/excerpts.js` | 由生成器写出的每日一句句库，勿手改 |
-| `assets/js/audio.js` | 调声：切模块时响一声，卷帘上可试听（默认关闭） |
-| `assets/js/site.js` | 主题切换 / 播放头 / 悬停读数 / 卷帘键盘 / 每日一句 |
-| `assets/js/studio.js` | 悬浮球：探服务、管口令、开合面板（音乐盒公开，站长球验口令）；页面上直接改字的那台机器也在这（cv01.direct） |
-| `assets/js/music.js` | 音乐盒：自动播放、选歌、设默认；上传面板也在这儿（供站长球调用） |
-| `assets/js/sections.js` | 新建板块与子板块；并把服务里的板块树与文章就地并进静态页 |
-| `assets/js/editmode.js` | 全局编辑模式：页顶按钮一按，点字即改，空简介 / 导语就地新建 |
-| `assets/js/owner.js` | 站长工具箱：三选一（建板块 / 传音乐 / 去写博客） |
-| `assets/js/login.js` | 门厅：两颗键、验口令、把口令交给站长工具箱 |
-| `assets/js/editor.js` | 编辑页：填表、传图片视频音乐、预览、保存、管理已写的 |
-| `assets/js/nav.js` | 站内跳转的局部刷新：只换正文不换外壳，音乐不断 |
-| `assets/js/qr.js` | 二维码编码器（零依赖，只做登录二维码） |
-| `assets/js/music.config.js` | 云村页的可调项（服务地址、每页条数…） |
-| `assets/js/kumura.js` | 云村页：扫码、账号、红心歌单 |
+| `assets/js/palette.js` | 由生成器写出的配色表 + 换轮次开关，勿手改。**Nuxt 布局当经典脚本加载它** |
+| `assets/js/qr.js` | 二维码编码器（零依赖，只做登录二维码）。**云村页当经典脚本加载它** |
+| `assets/js/music.config.js` | 云村页的可调项（服务地址、每页条数…）。**云村页当经典脚本加载它** |
 | `assets/audio/` | 真钢琴采样的投放处 —— 可选，见该目录下的 README |
 | `assets/fonts/` | Big Shoulders（OFL，随站自带，只在测量类文本上出现） |
 | `assets/vendor/` | 仅有的两个第三方库：marked（Markdown）+ KaTeX（公式），本地文件，见该目录 README |
@@ -192,40 +170,32 @@ F#3 做题区doge      EE学生的自我迭代
 
 ## 上传系统（本机跑，数据落在自己硬盘上）
 
-> 这一段讲的是这套东西**是什么**——两套线路共用同一批接口与同一份数据，
-> 只是 1.x 那台服务（`server/server.mjs`）现在换成了 Nitro 的 `server/api/**`。
-> 下面提到的地址若是旧写法，对照关系是：
+> 这一段讲的是这套东西**是什么**。接口都在 Nitro 的 `server/api/**` 里，页面地址是干净路由；
+> 旧的 `.html` 地址只剩一张 301 跳转表（见「[老地址还认得路](#老地址还认得路唯一留着的一件-1x-遗产)」），
+> 所以老书签进得来，但仓库里已经没有那些页面文件了。
 >
-> | 1.x 静态线 | 2.0 Nuxt 应用 |
-> |---|---|
-> | `index.html` · `archive.html` · `about.html` | `/` · `/archive` · `/about` |
-> | `login.html` | `/login` |
-> | `editor.html` | `/editor` |
-> | `kumura.html` | `/kumura` |
-> | `sections/<id>.html` · `sections/<id>/<sub>.html` | `/sections/<id>` · `/sections/<id>/<sub>` |
-> | `posts/<slug>.html` | `/posts/<slug>` |
->
-> 旧地址不会断：`server/middleware/legacy-urls.ts` 把它们 301 到新路由。
-> 接口那一层完全没变（`/api/health`、`/api/auth`、`/api/sections`、`/api/posts`、
+> 接口那一层从 1.x 起就没变过（`/api/health`、`/api/auth`、`/api/sections`、`/api/posts`、
 > `/api/articles`、`/api/render`、`/api/music`、`/api/media`、`/api/state`），
 > 所以浏览器里那把口令（`localStorage` 的 `cv01-key`）换了线路也不用重输。
 
-**启动**：双击 `start.cmd`（或 `node server/server.mjs`），开 `http://127.0.0.1:4321/`。
-第一次会先落在**门厅**（`login.html`）：访客按一下就进，站长要输口令——
+**启动**：双击 `start.cmd`，开 `http://127.0.0.1:4321/`。
+它跑的是构建产物 `node .output/server/index.mjs`——**先 `pnpm install && pnpm build` 一次**，
+没构建过 `start.cmd` 会明确报错并退出非零。端口可以跟在后面换（`start.cmd 8080`，
+等于 `$env:PORT=8080` 再起那台服务）。
+第一次会先落在**门厅**（`/login`）：访客按一下就进，站长要输口令——
 不想让站点先过门厅，见下面「门厅」一节里的 `"gate": false`。
-终端会打印一串**上传口令**，第一次上传时输一次，之后这个浏览器就记住了。
-端口可以跟在命令后面换（`node server/server.mjs 8080`）。
+**口令由 `start.ps1` 打在横幅上**（Nuxt 那台服务自己不打印）：第一次上传时输一次，
+之后这个浏览器就记住了。
 
 **云村小服务会一起起来**：`start.cmd` 顺手把 `tools/ncm-server.mjs` 也拉起来（默认 3170），
-所以 `kumura.html` 打开就能扫码，不用另开一个窗口。三条规矩：
+所以云村页打开就能扫码，不用另开一个窗口。三条规矩：
 端口 3170 已经在听就不重复启动（不会去抢你另外跑着的那个）；这次由它拉起来的那个，
 退出时（`Ctrl+C` 或关窗口）会一并收掉；不想要它就 `start.cmd -NoKumura`。
 端口可以用环境变量 `NCM_PORT` 换（页面那边对着的是 `assets/js/music.config.js` 里的 `service`）。
 
-想换口令：改 `data/settings.json` 里的 `passphrase`，重启服务即可（删掉那一行也行，
-下次启动会重新生成一串印在终端里）。换完这个浏览器里记着的旧口令就失效了，会再问你一次。
-用界面换更省事：`node tools/set-passphrase.mjs` 生成一条 32 位（约 186 bit 熵）的随机口令，
+想换口令：`node tools/set-passphrase.mjs` 生成一条 32 位（约 186 bit 熵）的随机口令，
 写进 `data/settings.json` 并打印出来；`--print` 只看现在这条，`--ask` 自己敲一条（不回显）。
+换完这个浏览器里记着的旧口令就失效了，会再问你一次（口令是启动时读一次的，**换完要重启服务**）。
 
 **口令是本站唯一的真权限**，所以它的强度就是本站的强度。第一次启动自动生成的那条
 现在是 32 位字母数字混排（挑掉了 `l/1/I/0/O` 这些会看错的字符，它要从终端抄到另一个窗口里）；
@@ -245,7 +215,7 @@ tools\copy-key.cmd            # 只把口令放进剪贴板（-Show 顺便打印
 **而门厅对自己存的口令是负责到底的：** 点「站长登录」的那一下，页面会把
 localStorage 里记着的那条直接拿去试门——对了一击进门，不用再粘；口令换过了
 （吃 401）就当场把旧账清掉，回到手输。所以常态是：站长登录 → 直接进门，零输入。
-书签存 `login.html#owner` 是同一个待遇。
+书签存 `/login#owner` 是同一个待遇。
 
 浏览器密码库是第二重保险（不指望它，但值得存一份）：门厅不再拦着它
 （`autocomplete="current-password"`），登录成功后还会把凭证交给它（Chromium 系走
@@ -285,12 +255,12 @@ PasswordCredential，Firefox 靠属性自己提示）。第一次登录后在「
   接上服务再跑一遍就多 5 项真接口的：`node tools/authlimit-check.mjs http://127.0.0.1:4399`。
 
 **停止**：在那个窗口按 `Ctrl+C`，或者**双击 `stop.cmd`**——窗口找不到了、忘了端口都能用，
-它自己按进程把上传服务与云村小服务找出来停掉，并打印停了谁：
+它自己按进程把 Nuxt 应用与云村小服务找出来停掉，并打印停了谁：
 ```
   CV01 · 停止服务
   ─────────────────────────────────────────────
   在跑的服务：
-    · PID 16232  ·  上传服务  ·  server/server.mjs  ·  监听 4321
+    · PID 16232  ·  Nuxt 应用  ·  .output/server/index.mjs  ·  监听 4321
     · PID 39976  ·  云村小服务  ·  tools/ncm-server.mjs  ·  监听 3170
 
   一共停了 2 个。再启动：双击 start.cmd
@@ -298,7 +268,7 @@ PasswordCredential，Firefox 靠属性自己提示）。第一次登录后在「
 
 `stop.cmd -List` 只看不杀；`-Port 8080` 只停监听那个端口的（换过端口、或进程认不出来时用）。
 它认的是「node 的第一个参数」——也就是脚本路径本身：有些进程（启动器的包装命令、日志重定向）
-命令行里也会出现 `server/server.mjs` 这几个字，拿整条命令行去匹配会误杀。
+命令行里也会出现 `.output/server/index.mjs` 这几个字，拿整条命令行去匹配会误杀。
 
 **为什么 `.cmd` 里一个中文都没有**：`cmd.exe` 读含非 ASCII 字节的 UTF-8 批处理文件时会读错
 字节偏移，把后面几行命令咬掉半截（`start.cmd` 曾经因此连 `node` 那一行都没执行）。
@@ -310,13 +280,13 @@ PasswordCredential，Firefox 靠属性自己提示）。第一次登录后在「
 | 球 | 能干什么 | 要不要口令 |
 |---|---|---|
 | **音乐盒** | 进页面**自动播放**；点球展开面板（播放/上一首/下一首/列表循环/随机、拖进度、调音量）；每首还能**设默认**（哪一首是每次进页面先放的那一首） | 不要，谁都能开 |
-| **站长工具箱** | 钥匙图标那颗。三件事：**新建板块 / 子板块**、**上传音乐盒的音乐**、**快速写一篇博客**（跳到 `editor.html`）。另外音乐盒里每首的**换**（用本机另一个文件原地替换）、**改名**、**删**也只对有口令的浏览器显示 | 要，开之前先验一次 |
+| **站长工具箱** | 钥匙图标那颗。三件事：**新建板块 / 子板块**、**上传音乐盒的音乐**、**快速写一篇博客**（跳到 `/editor`）。另外音乐盒里每首的**换**（用本机另一个文件原地替换）、**改名**、**删**也只对有口令的浏览器显示 | 要，开之前先验一次 |
 
 **「上传」为什么拆成两半**：音乐盒那颗是给所有人用的，只读；写文件的那几件事
 （传新歌、换歌、改名、删歌）统一挪到站长球里。所以没口令的人打开音乐盒，
 看到的是播放控件和曲库，看不到任何会改硬盘的按钮。
 
-**写文章**：站长球里的「快速写一篇博客」会跳到独立编辑页 `editor.html`（整页跳，不走局部刷新）。
+**写文章**：站长球里的「快速写一篇博客」会跳到独立编辑页 `/editor`（整页跳，不走局部刷新）。
 左边填标题 / 板块 / 子板块 / 日期 / 阅读分钟 / 短标签 / 一句话简介，正文用 **Markdown（GFM 全量）**写：
 
 ```
@@ -334,63 +304,63 @@ PasswordCredential，Firefox 靠属性自己提示）。第一次登录后在「
 
 图片 / 视频 / 音乐点按钮选、拖进正文框、或者 `Ctrl+V` 粘截图，都能传——
 传完自动把插入语法塞到光标处，右栏实时预览。保存进 `data/articles.json`，
-页面由服务**实时渲染**成 `posts/<slug>.html`，同时并进板块页文章列表、归档、
+页面由服务**实时渲染**成 `/posts/<slug>`，同时并进板块页文章列表、归档、
 首页索引的「N 篇 / 最近」和卷帘上的音符。右栏「我写的」可以再编辑或删除
 （删文章会连它带的图片 / 视频 / 音乐一起从磁盘上删掉）。
 
 **「建完立刻看得见」是怎么做到的**：用界面建的板块、用编辑页写的文章，
-都只存在服务端的 `data/*.json` 里，而轨道栏、首页索引、大卷帘、板块页的文章列表、
-归档都是生成静态页时烤进 HTML 的。所以跑着服务的时候，`assets/js/sections.js` 会把
-`/api/sections` 读回来，按音高（高音在上）把页面跟服务对齐：缺的补上、多的撤掉；
-建完 / 写完 / 删完它会立刻再同步一次。它只动按板块 id 或文章地址认得出的节点，
-别的一概不碰。没跑服务（`file://`、静态托管）时这一整段什么都不做——
-**静态页一个字节都没变**，只是那种情况下新建的板块和新写的文章本来也只在服务进程里活着。
+都只存在服务端的 `data/*.json` 里。跑着服务的时候，`/api/sections` 与 `/api/posts`
+把两半合成一份（`server/utils/content.ts`）交给页面渲染，轨道栏、首页索引、大卷帘、
+板块页的文章列表、归档、首页的「N 篇 / 最近」都从这一份算出来；
+建完 / 写完 / 删完再取一次就立刻是新的。**没有需要重新生成的静态页**。
 
 **自动播放这件事**：浏览器不允许「没有任何交互就出声」，所以流程是——进页面先试一次，
 被拦下就在音乐球上亮一颗樱粉色的灯，此后**第一次点击、滚动或按键**就接着放。
 不想听就点开面板按暂停；曲库空了自然也不会响。
 
-**音乐是全局的**：站内链接不走整页刷新，而是 `assets/js/nav.js` 取回目标页、
-只换 `<main>`、`<title>`、命令栏与轨道栏的高亮——右下角那根 `<audio>` 从头到尾没被销毁，
+**音乐是全局的**：站内链接是路由切换，外壳与右下角那根 `<audio>` 不重建，
 所以切板块、翻文章、按浏览器后退，歌都接着放，一秒不断。
-代价与例外：页面切换不再是整页刷新（卷帘的播放头每次都会重扫一遍，这算白送的效果）；
-`file://` 打开时没有 `fetch`，自动退回普通跳转；`kumura.html` 自带扫码轮询的定时器和
-它自己的播放器，进出它仍然整页走。想给某个链接留个整页跳转的口子，加 `data-no-spa` 即可。
+卷帘的播放头每次进新页面会重扫一遍，这算白送的效果。想给某个链接留个整页跳转的口子，
+加 `data-no-spa` 即可。
 
 **东西放在哪**：文件进 `media/music/`，
 记录进 `data/`（`sections.json` `music.json` `settings.json`）。
 把 mp3 直接拖进 `media/music/` 也会被认出来，刷新页面即可。
 `data/` 与 `media/` 默认写在 `.gitignore` 里——自己的东西不一定想进仓库。
 
-**上限**：单个上传请求 256MB。要更大的，改 `server/lib/multipart.js` 顶部的 `DEFAULT_LIMIT`；
-真正大的场合应该换成流式写盘。
+**上限**：单个上传请求 256MB。要更大的，改 `server/utils/paths.ts` 里的 `MAX_BODY`
+（沿用 1.x 那个 `DEFAULT_LIMIT`）；真正大的场合应该换成流式写盘。
 
-**没有服务也能看**：`file://` 双击 `index.html`，或把整站丢到静态托管上——悬浮球会自动隐身，
-页面与以前完全一样。
+**自检**：改了这一块之后，三个脚本可以把「看得见的」和「点得动的」都过一遍：
 
-**自检**：改了这一块之后，两个脚本可以把「看得见的」和「点得动的」都过一遍：
+```powershell
+pnpm build
+$env:PORT='3987'; node .output/server/index.mjs   # 另开一个窗口把它跑着
+node tools/nuxt-check.mjs        http://127.0.0.1:3987   # 21 项：每类页面控制台干不干净、元素在不在
+node tools/nuxt-studio-check.mjs http://127.0.0.1:3987   # 42 项：两颗球、自动播放、口令框、建板块、传歌
+node tools/nuxt-edit-check.mjs   http://127.0.0.1:3987   # 83 项：点字即改、右键改名 / 撤下 / 恢复、富文本正文
+```
 
-```bash
-node server/server.mjs 4321      # 另开一个窗口把它跑着
-node tools/dom-check.mjs         # 每类页面：控制台有没有报错、面板开不开、音乐断不断、板块树并得对不对
-node tools/upload-check.mjs      # 从文件选择器真实上传一首曲子，跑完自己清理干净
-node tools/editor-check.mjs      # 从编辑页真实写一篇（含传图），跑完自己清理干净
-node tools/login-check.mjs       # 门厅：颜色、空/错口令、忘掉口令、访客不写钥匙、360px 版式
+后两个要口令，从 `$env:CV01_KEY` 读（不会打印）：
+
+```powershell
+$lines = (node tools/set-passphrase.mjs --print) -split "`r?`n"
+$env:CV01_KEY = (($lines | Where-Object { $_ -match '^口令' }) -replace '^口令\s*','').Trim()
 ```
 
 ## 门厅（登录页）
 
-`login.html` 是门口，也是**门禁**：服务跑着的时候，站点页面都得先过门厅——
-直接开 `http://127.0.0.1:4321/index.html`（或 `/`、任何一页）会被 302 送回
-`login.html?next=…`，进了门再自动回到本来要去的那一页。
+`/login` 是门口，也是**门禁**：服务跑着的时候，站点页面都得先过门厅——
+直接开 `http://127.0.0.1:4321/`（任何一页都一样）会被 302 送回
+`/login?next=…`，进了门再自动回到本来要去的那一页。
 
 - **访客进入**（粉键）：一个普通链接，指向 `<目标>?enter=1`。没有 JS 也进得去
   ——盖章这件事是服务做的，不是脚本做的。它永远不问口令。
-- **站长登录**（黑键）：展开一行口令，交给本机的上传服务核对（`POST /api/auth`）。
+- **站长登录**（黑键）：展开一行口令，交给本机服务核对（`POST /api/auth`）。
   对了服务顺手盖章，页面这边再把它记进 `localStorage` 的 `cv01-key` —— 与站长工具箱
-  （`studio.js`）用的是**同一把钥匙**，所以进门之后右下角那颗钥匙球不会再问第二次。
-  地址栏写 `login.html#owner` 可以直接停在口令那一行，站长可以把它存成书签。
-- **进不去就说清楚**：口令不对是服务端原话；服务没在跑、或用 `file://` 打开，
+  用的是**同一把钥匙**，所以进门之后右下角那颗钥匙球不会再问第二次。
+  地址栏写 `/login#owner` 可以直接停在口令那一行，站长可以把它存成书签。
+- **进不去就说清楚**：口令不对是服务端原话；服务没在跑，
   就明说「双击 start.cmd，口令印在那个终端窗口里」，不转圈、不白屏。
 
 **身份就是这把口令。** 站点里所有「只有站长做得成」的事（右键改名 / 撤下 / 改字、站长工具箱、
@@ -415,8 +385,8 @@ node tools/login-check.mjs       # 门厅：颜色、空/错口令、忘掉口�
 所以伪造它拿不到任何额外的东西：**真正的权限仍然是口令，每一次写操作都由 API 那一层的
 `requireAuth` 现验**。想把这个仪式去掉，往 `data/settings.json` 里加一行 `"gate": false` 即可。
 
-```bash
-node server/server.mjs 4321
+```powershell
+$env:PORT=4321; node .output/server/index.mjs
 # 开始拦了 / 不再拦了（服务端那一层，重启生效）
 #   data/settings.json:  "gate": false
 ```
@@ -425,22 +395,15 @@ node server/server.mjs 4321
 
 | 情形 | 表现 |
 |---|---|
-| 没盖章开任何一页（含 `/`） | 302 到 `login.html?next=<本来要去的那一页>` |
+| 没盖章开任何一页（含 `/`） | 302 到 `/login?next=<本来要去的那一页>` |
 | `?enter=1`（访客键指向它） | 服务盖上 `cv01-enter` 再 302 到去掉该参数的干净地址 |
 | `?leave=1`（门厅里那条「锁上门」） | 把那枚章抹掉（`Max-Age=0`）并回到门厅 |
 | 静态资源与接口 | **不拦**：`/assets/…`、`/media/…`、`/api/…` 照旧，否则页面自己都加载不出来 |
 | 被撤下的那一页（410） | 先过门：没盖章的人先被送回门厅；进了门的人才会看到「这一条撤下了」 |
 | 页面缓存 | 页面一律 `cache-control: no-cache`（带 ETag，多数是 304）。不然浏览器拿一小时前的缓存就等于绕过了门；媒体与样式照旧缓存一小时 |
-| 站内局部刷新（`nav.js`） | 取回的若不是目标页（被门送回门厅了），它退回整页跳转 |
-| `file://` 直接双击 | 没有服务，也就没有门禁——这一层只在服务跑着的时候成立 |
+| 站内跳转 | 走前端路由，不会整页刷新；`data-no-spa` 的那些链接仍然整页走 |
 
-```bash
-node server/server.mjs 4321
-node tools/login-check.mjs       # 34 项：颜色、口令、门禁（不盖章被拦 / 盖章进得去 / 锁上门又被拦）
-```
-
-> 自检脚本自己也要进门：它们会先 `?enter=1` 盖个章（`dom-check` / `editor-check` /
-> `upload-check` / `edit-check` 里各有一行），脚本里直接 `fetch` 页面时也会带上那枚 cookie。
+> 自检脚本自己也要进门：它们会先盖个章（`?enter=1`，或带上 `cv01-enter` 那枚 cookie）。
 
 ### 门厅的配色
 
@@ -452,9 +415,9 @@ node tools/login-check.mjs       # 34 项：颜色、口令、门禁（不盖章
 焦点环在这一页也改用黑——粉落在青上等于没有。页脚那把尺是九个音高名，
 与左侧轨道栏、首页卷帘同一份数据，不指路，只说明这是谁的门。
 
-```bash
-node server/server.mjs 4321
-node tools/login-check.mjs       # 截图在 .check/（login-default / owner / wrong / mobile）
+```powershell
+$env:PORT=3987; node .output/server/index.mjs
+node tools/nuxt-check.mjs http://127.0.0.1:3987       # 门厅两颗键、颜色、门禁都在它的 21 项里
 ```
 
 ## 站长右键：改名与撤下
@@ -481,16 +444,15 @@ node tools/login-check.mjs       # 截图在 .check/（login-default / owner / w
 | 右键点到的 | 它住在哪 | 「删除」到底做了什么 |
 |---|---|---|
 | 用界面建的板块 / 编辑页写的文章 | `data/sections.json`、`data/articles.json` | **真的删**。板块会连它名下的文章一起走，文章的图片 / 视频 / 音乐也从磁盘上清掉 |
-| 那九个原生板块 / `content/posts.mjs` 里的原生文章 | `content/posts.mjs`（`tools/build.mjs` 生成的 HTML） | **只撤下**。服务在 `data/overrides.json` 里记一笔，**源文件一个字节不动**，随时能放回来 |
+| 那九个原生板块 / `content/posts.mjs` 里的原生文章 | `content/posts.mjs` | **只撤下**。服务在 `data/overrides.json` 里记一笔，**源文件一个字节不动**，随时能放回来 |
 
 撤下之后：轨道栏、首页索引、卷帘、板块页、归档里都没有它了；直接开那一页会得到一句
 「这一条撤下了」（HTTP 410）而不是原页；提示条上挂一个**撤销**，点一下就放回来。
 想以后恢复，删掉 `data/overrides.json` 里对应的那一条也行——那个文件跟着 `data/` 一起不进仓库。
 
-**它怎么做到「当场就变，刷新也是对的」**：服务这一层，`applyOverrides()` 把覆盖层压在合成好的
-轨道上（接口、动态页、文章页都从这份走）；静态页这一层，`sections.js` 每次进站都会拿
-`/api/sections`（里面多了每个板块的文章名单与一份 `hidden` 名单）把轨道栏、索引、卷帘、
-文章列表、归档就地重写一遍——改过名的换字，撤下的撤行。所以**不用重新生成 HTML**。
+**它怎么做到「当场就变，刷新也是对的」**：`applyOverrides()` 把覆盖层压在合成好的
+轨道上——接口、板块页、文章页、归档都从这一份走。所以删掉 / 改掉一条覆盖，
+下一次取数就是新的，**没有任何需要重新生成的文件**。
 
 ### 页面上直接改字（像 Word 那样）
 
@@ -518,14 +480,14 @@ node tools/login-check.mjs       # 截图在 .check/（login-default / owner / w
 
 | 改的是 | 落在 | 谁看得见 |
 |---|---|---|
-| 原生文章的正文 | `data/overrides.json` 里那条 `posts.<slug>.body` | 刷新后 `sections.js` 拿 `/api/posts` 把它贴回静态页；`content/posts.mjs` 不动 |
-| 编辑页写的文章正文 | `data/articles.json` 里那个 `body` 字段 | 服务渲染文章页时优先用它（动态页） |
-| 板块的简介 / 导语 | `data/sections.json`（本来就是它的字段） | `sections.js` 刷新时贴回静态板块页；`<br>` 留着，其余尖括号会被摘掉（那两行是纯文本） |
+| 原生文章的正文 | `data/overrides.json` 里那条 `posts.<slug>.body` | 页面取 `/api/posts` 时由合成层贴回来；`content/posts.mjs` 不动 |
+| 编辑页写的文章正文 | `data/articles.json` 里那个 `body` 字段 | 服务渲染文章页时优先用它 |
+| 板块的简介 / 导语 | `data/sections.json`（本来就是它的字段） | 下一次取 `/api/sections` 就是新的；`<br>` 留着，其余尖括号会被摘掉（那两行是纯文本） |
 
 改过正文的原生文章，右键菜单里会多一条**「恢复成源文件里的正文…」**：把那层覆盖删掉，
 回到 `content/posts.mjs` 里的那一版。保存完的提示条上也有一次**撤销**。
 
-> **与编辑页的关系**：在 `editor.html` 里保存 Markdown 时，服务会把这一篇的 `body`
+> **与编辑页的关系**：在 `/editor` 里保存 Markdown 时，服务会把这一篇的 `body`
 > （页面上改的那一版富文本）清掉——Markdown 重新成为正文的真相。提示条会明说
 > 「页面上那版富文本正文让位给这份 Markdown 了」，不会悄悄丢。
 
@@ -534,10 +496,10 @@ node tools/login-check.mjs       # 截图在 .check/（login-default / owner / w
 
 自检：
 
-```bash
-node server/server.mjs 4399
-node tools/edit-check.mjs http://127.0.0.1:4399   # 83 项：访客看不到 · 改名 · 撤下 · 恢复 · 410 ·
-                                                  #        直接改字（加粗 / 青下划线 / 划掉 / 一级 / 注释 / 保存 / 恢复）· 手机
+```powershell
+$env:PORT=3987; node .output/server/index.mjs
+node tools/nuxt-edit-check.mjs http://127.0.0.1:3987   # 83 项：访客看不到 · 改名 · 撤下 · 恢复 · 410 ·
+                                                       #        直接改字（加粗 / 青下划线 / 划掉 / 一级 / 注释 / 保存 / 恢复）
 ```
 
 ## 全局编辑模式（页顶那颗按钮）
@@ -572,17 +534,16 @@ node tools/edit-check.mjs http://127.0.0.1:4399   # 83 项：访客看不到 · 
 - 与右键菜单**同一台机器**（保存、撤销、两层去向、轻清洗全一样），只是把手递到了明处
 - 一次只改一段；改着的这一段之外的链接点了不跳——跳了就是整页刷新，没存的字就没了
 - `Esc` 退出模式；手上还改着一段时，Esc 先归那一段管（改过会先问你一句）
-- 换页（局部刷新）模式不关：从首页开着模式点进板块页，新页面的位置重新描好
+- 换页（前端路由）模式不关：从首页开着模式点进板块页，新页面的位置重新描好
 - 身份同一把尺：**服务在线 + 浏览器里有口令**才看得见按钮。访客的页面连 hidden 都不解开，
   真正的权限仍在服务端那一层——每一次保存都要口令
 
 自检：
 
-```bash
-node server/server.mjs 4399
-node tools/globaledit-check.mjs http://127.0.0.1:4399   # 36 项：访客看不到按钮 · 点字即改 ·
-                                                        #        空简介 / 导语就地新建（首页与动态页）·
-                                                        #        标题内联改 · Esc 退出 · 跨页模式还在
+```powershell
+$env:PORT=3987; node .output/server/index.mjs
+node tools/nuxt-edit-check.mjs http://127.0.0.1:3987   # 它量的是同一套：点字即改 ·
+                                                       # 空简介 / 导语就地新建 · 标题内联改 · Esc 语义
 ```
 
 ## Markdown · 公式 · emoji
@@ -617,13 +578,13 @@ posts.mjs 里的 HTML ───────────────────�
 | `$$…$$` 独立成块（可以跨行） | 独立公式（display 模式） |
 | `\(…\)` / `\[…\]` | 同上两种，LaTeX 那一套写法也认 |
 
-- **在写入时编译**，页面拿到的是排好版的 HTML + MathML：不闪、不需要浏览器跑 JS、
-  静态托管与 `file://` 打开都一样。代价：静态正文里的公式要跑一次 `node tools/build.mjs`。
+- **在写入时编译**，页面拿到的是排好版的 HTML + MathML：不闪、不需要浏览器跑 JS。
+  编辑页保存、页面上直接改字保存这两处都会走到，所以不用手工做别的。
 - 公式**先于** Markdown 被抠出来保护，所以 `$x_1 + x_2$` 里的下划线不会被当成强调，
   `\(…\)` 也不会被 Markdown 当转义吃掉；反过来，**代码块与行内代码里的 `$` 与 `:smile:` 保持原样**。
 - 写坏的公式（`$\frac{a}{$`）不会把正文吃掉：KaTeX 把它标成红字，页面照常。
 - 只有真出现公式的页面才加载 `katex.min.css`；字体（20 个 woff2，共 254 KB）由浏览器按需懒加载。
-  「页面上直接改字」存下来的正文里若有公式，`sections.js` 会自己把那张样式表补上。
+  「页面上直接改字」存下来的正文里若有公式，编辑器会自己把那张样式表补上。
 
 ### emoji：字体 + 短代码 + 面板
 
@@ -631,17 +592,11 @@ posts.mjs 里的 HTML ───────────────────�
   Apple Color Emoji / Segoe UI Emoji / Noto Color Emoji——以前 emoji 会掉成黑白豆腐块就是这个原因。
   浏览器按字符回退，不会抢走中文或拉丁字母。
 - **短代码**（`server/lib/emoji.mjs`）：`:smile:` → 😄，一份**常用**表（不是 GitHub 那 1800 个全量），
-  认不出来的原样留着，不会乱吃字符。给静态正文（`posts.mjs`）也能用，跑一次生成即生效。
+  认不出来的原样留着，不会乱吃字符。`content/posts.mjs` 里手写的 HTML 正文也吃同一张表。
 - **面板**：页面上直接改字时，工具条里那颗 ☺ 打开一格常用 emoji，点一个插到光标处——
   手机上不用切系统键盘。
 
-自检：
-
-```bash
-node server/server.mjs 4399
-node tools/md-check.mjs http://127.0.0.1:4399   # 44 项：GFM 各种语法、四种公式写法、
-                                               #        代码块里不动、emoji 短代码、字体栈、emoji 面板
-```
+自检：这一条并进了 `tools/nuxt-edit-check.mjs`（点字即改那几项真的把富文本存下来再看页面）。
 
 ## 钢琴声（可选，默认关闭）
 
@@ -664,20 +619,20 @@ assets/audio/a5.mp3    fs5.mp3    d5.mp3    b4.mp3    g4.mp3
 `#` 写成 `s`（F#3 → `fs3`），支持 mp3 / wav / ogg。**可以只放一部分**——缺哪个音，
 哪个音就用合成音色顶替，混着用没问题。详细规则见 `assets/audio/README.md`。
 
-音量、切换前的停留时长都在 `assets/js/audio.js` 顶部（`MASTER` / `SWITCH_DELAY`）。
+音量、切换前的停留时长都在 `composables/useSound.ts` 顶部（`MASTER` / `SWITCH_DELAY`）。
 音效开关记在 localStorage 里，不会每次访问都重开。
 
 ## 云村（扫码登录网易云，可选）
 
-`kumura.html` 是「生活在云上」那条轨道的落地页：**扫码登录网易云音乐 → 看账号信息 → 翻红心歌单**。
+`/kumura` 是「生活在云上」那条轨道的落地页：**扫码登录网易云音乐 → 看账号信息 → 翻红心歌单**。
 
 它需要一个小服务。原因有两个，都是硬的，绕不过去：
 
 1. 网易云的接口要加密（AES + RSA），纯前端做等于把算法和密钥摊在明面上；
 2. 网易不下发 CORS 头，浏览器会直接拦掉跨域请求。
 
-所以本站的静态页面照旧，只有这一页会去问本机的一个小服务。
-**双击 `start.cmd` 时它就会跟着上传服务一起起来**（同一个窗口、`stop.cmd` 一起停；
+所以站点只有这一页会去问本机的一个小服务。
+**双击 `start.cmd` 时它就会跟着 Nuxt 应用一起起来**（同一个窗口、`stop.cmd` 一起停；
 不想要它就 `start.cmd -NoKumura`）。想单独起也行：
 
 ```bash
@@ -692,20 +647,20 @@ node tools/ncm-server.mjs --selftest   # 只做自检，不占端口
 浏览器只跟自己的小服务说话，小服务再带着加密参数去问网易：
 
 ```
-kumura.html  →  /api/login/qr/key    →  小服务 → 网易
-             ←  二维码内容（一段 URL）
+/kumura  →  /api/login/qr/key    →  小服务 → 网易
+         ←  二维码内容（一段 URL）
    （浏览器用 assets/js/qr.js 自己把这段 URL 画成二维码）
-             →  /api/login/qr/check   →  轮询扫码状态 801/802/803
-             ←  803 时小服务收下 cookie，存进 .ncm-session.json
-             →  /api/account         →  昵称、头像、等级、关注、粉丝、云村年龄
-             →  /api/liked           →  红心歌单分页
+         →  /api/login/qr/check   →  轮询扫码状态 801/802/803
+         ←  803 时小服务收下 cookie，存进 .ncm-session.json
+         →  /api/account         →  昵称、头像、等级、关注、粉丝、云村年龄
+         →  /api/liked           →  红心歌单分页
 ```
 
 **几个刻意的选择**
 
 - **二维码是本地画的。** `assets/js/qr.js` 是个约 300 行的二维码编码器（字节模式、纠错等级 L、
   固定掩码 0），只做扫码登录需要的那个子集。为了一张二维码去引一个第三方库，
-  等于把本站「零依赖、`file://` 也能跑」这条底线拆掉。
+  等于把「零依赖」这条底线拆掉（Nuxt 应用是当经典脚本加载它的）。
   正确性由 `node tools/check-qr.mjs` 用 OpenCV 反过来实扫验证（含 2 像素/模块的极端密度）。
 - **登录凭证不进浏览器。** cookie 只写在小服务旁边的 `.ncm-session.json`（已加进 `.gitignore`），
   页面这边不碰 localStorage，也不接触任何密钥。
@@ -736,10 +691,10 @@ kumura.html  →  /api/login/qr/key    →  小服务 → 网易
 
 音质按 `exhigh → higher → standard` 逐级降级；有黑胶 VIP 的账号实测能拿到 320kbps。
 
-改动这一页之后，可以跑一遍浏览器自检（会开无头 Chrome，把四种状态都过一遍：
+改动这一页之后，可以跑一遍应用级自检（会开无头 Chrome 走一遍 `/kumura`：
 
 ```bash
-node tools/check-kumura.mjs        # 结果截图在 .check/
+node tools/nuxt-check.mjs http://127.0.0.1:3987    # 结果截图在 .check/
 ```
 
 「已登录」和「二维码作废」那两种是靠注入脚本 + 替换 `fetch` 测的——
@@ -747,62 +702,54 @@ node tools/check-kumura.mjs        # 结果截图在 .check/
 
 ## 改内容
 
-**路线 A（推荐）**：编辑 `content/posts.mjs`，然后
-
-```bash
-node tools/build.mjs
-```
-
-它重新生成 `index.html` / `archive.html` / `sections/*.html` / `posts/*.html`。
+**内容只有一份真源：`content/posts.mjs`。** 改它，然后刷新页面——应用直接读这个文件，
+**没有生成步骤**（1.x 那个 `node tools/build.mjs` 已经删掉了）。
 每篇文章的 `min`（阅读分钟数）决定它在卷帘上的**宽度**，`short`（≤4 字）是音符块上的标签。
 
-**路线 B**：直接改生成出来的 HTML。它们就是普通静态文件，没有运行时依赖，改完即生效。
-
-新增板块：点右下角那颗悬浮球，用界面建（记录进 `data/sections.json`，页面由服务运行时渲染，
-不用重新跑生成器）；或者走老的静态路线——在 `content/posts.mjs` 的 `tracks` 里加一项，并给
-`tools/build.mjs` 的 `RHYTHMS` 补一条节奏（音符的 x 位置与宽度百分比，手工排的，
-决定整条卷帘的呼吸）。两条路的板块会合并显示在轨道栏和首页索引里。
-`assets/js/site.js` 与 CSS 会自动适配任意数量的轨道。
+新增板块有两条路，效果一样：点右下角那颗悬浮球用界面建（记录进 `data/sections.json`），
+或者在 `content/posts.mjs` 的 `tracks` 里加一项、并在 `content/roll.mjs` 的节奏表里补一条
+（音符的 x 位置与宽度百分比，手工排的，决定整条卷帘的呼吸）。
+界面建的与源文件里的板块会合并显示在轨道栏和首页索引里——轨道数是算出来的，
+卷帘会自动适配任意数量的轨道。
 
 ## 页顶「每日一句」
 
 每一页的最上面有一行小字，取自「胡盐乱雨集」。它**不是**随机刷新——以本地日期做种子，
 所以同一天里全站、所有刷新都是同一句，过了本地零点自动换下一句。
 
-句子写在 `content/posts.mjs` 的 `excerpts` 数组里（`tools/build.mjs` 会把它编译成
-`assets/js/excerpts.js`）。想加就加，想换就换，条数不限。关掉的办法：删掉 `excerpts` 数组，
-或把 `.epigraph` 从页面上删掉。
+句子写在 `content/posts.mjs` 的 `excerpts` 数组里，应用直接读它。想加就加，想换就换，
+条数不限。关掉的办法：删掉 `excerpts` 数组，或把 `.epigraph` 从页面上删掉。
 
 ## 发布
 
-**Nuxt 应用**（2.0 起的主线）有两种发法，产物都在 `.output/`：
+产物都在 `.output/`：
 
 ```bash
 pnpm install
 pnpm build                        # 构建 + 预渲染；产物里既有 Node 服务也有静态页
-node .output/server/index.mjs     # 起服务（默认 3000，用 PORT 换），门厅与写接口都在这台上
+node .output/server/index.mjs     # 起服务（默认 3000，用 PORT 换，start.cmd 用的是 4321）
 pnpm generate                     # 只要静态页：全部页面预渲染进 .output/public/
 ```
 
-三种托管各自成立：
+两种托管各自成立：
 
 | 发到哪 | 怎么发 | 门厅 |
 |---|---|---|
-| 自己的机器 / 隧道（长期部署那条路） | 跑 `.output/server/index.mjs` | **有效**：没盖章的页面请求 302 到 `/login`，写接口每次现验口令 |
-| 静态托管（Pages / 自己的机器当静态站） | 把 `.output/public/` 丢上去 | **没有**：静态托管没有服务端，`data/*.json` 也进不了产物——这条路上的站点是「生成时的那一版」 |
-| 1.x 那条零构建静态线 | `node tools/build.mjs`，丢 `index.html` 那一套 | 同样没有（`file://` 直接打开也完整可用） |
+| 自己的机器 / 隧道（长期部署那条路，**推荐**） | 跑 `.output/server/index.mjs` | **有效**：没盖章的页面请求 302 到 `/login`，写接口每次现验口令 |
+| 静态托管（Pages / 自己的机器当静态站） | 把 `.output/public/` 丢上去 | **没有**：静态托管没有服务端，`data/*.json` 也进不了产物——这条路上的站点是「生成时的那一版」，编辑与上传也都用不了 |
 
-> 静态那条线为什么没有门厅：`data/settings.json` 里的 `"gate"` 是**服务端**在拦，
+> 静态托管为什么没有门厅：`data/settings.json` 里的 `"gate"` 是**服务端**在拦，
 > 静态托管没有服务端这一层；接口那一层的口令校验也一并消失。想在静态托管上挡人，
 > 得靠 Cloudflare Access 这类东西。
-
-**1.x 静态线**：整站是纯静态的，丢到任何静态托管即可；`file://` 直接打开也完整可用——
-字体与那两个库都在本地，没有任何外部请求。
+>
+> **1.x 那条零构建静态线已经删除**：不再有 `node tools/build.mjs`，不再有生成出来的
+> `index.html` / `sections/*.html` / `posts/*.html`，「双击 `index.html`、`file://` 照跑」
+> 这条承诺也随之作废（v2.0.0 还留着它，这一次的整合把它去掉了）。老地址仍然 301 到新路由。
 
 ### 挂到公网之前：先跑一次预检
 
-```bash
-node server/server.mjs 4399        # 另开一个窗口
+```powershell
+$env:PORT=4399; node .output/server/index.mjs   # 另开一个窗口（仓库根目录）
 node tools/preflight-check.mjs http://127.0.0.1:4399
 ```
 
@@ -813,9 +760,10 @@ node tools/preflight-check.mjs http://127.0.0.1:4399
 有「别上线」级别的发现时退出码非零。
 
 它不是猜的：这条自检真的抓到过一个洞——`.ncm-session.json`（网易云登录态，就躺在站点根目录下）
-曾经能被直接 `GET` 走，因为静态服务挡的是**目录名**白名单，拦不住根目录下的单个点文件。
-现在 `server.mjs` 除了那份名单还多了一道「任何一段以 `.` 开头的路径都不发」，
-`deploy/` 也进了名单（那里的 `blog-server.log` 开头就印着口令）。
+曾经能被直接 `GET` 走，因为 1.x 那台静态服务挡的是**目录名**白名单，拦不住根目录下的单个点文件。
+那台服务后来加了一道「任何一段以 `.` 开头的路径都不发」，`deploy/` 也进了名单
+（那里的 `blog-server.log` 开头就印着口令）。现在这条路由从 Nuxt 发出：
+那些目录根本不在静态资源的边界里。
 
 完整的长期部署流程（Cloudflare Tunnel + Access、开机自启、口令与限速怎么配）
 写在 `deploy/CLOUDFLARE-TUNNEL.md`。
@@ -876,15 +824,15 @@ node tools/secret-scan.mjs --update-baseline   # 把当前命中记成「已认�
 > 一个永远红的门等于没有门——最后一定会被 `--no-verify` 绕过。基线就是为了
 > 让它一直是个**能过的**门。
 
-**唯一的例外是 `kumura.html`。** 它要问本机的小服务，所以：
+**唯一的例外是 `/kumura`。** 它要问本机的小服务，所以：
 - 只在你自己机器上跑：`node tools/ncm-server.mjs` 开着即可，页面照常；
 - 想放到线上：把小服务部署到一个地址，改 `assets/js/music.config.js` 里的 `service`。
   但请注意——**那个地址上就存着你的网易云登录态**，别把它暴露在公网上。
   换句话说：云村这一页适合留给自己，不适合挂在公开博客上给所有人点。
 
 **上传系统同理，而且更彻底**：音乐盒、新建板块这两件事都要写文件，
-`file://` 和静态托管上做不到——它们只在 `node server/server.mjs` 跑着的时候出现。
-不跑服务，整站就是原来那个纯静态博客，一个字节都没变。
+它们只在服务跑着的时候出现——`.output/server/index.mjs` 不在，
+整个 `server/api/**` 都不在，界面上的写操作一个都调不动。
 
 ## 设计哲学 · 校准之息（Calibrated Breath）
 
@@ -956,6 +904,11 @@ node tools/secret-scan.mjs --update-baseline   # 把当前命中记成「已认�
 > 设计的完整底稿，全文并入自 `design/DESIGN-PLAN.md`：从概念、色彩、版面，到三轮换色的
 > 每一步判断，以及对照「生成式默认套路」的自我审校。文中「第 N 节」指本节内部的小节编号；
 > 后面的节是对前面节的修订与续篇——历史冲突，以后面的节为准。
+>
+> **这一节记录的是「当时怎么想的」，不是当前站点结构。** 里面凡是提到
+> 「零构建」「双击 `index.html`」「`tools/build.mjs`」「生成出来的 `*.html`」
+> 「`server/lib/shell.mjs`」的句子，讲的都是 1.x 那条线——**它已经删掉了**（见第 14 节与
+> 根 README 顶部的说明）。当前结构只以根 README 与代码为准。
 
 ### 0. 简报解读
 
@@ -1164,6 +1117,8 @@ F#3 · A3 · C4 · E4 · G4 · B4 · D5 —— 堆叠三度，构成一个 F#m11
 "随机"用的是**本地日期做种子**，不是每次刷新随机——否则同一天里翻三页会看到三句不同的，
 那不是"每日一句"，那是闪烁。句库在 `content/posts.mjs` 的 `excerpts`（14 条），
 由生成器编译成 `assets/js/excerpts.js`，避免在 38 个页面里各内联一份。
+（这一段是 1.x 的记录：那个文件与它的生成器都已经删掉，现在由 `composables/useExcerpt.ts`
+按同一套散列直接算，句库仍然来自 `content/posts.mjs` 的 `excerpts`。）
 无 JS 时页面里预渲染首句，不会空着。
 
 **海报同步换色**。它是同一套视觉 DNA 的另一个视图，不能留在旧配色里。
@@ -1224,9 +1179,10 @@ mikuPink   main #FF3399   deep  #E12885   light #FF69B4
 （音符块、读数、当前轨），粉只用来指认（链接、序号、音高名），灰承担全部阅读重量，
 「此刻」是全站唯一会动的颜色。
 
-**（五）怎么验的。** 全站 42 个页面的 `theme-color`、生成器 `server/lib/shell.mjs` 与
-`tools/build.mjs` 的产物、`assets/js/site.js` 的主题切换、favicon、二维码默认色全部同步。
-用无头 Chrome 抓的是**计算之后的渲染色**，不是 token 表：
+**（五）怎么验的。** 全站页面的 `theme-color`（`nuxt.config.ts` 与两张壳）、
+卷帘组件吐出来的行内色、`composables/useTheme.ts` 的主题切换、favicon、二维码默认色全部同步。
+用无头 Chrome 抓的是**计算之后的渲染色**，不是 token 表：（那一轮量的时候还没有 Nuxt，
+用的是后来已经删掉的那批静态页与 `tools/dom-check.mjs`——数字是留档，不是现在能重跑的命令。）
 
 | 职务 | 亮色实测 | 暗色实测 | 对比度（亮 / 暗） |
 |---|---|---|---|
@@ -1236,7 +1192,7 @@ mikuPink   main #FF3399   deep  #E12885   light #FF69B4
 | 暗窗 | `#1A1C1E` | `#0C0E10` | — |
 | 此刻（播放头 / 焦点环） | `#FF3399` | `#FF69B4` | 3.18（图形）/ 6.45 |
 
-`node tools/dom-check.mjs`：40 项里 39 项通过。唯一那项是 `/favicon.ico` 404——页面只声明了
+`node tools/dom-check.mjs`（**这个脚本已经随 1.x 静态线删掉了**，数字留档）：40 项里 39 项通过。唯一那项是 `/favicon.ico` 404——页面只声明了
 `favicon.svg`，浏览器仍会自动去要 `.ico`（改动前就存在，与配色无关）。
 
 **没有跟着换的东西**：`design/keyvisual.html` 及其 PNG / PDF。那张观测图是按哲学第 3 节做的独立作品，
@@ -1278,20 +1234,19 @@ mikuPink   main #FF3399   deep  #E12885   light #FF69B4
 一铺上去整块像坐标纸，抢的正是音符的对比。时间轴改由小节号和音符自身的位置与宽度承载；
 行与行的界线留在轨道上——那不是网格，是"这个音符属于哪条轨道"的归属线。
 
-### 14. 交付形态变了：10 页骨架长成 42+ 页加一个可选的服务（本节更新第 0 节「交付」与第 7 节两条底线）
+### 14. 交付形态变了：10 页骨架长成 42+ 页加一台服务（本节更新第 0 节「交付」与第 7 节两条底线）
 
 第 0 节写「交付：零构建、双击即开的静态站点骨架（10 个页面）」。它如今读作：
 
 | 第 0 节的原文 | 现在的情况 |
 |---|---|
 | 10 个页面 | 42+ 页（九板块 + 文章 + 归档 + 编辑页 + 门厅 + 云村 + …） |
-| 零构建、双击即开 | **仍然成立**：`file://` 双击 `index.html` 照样完整可用，整站不联网也能看 |
+| 零构建、双击即开 | **已经作废**：v2.0.0 起主线是 Nuxt 应用，这一次的整合又把 1.x 的零构建静态线整个删掉了。现在是 `pnpm install && pnpm build`，再 `node .output/server/index.mjs` |
 | 无第三方请求 | 修正为：仅 `assets/vendor/` 里**两个本地库**（marked + KaTeX，无 CDN）；其余全部手写 |
-| 纯静态 | 静态是底座；可选地跑 `node server/server.mjs`，多出上传 / 编辑 / 门禁 / 云村 |
+| 纯静态 | 修正为：一台 Node 服务（Nitro）提供页面与接口，上传 / 编辑 / 门禁 / 云村都在它上面 |
 
-新增的目录各有各的职务：`server/`（只用 `node:` 内置模块）、`editor.html`（写博客）、
-`login.html`（门厅）、`kumura.html`（云村）、`data/` 与 `media/`（上传产生的东西，不进仓库）、
-`content/palette.mjs`（配色真源，见第 13 节）。
+新增的目录各有各的职务：`server/`（Nitro 接口与数据层）、`pages/` 与 `components/`（Vue 页面）、
+`data/` 与 `media/`（界面产生的东西，不进仓库）、`content/palette.mjs`（配色真源，见第 13 节）。
 
 第 7 节的工艺底线追加三条服务期的：
 
@@ -1307,9 +1262,9 @@ mikuPink   main #FF3399   deep  #E12885   light #FF69B4
 | 门厅两颗键（粉=访客，黑=站长） | 身份就是这把口令。访客键**当场清掉**已存的口令——补过的一道漏：早先不清，「访客」会带着站长权限进门。两颗键都描 2px 黑边：粉与青之间只有 1.6:1，**键的轮廓由黑给出**，不靠粉自己撑 |
 | 两颗悬浮球（音乐球公开 / 站长球验口令） | 会改硬盘的事统一收进站长球：没口令的人打开音乐盒看到的是播放控件，看不到任何写按钮。浮层底色用新 token `--card`——第 8 节「零卡片」说的是不做**卡片流**，浮层不是卡片流 |
 | 站长右键 + 覆盖层 | 原生内容只「撤下」不「删除」：`data/overrides.json` 记一笔 + HTTP 410 + 一颗撤销，**源文件一个字节不动**；界面建的才真删。本站没有表示「危险」的颜色——粉只管「此刻」——所以破坏性的那一项靠加粗加一条细线，不靠红 |
-| 编辑页：一条正文管线 | `Markdown（GFM 全量）→ 抠出公式 → marked → emoji 短代码 → 公式装回去`。公式在**写入时**编译成 HTML + MathML：页面不跑 JS、不闪、`file://` 照用。预览与最终页面是同一个渲染器。中文的一个让步：裸链接后跟中文标点，在第一个标点处剪断——GFM 会把「，然后」吞进链接里 |
-| 站内局部刷新（`nav.js`） | 只换 `<main>`、`<title>` 与高亮，右下角那根 `<audio>` 从头到尾不死——**切板块歌不断**。代价：卷帘播放头每次重扫一遍，这算白送的效果。`file://` 无 `fetch`，自动退回整页跳转 |
-| 云村（`kumura.html`） | 走 eapi 不走 weapi（实测网易已关掉 weapi 通道）。二维码用约 300 行的**本地编码器**画——为一张二维码引第三方库，等于拆掉零依赖的底线；正确性用 OpenCV 反向实扫验证。登录 cookie 只落在小服务旁边，不进浏览器、不碰 localStorage |
+| 编辑页：一条正文管线 | `Markdown（GFM 全量）→ 抠出公式 → marked → emoji 短代码 → 公式装回去`。公式在**写入时**编译成 HTML + MathML：页面不跑 JS、不闪。预览与最终页面是同一个渲染器。中文的一个让步：裸链接后跟中文标点，在第一个标点处剪断——GFM 会把「，然后」吞进链接里 |
+| 站内跳转 | 走前端路由，外壳与右下角那根 `<audio>` 从头到尾不死——**切板块歌不断**。卷帘播放头每次进新页面重扫一遍，这算白送的效果 |
+| 云村（`/kumura`） | 走 eapi 不走 weapi（实测网易已关掉 weapi 通道）。二维码用约 300 行的**本地编码器**画——为一张二维码引第三方库，等于拆掉零依赖的底线；正确性用 OpenCV 反向实扫验证。登录 cookie 只落在小服务旁边，不进浏览器、不碰 localStorage |
 | WebAudio 琴声（默认关闭） | 没有采样时现场合成柔和电钢琴，**任意音高现算**（十二平均律）——用界面新建板块挑 B5、C6 也当场出声，不存在「后期补一条音高表」 |
 
 ### 16. 手机上的命令栏折成两行（第 4 节「移动端收起」的细化）
@@ -1359,7 +1314,7 @@ mikuPink   main #FF3399   deep  #E12885   light #FF69B4
 ```bash
 # 1. 改 content/palette.mjs（加一轮、改一个原色、调一条校验，都在这儿）
 node tools/tokens.mjs      # 2. 校验并生成。不够 AA 就报错退出，不写文件
-node tools/build.mjs       # 3. 重建页面（它开头也会顺带跑一次上一步，所以不会忘）
+                           #    生成物就是 Nuxt 页面加载的那两份，没有第三步
 ```
 
 想在**真页面**上比两轮配色，不用改任何文件：地址栏加 `?cv01-palette=r4`，
@@ -1436,7 +1391,7 @@ node tools/tokens.mjs --window ink
 - **卷帘留给手指**：轨道高 36px、音符块 25px，音符下面还垫了一层透明的可点区域，
   实际能点到约一格轨道那么高。播放头那 78% 的空盒子由 `.roll__field` 裁掉——
   否则手机上能一直往右滑进一片空白，桌面端还会平白多出一根横向滚动条。
-- **「可以左右滑动」只在真能滑的时候出现**：`site.js` 量过 `scrollWidth` 才加 `.is-scrollable`。
+- **「可以左右滑动」只在真能滑的时候出现**：量过 `scrollWidth` 才加 `.is-scrollable`（在 `useRoll.ts` 里）。
   宽一点的手机上卷帘并不需要滑动，那就不说这句。
 - **悬浮球不会吃掉页脚**：两个球是 `position: fixed` 的，视口右下那一条永远被压着，
   而页脚正好落在里面——手机上滚到底时版权两行原本会被球盖住。现在页脚留出了这条通道
@@ -1445,9 +1400,9 @@ node tools/tokens.mjs --window ink
   偏小的可点区域用透明 `::after` 或行内 `padding-block` 垫到 36–48px（视觉一点不动）；
   `@media (hover: none)` 里把只在指针下才该出现的悬停状态撤掉（手指点过之后 `:hover` 会一直粘着）。
 - **刘海与圆角**：`viewport-fit=cover` + `env(safe-area-inset-*)`，横屏时正文不会钻进圆角；
-  `theme-color` 跟着主题走，地址栏不留一条白带。这两样在 `server/lib/shell.mjs` 的 `head()`
-  里统一发出——**`about.html` 与 `editor.html` 是手写的、不走生成器**，改 head 时要一起改，
-  否则它们会悄悄掉队（配色那两行 `<link>` / `<script>` 就是这么加进去的）。
+  `theme-color` 跟着主题走，地址栏不留一条白带。首帧那一份在 `nuxt.config.ts` 与两张壳的
+  `useHead` 里发出，切主题之后再按当前配色重算一遍——改配色时这两处要一起改，
+  否则地址栏会悄悄掉队。
 - **横屏手机**（高 ≤480px）：命令栏、hero、轨道各收一档，别让标题把正文挤出首屏
   （只在命令栏还是单行时才压矮它，480px 宽的横屏机走的是两行布局）。
 - **正文**：代码块与表格在窄屏自己滚，行内代码允许断行；行距 1.9、字号 17px 不动——
@@ -1455,7 +1410,7 @@ node tools/tokens.mjs --window ink
 
 ## 已知取舍
 
-- 中文衬线走系统字体（Noto Serif SC / 宋体），不同机器渲染有细微差异——这是零构建的代价。
+- 中文衬线走系统字体（Noto Serif SC / 宋体），不同机器渲染有细微差异。
   想完全一致就把思源宋体的子集一起打包进 `assets/fonts/`。
 - 窄屏上卷帘仍要横向滑动：九条轨道无法在手机上同时铺开。轨道名固定在左侧，
   320px 的机器上大约看得到三条轨道的三分之二——这是承认真实约束，不是没适配。
@@ -1466,11 +1421,9 @@ node tools/tokens.mjs --window ink
   它本来只该管「此刻」。候选的 `r4` 把指认还给青（青墨 `#137A7F`，4.78:1）、把暗窗挪成青黑
   `#0E2124`，粉退回焦点环与播放头。两轮都在 `content/palette.mjs` 里，加个
   `?cv01-palette=r4` 就能并排看，选好了改一行 `active`。
-- **撤下只对「服务跑着」这件事负责。** 原生内容被撤下之后，磁盘上那些由 `tools/build.mjs`
-  生成的 HTML 里其实还在（源文件也还在，这是故意的）：服务会把它挡住（410）并把每一页对齐过来。
-  所以你要是在撤下之后又跑了一次 `node tools/build.mjs`，静态文件里那些东西会重新长回来——
-  服务一跑就又被对齐掉，纯静态托管上则会露出来。想连静态文件也留着撤下状态，
-  就在生成之前把 `data/overrides.json` 里那几条一起处理掉（或者干脆跑一次 `stop`/`start` 看效果）。
+- **撤下只对「服务跑着」这件事负责。** 原生内容被撤下之后，`content/posts.mjs` 里其实还在
+  （这是故意的）：合成层会把它挡住（410），每一页也都不再列它。
+  想真删就改源文件；想恢复就删掉 `data/overrides.json` 里那一条，或者在提示条上点「撤销」。
 - 没有搜索、没有 RSS、没有评论。想加就加，别让骨架替你决定。
 
 ## 设计资产

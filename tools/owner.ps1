@@ -3,9 +3,13 @@
 #  ---------------------------------------------------------------------------
 #  把「起服务 → 拿口令 → 开门厅」合成一次双击（入口是配对的 owner.cmd）：
 #
-#    1. 服务没在跑就后台拉起（deploy\start-blog-background.cmd 本身幂等）；
+#    1. Nuxt 应用没在跑就后台拉起（deploy\start-blog-background.cmd 本身幂等）；
 #    2. 口令放进剪贴板（以子进程调 copy-key.ps1，屏幕上不显示）；
 #    3. 用默认浏览器打开门厅 —— #owner 直接停在口令那一行。
+#
+#  起的是构建产物 .output/server/index.mjs（由 deploy\start-blog-background.ps1
+#  经 start.ps1 拉起来）。没构建过它会明确报错，不会悄悄起个空壳——
+#  这时先 pnpm install && pnpm build，再双击一次 owner.cmd。
 #
 #  到了门厅：口令栏 Ctrl+V 然后「进入」。如果浏览器问「要保存口令吗」，
 #  选保存——之后这个框会自己填好（或用 Windows Hello 解锁），连粘贴都省了。
@@ -35,9 +39,9 @@ Write-Host '  ──────────────────────
 
 # 1) 服务：没跑就后台拉起（幂等脚本自己会判断）
 if (Test-Port $Port) {
-  Write-Host "  · 源站已经在跑（端口 $Port），跳过启动。" -ForegroundColor DarkGray
+  Write-Host "  · Nuxt 应用已经在跑（端口 $Port），跳过启动。" -ForegroundColor DarkGray
 } else {
-  Write-Host "  · 源站没在跑，后台拉起来……" -ForegroundColor DarkGray
+  Write-Host "  · Nuxt 应用没在跑，后台拉起来……" -ForegroundColor DarkGray
   & (Join-Path (Join-Path $root 'deploy') 'start-blog-background.cmd') -Port $Port
 }
 
@@ -47,7 +51,7 @@ $copyKey = Join-Path $PSScriptRoot 'copy-key.ps1'
 & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $copyKey
 
 # 3) 开门厅（#owner：口令行直接展开）
-Start-Process ("http://127.0.0.1:{0}/login.html#owner" -f $Port)
+Start-Process ("http://127.0.0.1:{0}/login#owner" -f $Port)
 
 Write-Host '  · 门厅已在默认浏览器打开。' -ForegroundColor Gray
 Write-Host ''

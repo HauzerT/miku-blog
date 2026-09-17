@@ -2,10 +2,10 @@
 REM ===========================================================================
 REM  CV01 : one double-click for the owner to get in (bare ASCII on purpose)
 REM  ---------------------------------------------------------------------------
-REM  1. starts the origin server in the background if it is not running
+REM  1. starts the Nuxt app in the background if it is not running
 REM     (idempotent - reuses deploy\start-blog-background.cmd)
 REM  2. puts the upload passphrase on the clipboard (nothing shown on screen)
-REM  3. opens the login gate in the default browser (login.html#owner)
+REM  3. opens the login gate in the default browser (/login#owner)
 REM
 REM  At the gate: Ctrl+V into the passphrase field, then click "enter".
 REM  If the browser offers to save the password, say yes - after that the

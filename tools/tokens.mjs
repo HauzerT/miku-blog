@@ -24,7 +24,7 @@
    ========================================================================== */
 
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { paint, checks, jobs, rounds, active, order } from '../content/palette.mjs';
@@ -34,7 +34,12 @@ import { window as windowName } from '../content/palette.mjs';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CSS_DIR = join(ROOT, 'assets/css');
 const JS_DIR = join(ROOT, 'assets/js');
-const LIB_DIR = join(ROOT, 'server/lib');
+/* 接线校验要扫「谁声明了 var(--x)、谁用了」——两条线都在这里：
+     · .vue 单文件的 <style> 块（Nuxt 组件里的行内样式），
+     · .mjs 源码（content/roll.mjs 这类共用的几何与配色算式）。
+   以前扫的是 server/lib/*.mjs 加根目录那批生成出来的 .html；两条都跟着 1.x 静态线删了。 */
+const SRC_DIRS = ['components', 'layouts', 'pages', 'composables'].map((d) => join(ROOT, d));
+const MJS_DIRS = [join(ROOT, 'content'), join(ROOT, 'server/utils'), join(ROOT, 'tools')];
 const CSS_OUT = join(CSS_DIR, 'palette.css');
 const JS_OUT = join(JS_DIR, 'palette.js');
 const PALETTE_SRC = join(ROOT, 'content/palette.mjs');
@@ -196,16 +201,46 @@ function scanLiterals() {
   return out;
 }
 
-/* 全站（含 JS 与手写页面）收集「声明过」与「用过」的自定义属性。
+/* 全站（组件、页面、脚本）收集「声明过」与「用过」的自定义属性。
    palette.css 是自己生成的，还没落盘时也要算数，所以先把轮次里的名字都登记上。
-   卷帘的 --x / --w / --play-x 是生成器写在 HTML 的行内 style 里的，
-   不在任何 CSS 里声明——所以 sources 里必须有 server/lib/shell.mjs 和手写页面。 */
+   卷帘那两个变量是**算出来的行内样式**（`--x` / `--w` / `--play-x` 由卷帘组件按音高与
+   时间轴接龙算出，生成时不可能写死在 CSS 里），所以接线校验必须把组件源码也算进
+   sources，否则会误报「用了没定义的变量」。 */
+function walkFiles(dir, ext, out = []) {
+  let entries = [];
+  try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return out; }
+  for (const e of entries) {
+    const full = join(dir, e.name);
+    if (e.isDirectory()) { walkFiles(full, ext, out); continue; }
+    if (e.name.endsWith(ext)) out.push(full);
+  }
+  return out;
+}
+
+/* 接线校验的输入：组件与页面（.vue）、共用算式（content / server/utils / tools 里的 .mjs）、
+   以及 assets/js 下那几个经典脚本（palette.js 是生成物，qr.js 与 music.config.js 手写）。 */
+function collectSources() {
+  const out = [];
+  for (const dir of SRC_DIRS) {
+    for (const file of walkFiles(dir, '.vue')) out.push([readFileSync(file, 'utf8'), relative(ROOT, file).replace(/\\/g, '/')]);
+  }
+  for (const dir of MJS_DIRS) {
+    for (const file of walkFiles(dir, '.mjs')) out.push([readFileSync(file, 'utf8'), relative(ROOT, file).replace(/\\/g, '/')]);
+  }
+  for (const file of readdirSync(JS_DIR).filter((f) => f.endsWith('.js'))) {
+    out.push([readFileSync(join(JS_DIR, file), 'utf8'), `js:${file}`]);
+  }
+  return out;
+}
+
 function collectVars() {
   const declared = new Set(allNames());
   const used = new Map();
 
   const eat = (text, label) => {
-    for (const m of text.matchAll(/(--[\w-]+)\s*:/g)) declared.add(m[1]);
+    /* 两种写法都要认：CSS 里的 `--x: 1px`，以及 Vue 行内样式对象里的 `'--x': String(n.x)`
+       ——卷帘的 --x / --w / --play-x 正是后者（值是算出来的，不可能写死在 CSS 里）。 */
+    for (const m of text.matchAll(/(--[\w-]+)\s*['"]?\s*:/g)) declared.add(m[1]);
     for (const m of text.matchAll(/var\(\s*(--[\w-]+)/g)) {
       if (!used.has(m[1])) used.set(m[1], new Set());
       used.get(m[1]).add(label);
@@ -214,9 +249,7 @@ function collectVars() {
 
   const sources = [
     ...cssFiles([]).map((f) => [f.text, f.name]),
-    ...readdirSync(JS_DIR).filter((f) => f.endsWith('.js')).map((f) => [readFileSync(join(JS_DIR, f), 'utf8'), `js:${f}`]),
-    ...readdirSync(LIB_DIR).filter((f) => f.endsWith('.mjs')).map((f) => [readFileSync(join(LIB_DIR, f), 'utf8'), `server:${f}`]),
-    ...readdirSync(ROOT).filter((f) => f.endsWith('.html')).map((f) => [readFileSync(join(ROOT, f), 'utf8'), f]),
+    ...collectSources(),
   ];
   for (const [text, label] of sources) eat(stripComments(text), label);
   return { declared, used };

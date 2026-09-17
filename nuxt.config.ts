@@ -1,12 +1,14 @@
 /*
    nuxt.config.ts · miku-blog 的 Nuxt 3 全栈外壳
 
-   目录约定（与仓库里既有的东西并存，互不打扰）：
-     pages/  components/  layouts/  composables/  plugins/   ← 这一套是新的 Vue 前端
-     server/api/  server/routes/  server/middleware/        ← Nitro 服务端（旧的 server/server.mjs 仍在，
-                                                              server/lib 不被 Nitro 扫描，见下方说明）
+   目录约定（仓库根就是 srcDir）：
+     pages/  components/  layouts/  composables/  plugins/   ← Vue 前端
+     server/api/  server/middleware/  server/utils/          ← Nitro 服务端
+     server/lib/                                             ← 被 server/utils 直接 import 的纯逻辑
+                                                               （markdown / emoji / htmltext / authlimit），
+                                                               Nitro 不把它当路由扫描，见下方说明）
 
-   · content/posts.mjs 仍是唯一内容真源：Nuxt 直接 import 它，tools/build.mjs 也照旧从它生成静态页。
+   · content/posts.mjs 是唯一内容真源：应用直接 import 它，没有生成步骤。
    · assets/ 里的 CSS、字体、vendor 库一个字节都不搬家：用 nitro.publicAssets 原样挂到 /assets，
      Vue 组件只负责吐出一模一样的 class 名，所以视觉不会漂。
    · 不引任何 CDN：vue / marked / katex 全从 node_modules 打包进产物，离线可用。
@@ -30,7 +32,7 @@ const readJson = (name, fallback) => {
   }
 };
 
-/* 首帧的地址栏颜色：色值只在 content/palette.mjs 里写一次（见 server/lib/shell.mjs 的 paperHex） */
+/* 首帧的地址栏颜色：色值只在 content/palette.mjs 里写一次 */
 const paperHex = (theme = 'light') => {
   const value = PALETTE_ROUNDS[PALETTE_ACTIVE].tokens['--paper'];
   const [light, dark] = Array.isArray(value) ? value : [value, value];

@@ -1,8 +1,8 @@
 /* ==========================================================================
    composables/useMusic.ts · 音乐盒：一根 <audio data-bgm> 加一份 media/music/ 的曲库
    ---------------------------------------------------------------------------
-   与旧的 assets/js/music.js 一一对应：进页面自动尝试播放（浏览器拦下来就在音乐球上
-   点一颗粉灯，第一个手势一到就接着放）、面板里的播放控制、曲目列表、「设为默认」，
+   进页面自动尝试播放（浏览器拦下来就在音乐球上点一颗粉灯，第一个手势一到就接着放）、
+   面板里的播放控制、曲目列表、「设为默认」，
    以及只有站长能按的 换 / 改名 / 删，加上站长工具箱里那块「上传音乐盒的音乐」。
 
    这一颗球是公开的——谁都能听、能选、能设默认。写文件的那几件事都要口令，
@@ -24,7 +24,7 @@ export const MODE_LABEL = { list: '列表循环', one: '单曲循环', shuffle: 
 const AUDIO_RE = /\.(mp3|m4a|wav|ogg|oga|opus|flac|aac)$/i;
 
 /* 认得出是音频就够了：后缀优先，MIME 兜底（Windows 有时候对 .m4a 报
-   application/octet-stream）。与旧站的两个正则同一份，只写一次。 */
+   application/octet-stream）。 */
 export const isAudioFile = (file) =>
   Boolean(file) && (AUDIO_RE.test(String(file.name || '')) || /^audio\//.test(String(file.type || '')));
 

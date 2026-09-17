@@ -1,7 +1,7 @@
 <script setup>
 /* 文章页：迷你定位条 + 标题 + 正文 + 同轨道的上一篇 / 下一篇
-   （与 tools/build.mjs 的 buildPost() 同构。正文在服务端就排好版，
-   见 server/utils/content.ts —— 公式与 emoji 与静态页一致。） */
+   （正文在服务端就排好版，见 server/utils/content.ts —— 公式与 emoji
+   都走 server/lib/markdown.mjs 这一条管线。） */
 import { noteWidth, slotOf } from '../content/roll.mjs'
 
 const route = useRoute()
@@ -48,7 +48,7 @@ useHead(() => ({
         <div v-if="post.body" v-html="post.body" />
         <p v-else class="empty">
           这篇还没写。骨架先留在这里：打开 <code>content/posts.mjs</code>，把这条记录的
-          <code>body</code> 填上，再运行 <code>node tools/build.mjs</code>——或者直接在编辑页写。
+          <code>body</code> 填上（刷新页面就是新的），或者直接在编辑页写。
         </p>
       </div>
       <nav class="pager" aria-label="同轨道的相邻文章">

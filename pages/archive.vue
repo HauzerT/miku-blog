@@ -1,5 +1,5 @@
 <script setup>
-/* 归档：全部文章按年份倒序（与 tools/build.mjs 的 buildArchive() 同构） */
+/* 归档：全部文章按年份倒序 */
 const tracks = useTracks()
 const site = useSiteMeta()
 

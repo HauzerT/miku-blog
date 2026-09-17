@@ -1,13 +1,13 @@
 /* ==========================================================================
    composables/useRoll.ts · 卷帘的运行时行为
    ---------------------------------------------------------------------------
-   assets/js/site.js 里与卷帘有关的那几条搬到这里：
+   卷帘的运行时那几条都在这里：
 
      · layoutTimeline   运行时文章补进卷帘后，按接龙把整条轴重排一遍
      · measureRolls     量过之后才决定要不要说「可以左右滑动」
      · useRollZoom      Ctrl + 滚轮调时间尺度（只绑首页大卷帘）
 
-   接龙的算式本身住在 content/roll.mjs —— 生成器、Nitro 与浏览器共用一份。
+   接龙的算式本身住在 content/roll.mjs —— SSR 与浏览器共用一份。
    ========================================================================== */
 import { dateDay } from '../content/roll.mjs';
 
@@ -15,7 +15,7 @@ const HEAD_DAYS = 2;   /* 左端留白 */
 const REST_DAYS = 4;   /* 相邻两篇之间的休止 */
 
 /* 运行时文章补进卷帘后，用同一把尺把音符与月份刻度重排一遍。
-   静态页烤着生成器算好的位置；这条只在「页面上出现了 data-live 的音符」时用。 */
+   SSR 时位置已经按同一套算式算好了；这条只在「页面上出现了 data-live 的音符」时用。 */
 export function layoutTimeline(roll) {
   const ruler = roll.querySelector('.roll__ruler');
   const notes = Array.from(roll.querySelectorAll('.note')).filter((n) =>

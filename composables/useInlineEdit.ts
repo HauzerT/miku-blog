@@ -1,11 +1,11 @@
 /* ==========================================================================
-   composables/useInlineEdit.ts · 页面上直接改字（旧站 studio.js 那一大段）
+   composables/useInlineEdit.ts · 页面上直接改字
    ---------------------------------------------------------------------------
    右键 → 「编辑正文…」、或者全局编辑模式里点一下字：那一段当场变成可编辑的，
    光标落在你点的地方，页面上多出一条工具条（一级 / 二级 / 正文 / 注释，
    B / I / U(青) / U(粉) / S，还有一个 emoji 面板 ☺）。
 
-   与旧站一一对应的是这些函数（名字都留着，方便对着读）：
+   里面这几个函数是这台机器的全部零件：
      placeCaret / execCmd / touchedBlocks / retag / setBlock / underline
      buildBar / EMOJI_PICKER / insertAtCaret / toggleEmoji / placeBar
      startEdit / stopEdit / onEditKey / cancelEdit / textWithBreaks / saveEdit

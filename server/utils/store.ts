@@ -139,7 +139,7 @@ export function seedSections(seeds: any[]): any[] {
     def: t.def,
     lede: t.lede,
     order: i,
-    seed: true, // 来自 content/posts.mjs：文章仍由 tools/build.mjs 管
+    seed: true, // 来自 content/posts.mjs：那批文章只撤下、不删除，源文件不动
     subs: [],
   }));
 }

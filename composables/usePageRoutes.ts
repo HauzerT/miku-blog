@@ -1,9 +1,10 @@
 /* ==========================================================================
    composables/usePageRoutes.ts · 地址里的身份（板块 id / 文章 slug）
    ---------------------------------------------------------------------------
-   旧站烤进 HTML 的地址带 .html（sections/niji.html、posts/lru.html，sections.js
-   补进来的那几条还是相对的）；Nuxt 这边是干净路由（/sections/niji、/posts/lru）。
-   这两个小正则两代都认，所以同一份名单在旧静态页与 Nuxt 上都成立。
+   正身是干净路由（/sections/niji、/posts/lru）。老地址（sections/niji.html、
+   posts/lru.html）也照认——那些链接会被 `server/middleware/legacy-urls.ts` 301 过来，
+   但页面里、书签里、别人抄走的地址里还可能留着带 `.html` 的那种写法。
+   这两个小正则两代都认，所以这些地址不会解析错。
 
    单独开一个文件是因为「右键菜单」与「全局编辑模式」都要它——两边各写一份
    会漂（Nuxt 的自动导入还会因为重名把其中一份丢掉）。

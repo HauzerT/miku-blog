@@ -2,8 +2,8 @@
 #  CV01 · 停止服务
 #  ---------------------------------------------------------------------------
 #  把本机上跑着的两个服务停掉：
-#    · 上传服务     node server/server.mjs       （音乐盒 / 新建板块要它）
-#    · 云村小服务   node tools/ncm-server.mjs    （扫码登录网易云要它）
+#    · Nuxt 应用     node .output/server/index.mjs   （站点本体：页面、接口、门厅）
+#    · 云村小服务    node tools/ncm-server.mjs       （扫码登录网易云要它）
 #
 #  用法：
 #    .\stop.ps1                两个都停
@@ -12,7 +12,7 @@
 #
 #  为什么认「node 的第一个参数」而不是整条命令行：
 #  有些进程（启动器的包装命令、日志重定向之类）的命令行里也会出现
-#  server/server.mjs 这几个字，拿整条命令行去匹配会误杀。脚本路径才是身份的凭据。
+#  .output/server/index.mjs 这几个字，拿整条命令行去匹配会误杀。脚本路径才是身份的凭据。
 #
 #  退出码：0 = 停干净了（或本来就没在跑）；1 = 有东西没停下来
 # ============================================================================
@@ -26,7 +26,7 @@ $ErrorActionPreference = 'Stop'
 
 # 本项目会起的两个入口（相对于仓库根目录）
 $ENTRIES = @(
-  @{ kind = '上传服务';   tail = 'server/server.mjs' },
+  @{ kind = 'Nuxt 应用';  tail = '.output/server/index.mjs' },
   @{ kind = '云村小服务'; tail = 'tools/ncm-server.mjs' }
 )
 
@@ -45,7 +45,7 @@ function Get-ScriptArg([string]$cmd) {
   return ''
 }
 
-# 脚本路径是不是本项目的入口：末尾要整段对上，`xserver/server.mjs` 不算
+# 脚本路径是不是本项目的入口：末尾要整段对上，`x.output/server/index.mjs` 不算
 function Test-Entry([string]$script, [string]$tail) {
   $s = $script -replace '\\', '/'
   if ($s -eq $tail) { return $true }
@@ -97,7 +97,7 @@ if ($found.Count -eq 0) {
   if ($Port -gt 0) {
     Write-Output ('  没有 node 进程在监听 ' + $Port + ' 端口。')
   } else {
-    Write-Output '  上传服务和云村小服务都没在跑，不用停。'
+    Write-Output '  Nuxt 应用和云村小服务都没在跑，不用停。'
   }
   Write-Output ''
   exit 0

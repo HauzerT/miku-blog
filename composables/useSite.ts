@@ -38,8 +38,8 @@ export const useExcerptPool = () => {
 };
 
 /* 界面上刚写完一篇文章 / 刚建完一个板块之后喊一声：把服务端装配好的那一份重新取回来。
-   旧站的 assets/js/sections.js 之所以有四十多行「就地改轨道栏、索引、卷帘、文章列表」，
-   是因为静态页把内容烤进了 HTML；在这里内容本来就是一份共享状态，重取一次就够。 */
+   内容本来就是一份共享状态（`plugins/site-data.server.ts` 灌进来的），
+   所以重取一次就够——不需要任何「就地改 DOM」的活儿。 */
 export const refreshSite = async () => {
   const state = useSite();
   try {

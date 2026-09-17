@@ -2,14 +2,14 @@
 /* ==========================================================================
    components/StudioDock.vue · 右下角两颗悬浮球
    ---------------------------------------------------------------------------
-   与 server/lib/shell.mjs 的 studio() 同构：.studio > .studio__panel（面板宿主）
-   + .studio__dock（两颗球）+ <audio data-bgm>，class、属性、层级一个不差，
-   所以 assets/css/studio.css 一个字节都不用改。
+   结构是 `.studio > .studio__panel`（面板宿主）+ `.studio__dock`（两颗球）
+   + `<audio data-bgm>`，class、属性、层级都对着 `assets/css/studio.css` 写，
+   所以那份样式一个字节都不用改。
 
    两条硬规矩写在这里：
 
-     · 服务探不到就整体隐身（hidden），探到了才摆出来——与静态页同一条：
-       没 JS 或没服务时，站点照旧，只是没有工作台。
+     · 服务探不到就整体隐身（hidden），探到了才摆出来——没 JS 或没服务时，
+       站点照旧，只是没有工作台。
      · <audio> 必须留在这一层。它住在 layouts/default.vue 里、<NuxtPage> 之外，
        换页时不重建，所以歌不会因为翻页而停。src 一概不绑：什么时候换歌、
        换哪一首，全由 useMusic 说了算，免得某次渲染把正在响的那一根重造。

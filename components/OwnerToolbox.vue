@@ -2,21 +2,21 @@
 /* ==========================================================================
    components/OwnerToolbox.vue · 站长工具箱面板
    ---------------------------------------------------------------------------
-   与旧的 assets/js/owner.js 一致：三选一的菜单（新建板块 / 子板块、
-   上传音乐盒的音乐、快速写一篇博客），每个子面板顶上一条「← 工具箱」。
+   三选一的菜单（新建板块 / 子板块、上传音乐盒的音乐、快速写一篇博客），
+   每个子面板顶上一条「← 工具箱」。
    面板本身只有在验过口令之后才开得起来（见 StudioDock 的 openBall）。
 
    三个去处：
-     · 新建板块 / 子板块 → OwnerSections.vue（旧站是 cv01.sections.open）
-     · 上传音乐盒的音乐  → MusicUpload.vue（旧站是 cv01.music.uploadPanel）
-     · 快速写一篇博客    → /editor，**整页跳**，不走局部刷新（旧站是 editor.html）
+     · 新建板块 / 子板块 → OwnerSections.vue
+     · 上传音乐盒的音乐  → MusicUpload.vue
+     · 快速写一篇博客    → /editor，**整页跳**，不走局部刷新
    ========================================================================== */
 const { focusPanel } = useStudio()
 const view = ref('')
 
 const back = () => {
   view.value = ''
-  /* 子面板换回菜单之后重新收一下焦点（旧站 owner.js 的 cv01.focusPanel） */
+  /* 子面板换回菜单之后重新收一下焦点 */
   focusPanel()
 }
 </script>

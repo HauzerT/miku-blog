@@ -3,7 +3,7 @@ chcp 65001 >nul
 title CV01 - stop services
 cd /d "%~dp0"
 
-rem Double-click this file to stop the upload service and the kumura helper.
+rem Double-click this file to stop the Nuxt app and the kumura helper.
 rem   list only:            stop.cmd -List
 rem   stop by port:         stop.cmd -Port 8080
 rem

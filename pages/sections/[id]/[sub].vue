@@ -1,6 +1,6 @@
 <script setup>
 /* 子板块页：板块页上那条子板块导航指着它。
-   旧服务端把这一页叫 dynamicSubPage（server/lib/pages.mjs），这里同一个意思。 */
+   文章 = 该板块里 sub 字段等于本页 id 的那些。 */
 const route = useRoute()
 const tracks = useTracks()
 const track = useFindTrack(() => route.params.id)

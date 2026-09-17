@@ -16,6 +16,9 @@
      node tools/preflight-check.mjs                        # 只跑 A
      node tools/preflight-check.mjs http://127.0.0.1:4399  # A + B + C（先另开窗口起服务）
 
+   要跑 B/C 的话，服务是 Nuxt 那台（在仓库根目录起）：
+     $env:PORT=4399; node .output/server/index.mjs
+
   退出码：有「挡不住」的问题时非零。**它是给人看的清单，不是自动修复器**——
    每条都说清楚「为什么」和「怎么办」，改不改由你决定。
    ========================================================================== */
@@ -24,7 +27,9 @@ import { existsSync, readdirSync } from 'node:fs';
 import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { loadSettings } from '../server/lib/store.mjs';
+/* 旧的数据层 server/lib/store.mjs 跟着 1.x 静态线一起删了；工具侧只留读
+   data/settings.json 的那一小块，见 tools/lib/settings.mjs。 */
+import { loadSettings } from './lib/settings.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -62,10 +67,10 @@ if (/^\d+$/.test(pass)) {
 }
 
 if (settings.gate === false) {
-  warn('门厅是关着的（"gate": false）', '站点页面不再先过 login.html；访客直接落到首页。',
+  warn('门厅是关着的（"gate": false）', '站点页面不再先过 /login；访客直接落到首页。',
     '想让门厅继续当「开屏过场」就删掉 data/settings.json 里那一行。');
 } else {
-  ok('门厅开着（站点页面先过 login.html）');
+  ok('门厅开着（站点页面先过 /login）');
 }
 
 /* 这几个目录/文件是**绝对不该被公网读到**的。静态服务有 HIDDEN 白名单，
@@ -110,7 +115,7 @@ const base = (process.argv[2] || '').replace(/\/+$/, '');
 if (!base) {
   console.log('');
   console.log('  B/C. 真接口：跳过（没给地址）。要跑就：');
-  console.log('     node server/server.mjs 4399');
+  console.log('     $env:PORT=4399; node .output/server/index.mjs');
   console.log('     node tools/preflight-check.mjs http://127.0.0.1:4399');
 } else {
   console.log('');
@@ -127,26 +132,21 @@ if (!base) {
     }
   }
 
-  /* 该被门厅挡住的：站点页面。
-     旧站的地址带 .html（archive.html），Nuxt 这边是干净路由（/archive）——
-     两种写法都探一遍，这样这个脚本对着新旧哪一台服务跑都成立。 */
-  const gated = ['/', '/index.html', '/archive', '/archive.html', '/editor', '/editor.html', '/about', '/about.html'];
+  /* 该被门厅挡住的：站点页面。地址是 Nuxt 的干净路由——生成出来的 *.html 已经删了，
+     旧地址只剩一条 301（探测它等于在问「重定向还在不在」，不是问门厅）。 */
+  const gated = ['/', '/archive', '/about', '/editor', '/kumura'];
   for (const p of gated) {
     const r = await probe(p);
     if (r.status === 0) { bad(`连不上 ${p}`, r.error, '服务起来了吗？'); continue; }
-    /* 门厅可能把人送回 /login 或旧站的 /login.html，两种都算挡住了 */
-    if (r.status === 302 && /\/login(\.html)?(\?|$)/.test(r.location)) ok(`${p} → 302 门厅`);
+    if (r.status === 302 && r.location.includes('/login')) ok(`${p} → 302 门厅`);
     else bad(`${p} 没被门厅挡住（${r.status}）`, '任何拿到地址的人都能直接读到这一页。',
       '确认 data/settings.json 里没有 "gate": false。');
   }
 
   /* 门厅自己必须永远进得去 */
-  for (const p of ['/login', '/login.html']) {
-    const r = await probe(p);
-    if (r.status === 200) ok(`${p} 不挡（门厅自己必须进得去）`);
-    else if (r.status === 404 && p === '/login.html') warn(`${p} 返回 404`, '旧地址；Nuxt 这一侧的门厅在 /login。', '要对旧站跑这个脚本时才需要它。');
-    else warn(`${p} 返回 ${r.status}`, '门厅自己应该永远可读。', '检查门厅在 gate 里的例外。');
-  }
+  const gate = await probe('/login');
+  if (gate.status === 200) ok('/login 不挡（门厅自己必须进得去）');
+  else warn(`/login 返回 ${gate.status}`, '门厅自己应该永远可读。', '检查门厅在 gate 里的例外。');
 
   /* 必须挡住的：服务端数据与源码 */
   console.log('');
@@ -154,12 +154,12 @@ if (!base) {
   const forbidden = [
     '/data/settings.json', '/data/articles.json', '/data/sections.json', '/data/music.json',
     '/data/overrides.json',
-    '/server/server.mjs', '/server/lib/store.mjs', '/tools/ncm-server.mjs', '/tools/set-passphrase.mjs',
+    '/server/api/state.get.ts', '/server/utils/store.ts', '/tools/ncm-server.mjs', '/tools/set-passphrase.mjs',
     '/content/posts.mjs', '/content/palette.mjs',
     '/deploy/blog-server.log',   // 开头就印着口令
     '/deploy/start-blog-background.ps1',
     '/deploy/CLOUDFLARE-TUNNEL.md',
-    '/.ncm-session.json',        // 网易云登录态（曾经真的漏过，见 server.mjs 的 HIDDEN）
+    '/.ncm-session.json',        // 网易云登录态（曾经真的漏过，见 1.x server 的 HIDDEN 白名单）
     '/.env', '/.credentials.yaml', '/.gitignore',
     '/.git/config',
   ];
@@ -168,7 +168,7 @@ if (!base) {
     if (r.status === 0) { bad(`连不上 ${p}`, r.error, '服务起来了吗？'); continue; }
     if (r.status === 200) {
       bad(`${p} 被读到了（200）`, '这个文件本来就不该离开这台机器。',
-        '检查 server.mjs 顶部的 HIDDEN 与 serveStatic() 的白名单。');
+        '检查 Nuxt 的 public/ 与 server/ 目录边界——data/、tools/、deploy/ 一个都不该被静态发出。');
     } else {
       ok(`${p} → ${r.status}`);
     }

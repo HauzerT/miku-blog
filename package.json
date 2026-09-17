@@ -9,9 +9,7 @@
     "build": "nuxt build",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare",
-    "legacy:build": "node tools/build.mjs",
-    "legacy:server": "node server/server.mjs"
+    "postinstall": "nuxt prepare"
   },
   "dependencies": {
     "katex": "^0.18.7",

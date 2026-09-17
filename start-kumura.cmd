@@ -1,12 +1,21 @@
 @echo off
 chcp 65001 >nul
-title CV01 · 云村服务（网易云扫码登录）
+title CV01 - kumura helper (NetEase Cloud Music)
 cd /d "%~dp0"
+
+rem Double-click this file to run ONLY the kumura helper (the Nuxt app's
+rem /kumura page needs it for QR login). start.cmd already brings it up
+rem together with the app; use this one when the app is already running.
+rem
+rem This file is pure ASCII on purpose: cmd.exe mis-reads a UTF-8 batch file
+rem containing non-ASCII bytes and then drops bytes from the following lines,
+rem which used to break the very line that launched node. All messages live
+rem in the terminal output of tools\ncm-server.mjs (and in start.ps1).
 
 where node >nul 2>nul
 if errorlevel 1 (
   echo.
-  echo   没找到 node。先装一个 Node.js ^(18 以上^)，再回来双击这个文件。
+  echo   node not found. Install Node.js 18 or newer, then run this again.
   echo   https://nodejs.org/
   echo.
   pause
@@ -14,17 +23,18 @@ if errorlevel 1 (
 )
 
 echo.
-echo   正在启动云村小服务……
-echo   它会替你保管网易云的登录凭证（.ncm-session.json，只在本机）。
+echo   Starting the kumura helper...
+echo   It keeps your NetEase Cloud Music login state in .ncm-session.json,
+echo   on this machine only.
 echo.
-echo   开着这个窗口，然后打开博客里的「云村」页：
-echo     http://127.0.0.1:4321/kumura.html
+echo   Keep this window open, then open the kumura page of the blog:
+echo     http://127.0.0.1:4321/kumura
 echo.
-echo   关掉这个窗口就是停止服务（登录状态还在，下次开窗口自动续上）。
+echo   Closing this window stops the helper (the login state is kept).
 echo.
 
 node "%~dp0tools\ncm-server.mjs" %*
 
 echo.
-echo   云村服务已经停了。
+echo   The kumura helper has stopped.
 pause
