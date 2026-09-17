@@ -56,6 +56,7 @@ tools/editor-check.mjs 编辑页自检：写一篇 → 四处页面都跟上 →
 tools/login-check.mjs 门厅自检：颜色是不是那三个 token、空/错口令、访客不写钥匙（需要 Chrome）
 tools/edit-check.mjs  右键菜单自检：改名、撤下、恢复、410、页面上直接改字（需要 Chrome）
 tools/globaledit-check.mjs 全局编辑模式自检：顶栏按钮、点字即改、空简介/导语新建（需要 Chrome）
+tools/preflight-check.mjs 公网部署前自检：口令强度、门厅、哪些文件真的能被人读到、写接口有没有漏（见「发布」）
 tools/md-check.mjs    Markdown / 公式 / emoji 自检：GFM 各种语法、四种公式写法（需要 Chrome）
 server/lib/markdown.mjs 正文管线：marked（GFM）→ emoji 短代码 → KaTeX；decorateBody 给 HTML 用
 server/lib/emoji.mjs  常用 emoji 短代码表 + 只在文本节点上换的 decorateEmoji
@@ -80,6 +81,8 @@ assets/audio/         真钢琴采样的投放处 —— 可选，见该目录�
 assets/fonts/         Big Shoulders（OFL，随站自带，只在测量类文本上出现）
 assets/vendor/        仅有的两个第三方库：marked（Markdown）+ KaTeX（公式），本地文件，见该目录 README
 design/               设计计划、设计哲学、海报（PNG + PDF）
+deploy/               Cloudflare Tunnel 长期部署：手册、后台源站启动脚本（见「发布」）
+tools/copy-key.cmd    口令进剪贴板（.cmd 入口，双击可用；中文与逻辑在配对的 .ps1 里）
 ```
 
 ## 上传系统（本机跑，数据落在自己硬盘上）
@@ -98,10 +101,55 @@ design/               设计计划、设计哲学、海报（PNG + PDF）
 
 想换口令：改 `data/settings.json` 里的 `passphrase`，重启服务即可（删掉那一行也行，
 下次启动会重新生成一串印在终端里）。换完这个浏览器里记着的旧口令就失效了，会再问你一次。
+用界面换更省事：`node tools/set-passphrase.mjs` 生成一条 32 位（约 186 bit 熵）的随机口令，
+写进 `data/settings.json` 并打印出来；`--print` 只看现在这条，`--ask` 自己敲一条（不回显）。
+
+**口令是本站唯一的真权限**，所以它的强度就是本站的强度。第一次启动自动生成的那条
+现在是 32 位字母数字混排（挑掉了 `l/1/I/0/O` 这些会看错的字符，它要从终端抄到另一个窗口里）；
+以前生成的是 8 位十六进制——本机跑够用，**挂到公网上就不够了**。
+
+### 这么长我自己怎么登录（不用手打）
+
+口令是 32 位随机串，**没人去背它，也不需要**。日常只有两条路：
+
+```powershell
+tools\copy-key.cmd            # 口令进剪贴板，屏幕上不显示
+tools\copy-key.cmd -Show      # 顺便也打印出来（旁边没人时用）
+```
+
+然后去门厅那颗「站长登录」，在口令栏按 **Ctrl+V**、点「进入」。就这一次：
+
+| 什么 | 活多久 |
+|---|---|
+| 门厅那枚 cookie `cv01-enter` | 30 天 |
+| 口令本身（浏览器 `localStorage` 的 `cv01-key`） | **没有到期时间**——站长工具箱、右键菜单、编辑页认的都是它 |
+
+所以正常情况是「进门一次，很久不用再进」；换浏览器、清站点数据、
+或者自己按了「访客进入」（那颗键会**主动忘掉**口令）才需要再粘贴一次。
+哪次写操作碰上 401，站长工具箱会自己把口令栏弹出来，粘一下就行。
+
+> `copy-key.ps1` 用 PowerShell 跑，而这台机器的执行策略是 Restricted——
+> 所以入口是配对的 `.cmd`（它带 `-ExecutionPolicy Bypass`，只对这一次调用生效）。
+> **双击 `.ps1` 是没反应的**，双击 `.cmd` 才对。
+>
+> 剪贴板是明文，同机器上的别的程序读得到，Windows 的剪贴板历史（Win+V）也可能留下它。
+> 用完可以在 Win+V 里删掉那一条。真想手打，就用 `--ask` 自己设一条 20 位以上的**好记的**
+> 长口令（在 Cloudflare Access 挡在前面的前提下，这是可以接受的选择）。
+
+**试错限速**：口令不对的时候服务不再只是回一句 401，而是记账——
+同一个来客（`server/lib/authlimit.mjs`）错头 5 次不罚，之后每错一次要等的时长翻倍
+（2s → 4s → 8s …），封顶 15 分钟；等待期内再试是 429 加一句「请等 X 再试」，
+响应里带 `Retry-After`。口令输对就当场把这条记录抹掉。记录只在内存里，重启即清空。
+
+- 来客是谁：默认认 `req.socket.remoteAddress`，**不信任任何转发头**（它们谁都能填）。
+  挂了 tunnel、想按真实来客计数，就设 `CV01_TRUST_PROXY=1`——那时才采信
+  `CF-Connecting-IP`；前提是这台服务除了 cloudflared 没有别的路能连上。
+- 免费次数想改：`CV01_AUTH_FREE=3`（跑自检时用得上）。
+- 自检：`node tools/authlimit-check.mjs`（19 项纯逻辑，用假时钟把几小时的退避在几毫秒里跑完）；
+  接上服务再跑一遍就多 5 项真接口的：`node tools/authlimit-check.mjs http://127.0.0.1:4399`。
 
 **停止**：在那个窗口按 `Ctrl+C`，或者**双击 `stop.cmd`**——窗口找不到了、忘了端口都能用，
 它自己按进程把上传服务与云村小服务找出来停掉，并打印停了谁：
-
 ```
   CV01 · 停止服务
   ─────────────────────────────────────────────
@@ -593,6 +641,27 @@ node tools/build.mjs
 
 整站是纯静态的，丢到任何静态托管即可（GitHub Pages / Cloudflare Pages / 自己的机器）。
 `file://` 直接打开也完整可用——字体与那两个库都在本地，没有任何外部请求。
+
+### 挂到公网之前：先跑一次预检
+
+```bash
+node server/server.mjs 4399        # 另开一个窗口
+node tools/preflight-check.mjs http://127.0.0.1:4399
+```
+
+它回答一个问题：**把这些东西原样挂出去，别人能拿到什么。** 三部分——
+读配置（口令长度、门厅开关、凭据文件有没有跑进仓库）、
+**真的去敲每一页**（不盖章能不能读到、`data/` `server/` `tools/` `deploy/` 与点文件是不是 404、
+写接口不带口令是不是 401）、以及把「当前设计就是不挡」的读接口列出来让你确认一遍。
+有「别上线」级别的发现时退出码非零。
+
+它不是猜的：这条自检真的抓到过一个洞——`.ncm-session.json`（网易云登录态，就躺在站点根目录下）
+曾经能被直接 `GET` 走，因为静态服务挡的是**目录名**白名单，拦不住根目录下的单个点文件。
+现在 `server.mjs` 除了那份名单还多了一道「任何一段以 `.` 开头的路径都不发」，
+`deploy/` 也进了名单（那里的 `blog-server.log` 开头就印着口令）。
+
+完整的长期部署流程（Cloudflare Tunnel + Access、开机自启、口令与限速怎么配）
+写在 `deploy/CLOUDFLARE-TUNNEL.md`。
 
 **唯一的例外是 `kumura.html`。** 它要问本机的小服务，所以：
 - 只在你自己机器上跑：`node tools/ncm-server.mjs` 开着即可，页面照常；
