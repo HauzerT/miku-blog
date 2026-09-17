@@ -80,10 +80,12 @@
    首页大卷帘的横轴是日历：一天 = --roll-day 宽。画布的最小宽由日子数算出
    （--days 由生成器写在卷帘上，运行时新文章来了 site.js 会重算）——
    文章越写越多，轴就往右长，左右滚动是真的在翻日历。
+   下限再叠一道 120vw：内容再少，轴也比视口长出一截——时间轴在任何
+   屏幕上都翻得动；文章多了以后，按日子算的那一项自然接管。
    12.25rem = 轨道名 9.5 + 琴键 2.75；嫌挤改 --roll-day，别改算式。 */
 .roll--hero {
-  --roll-day: 0.7rem;
-  --canvas: max(62rem, calc(12.25rem + var(--days, 92) * var(--roll-day)));
+  --roll-day: 1.15rem;
+  --canvas: max(62rem, calc(12.25rem + var(--days, 92) * var(--roll-day)), 120vw);
 }
 .roll--hero .roll__inner {
   min-width: var(--canvas);
@@ -309,12 +311,13 @@ html:not(.js) .roll__hint { display: block; }
 
 @media (max-width: 900px) {
   /* 手机上时间轴仍要能读：压矮轨道、收窄轨道名、把键盘列让给音符。
-     画布的最小宽换手机那套（没有琴键列，轨道名 5.5rem），日子照旧铺开——
-     手指本来就要左右滑着翻日历 */
+     画布的最小宽换手机那套（没有琴键列，轨道名 5.5rem），一天窄一档
+     （0.8rem），日子照旧铺开——手指本来就要左右滑着翻日历 */
   .roll--hero {
     --lane-h: 2.25rem;
     --roll-heads: 5.5rem;
-    --canvas: max(44rem, calc(5.5rem + var(--days, 92) * var(--roll-day)));
+    --roll-day: 0.8rem;
+    --canvas: max(44rem, calc(5.5rem + var(--days, 92) * var(--roll-day)), 120vw);
   }
   .roll--hero .roll__inner {
     grid-template-columns: var(--roll-heads) minmax(0, 1fr);
