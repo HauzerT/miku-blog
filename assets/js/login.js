@@ -114,6 +114,18 @@
     } catch (e) { /* 同上 */ }
   }
 
+  /* 这台浏览器记着口令（localStorage 的 cv01-key）就把填表这一步省掉：
+     预填进去、直接试一次门。成功即一击进门；口令换过了会吃 401，
+     失败分支把旧账清掉，回到手输。浏览器密码库的自动填充是第二重保险，
+     不指望它——自己存的钥匙自己会用，这才是靠得住的。 */
+  function tryRemembered() {
+    var value = read();
+    if (!value) return false;
+    input.value = value;
+    enter();
+    return true;
+  }
+
   function enter() {
     var value = input.value.trim();
     if (!value) {
@@ -153,12 +165,24 @@
         window.setTimeout(function () { window.location.href = NEXT; }, 250);
       }, function (err) {
         stop();
+        /* 试的是记着的那把钥匙却吃了 401/403：口令换过了，旧账当场作废，
+           让人粘新的进来。 */
+        if ((err.status === 401 || err.status === 403) && value && value === read()) {
+          write('');
+          paintStatus();
+        }
         say(reason(err), true);
         input.select();
       });
   }
 
-  owner.addEventListener('click', function () { show(pass.hidden); });
+  owner.addEventListener('click', function () {
+    var opening = pass.hidden;
+    show(pass.hidden);
+    /* 展开的那一下就试门：记着口令的话一击直接进，
+       不用再把口令栏里的点点重新填一遍。 */
+    if (opening) tryRemembered();
+  });
 
   pass.addEventListener('submit', function (e) {
     e.preventDefault();
@@ -198,8 +222,12 @@
     });
   }
 
-  /* 地址栏写 #owner 就直接停在口令那一行——站长可以把 login.html#owner 存成书签 */
-  if (window.location.hash === '#owner') show(true);
+  /* 地址栏写 #owner 就直接停在口令那一行——站长可以把 login.html#owner 存成书签。
+     记着口令的话顺手就试门，跟点「站长登录」一个待遇。 */
+  if (window.location.hash === '#owner') {
+    show(true);
+    tryRemembered();
+  }
 
   paintStatus();
 })();
