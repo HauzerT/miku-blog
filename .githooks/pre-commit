@@ -1,0 +1,35 @@
+#!/bin/sh
+# ============================================================================
+#  CV01 · 提交前扫一遍密钥与本机实况
+#  ---------------------------------------------------------------------------
+#  启用（每个克隆做一次——core.hooksPath 是本机配置，不跟着仓库走）：
+#
+#      git config core.hooksPath .githooks
+#
+#  命中就拦下这次提交。确认是误报：往 .gitleaks.toml 的 allowlist 里加一条；
+#  非要硬闯用 git commit --no-verify，但那是绕过，不是解决。
+#
+#  这一关只看**暂存区**：快，而且正好是「这次要提交的东西」。完整的历史 +
+#  工作区扫描交给 CI（.github/workflows/secret-scan.yml）和手动跑的
+#  node tools/secret-scan.mjs。
+# ============================================================================
+
+root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+
+if ! command -v node >/dev/null 2>&1; then
+    echo "  [secret-scan] 没找到 node，跳过密钥扫描。" >&2
+    exit 0
+fi
+
+node "$root/tools/secret-scan.mjs" --staged
+status=$?
+
+if [ "$status" -ne 0 ]; then
+    echo "" >&2
+    echo "  [secret-scan] 拦下了：暂存区里有命中项（报告见上）。" >&2
+    echo "  真凭据：先吊销 / 轮换，再删文件——删掉不会让旧钥匙失效。" >&2
+    echo "  本机实况：搬进 deploy/local.config.ps1（那个文件不进仓库）。" >&2
+    echo "  确认误报：往 .gitleaks.toml 的 allowlist 里加一条。" >&2
+fi
+
+exit $status

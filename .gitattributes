@@ -1,0 +1,8 @@
+# 行尾：只钉必须钉的，不动存量文件。
+#
+# .githooks/ 下的钩子是 sh 脚本，shebang 那一行必须是 LF。core.autocrlf=true
+# 的机器（本仓库就是）会在 checkout 时把它变成 CRLF，然后在 Linux / macOS 上
+# 直接报 "cannot execute"，在 Git for Windows 上也会莫名其妙地不执行。
+#
+# 标题里的 scope 写窄一点是有意的：只影响 .githooks/，不触发全仓库重新规范化。
+.githooks/* text eol=lf

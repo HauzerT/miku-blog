@@ -1,0 +1,51 @@
+# ============================================================================
+#  CV01 · gitleaks 配置
+#  ---------------------------------------------------------------------------
+#  用法：
+#    gitleaks git . --config .gitleaks.toml           # 翻全部历史
+#    gitleaks git --staged --config .gitleaks.toml    # 只看暂存区
+#    gitleaks dir . --config .gitleaks.toml           # 扫工作区（注意：不看 .gitignore）
+#
+#  tools/secret-scan.mjs 装了 gitleaks 时会自动带上这个文件；
+#  .github/workflows/secret-scan.yml 也用它。
+#
+#  这里只放宽「确定是给人抄的模板」和第三方打包代码。真要放行一条命中，
+#  往 allowlist 里加一条；别去改规则本身——改了规则等于以后都看不见。
+# ============================================================================
+
+title = "CV01 miku-blog"
+
+[extend]
+# 先用 gitleaks 自带的整套规则，再补下面两条本站特有的。
+useDefault = true
+
+[[rules]]
+id = "cv01-ncm-cookie"
+description = "网易云登录 cookie（MUSIC_U）"
+regex = '''MUSIC_U=[0-9a-f]{20,}'''
+tags = ["cookie", "netease"]
+
+[[rules]]
+id = "cv01-cf-tunnel-token"
+description = "Cloudflare tunnel token"
+regex = '''eyJhIjoi[A-Za-z0-9+/=]{40,}'''
+tags = ["cloudflare", "token"]
+
+[allowlist]
+description = "文档里的占位值与第三方打包代码"
+
+paths = [
+  # 第三方打包进来的副本（marked / KaTeX），不是我们写的
+  '''assets/vendor/''',
+]
+
+regexes = [
+  # 公开文档里给人抄的模板值
+  '''example\.(com|org|net)''',
+  '''<TUNNEL-ID>''',
+  '''<你的用户名>''',
+  '''<仓库根>''',
+  '''<远控域名>''',
+  '''00000000-0000-0000-0000-000000000000''',
+  '''eyJhIjoi\.\.\.''',
+]

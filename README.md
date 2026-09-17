@@ -53,7 +53,7 @@ F#3 做题区doge      EE学生的自我迭代
 **上线**
 
 - [发布](#发布) —— 静态托管 / Cloudflare Tunnel（[挂到公网之前先跑一次预检](#挂到公网之前先跑一次预检) ·
-  [部署实况不进仓库](#部署实况不进仓库)）
+  [部署实况不进仓库](#部署实况不进仓库) · [提交前扫一遍](#提交前扫一遍)）
 
 **设计**
 
@@ -124,6 +124,8 @@ F#3 做题区doge      EE学生的自我迭代
 | `node tools/authlimit-check.mjs` | 试错限速自检：19 项纯逻辑；接上服务再多 5 项真接口 |
 | `node tools/check-kumura.mjs` | 云村页的浏览器自检（需要 Chrome 或 Edge） |
 | `node tools/preflight-check.mjs` | 公网部署前自检：口令强度、门厅、哪些文件真的能被人读到、写接口有没有漏（见「发布」） |
+| `node tools/secret-scan.mjs` | 提交前扫密钥：通用凭据规则 + 「本机实况有没有漏回仓库」（见「提交前扫一遍」） |
+| `tools\secret-scan.cmd` | 同上，双击可用（报告留在窗口里） |
 
 ### 前端（assets/）
 
@@ -771,6 +773,37 @@ Copy-Item deploy\local.config.example.ps1 deploy\local.config.ps1
 
 > 为什么这么分：这个仓库是公开的。把隧道 ID、真实域名、用户名写进来，对读代码的
 > 人一点用都没有，对想找入口的人很有用。
+
+### 提交前扫一遍
+
+三道关，同一套规则；**没有 gitleaks 也能用**（自带规则集兜底）：
+
+| 关 | 时机 | 命令 |
+|---|---|---|
+| pre-commit | `git commit` 时自动 | `.githooks/pre-commit` → `secret-scan.mjs --staged` |
+| 手动 | 想扫就扫 | `node tools/secret-scan.mjs` |
+| CI | push / PR | `.github/workflows/secret-scan.yml`（gitleaks 官方 action + 自带扫描器） |
+
+钩子要**每个克隆启用一次**（`core.hooksPath` 是本机配置，不跟着仓库走）：
+
+```powershell
+git config core.hooksPath .githooks
+```
+
+它扫两件事：通用凭据（GitHub 令牌、云厂商 key、私钥、JWT、网易云 cookie、
+写在赋值里的口令），以及**本机实况有没有漏回仓库**——后者拿
+`deploy/local.config.ps1` 当尺子，所以换机器、换域名都不用改脚本。
+
+已经公开过的历史旧账记在 `.secret-scan-baseline.json` 里（只存哈希，不存值）：
+它们照常列出来，但不再让构建变红。新命中才拦。想连旧账一起看：
+
+```powershell
+node tools/secret-scan.mjs --strict            # 无视基线，全都拦
+node tools/secret-scan.mjs --update-baseline   # 把当前命中记成「已认下」
+```
+
+> 一个永远红的门等于没有门——最后一定会被 `--no-verify` 绕过。基线就是为了
+> 让它一直是个**能过的**门。
 
 **唯一的例外是 `kumura.html`。** 它要问本机的小服务，所以：
 - 只在你自己机器上跑：`node tools/ncm-server.mjs` 开着即可，页面照常；

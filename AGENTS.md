@@ -19,6 +19,25 @@
 
 发布前先用 `release-skills --dry-run` 预览分组与版本号；版本号与是否发布需用户确认后落笔。
 
+### 提交前（密钥钩子）
+
+启用一次（`core.hooksPath` 是本机配置，不跟着仓库走）：
+
+```powershell
+git config core.hooksPath .githooks
+```
+
+之后每次 `git commit` 都会跑 `node tools/secret-scan.mjs --staged`，扫两件事：
+通用凭据（GitHub 令牌、云厂商 key、私钥、JWT、写在赋值里的口令），以及
+**本机实况有没有漏回公开仓库**。命中就拦下提交。
+
+已经公开过的历史旧账记在 `.secret-scan-baseline.json` 里（只存哈希，不存值），
+不再让构建变红；新命中才拦。`--strict` 连旧账一起看，`--update-baseline` 认下新命中。
+
+**别把只属于一台机器的值写进公开文件**——域名、隧道 ID、Windows 用户名、本机
+绝对路径。它们该待在 `deploy/local.config.ps1` 与 `deploy/LOCAL-DEPLOY.md`
+（两个都在 `.gitignore` 里），公开文档只留占位值。提交正文里也别复述这些值。
+
 ### 模块 scope 对照
 
 | scope | 覆盖范围 |
@@ -31,6 +50,7 @@
 | pages | 根目录独立页面（index / editor / login / about / archive / kumura.html） |
 | deploy | deploy/**、design/** |
 | release | VERSION、CHANGELOG.md、.releaserc.yml、AGENTS.md |
+| repo | 仓库机制：.gitignore、.gitattributes、.gitleaks.toml、.githooks/**、.github/**、.secret-scan-baseline.json |
 
 ### 约定
 
