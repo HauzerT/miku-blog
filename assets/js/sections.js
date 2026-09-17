@@ -705,7 +705,7 @@
     }
     if (touched && cv01.site && cv01.site.layoutTimeline) {
       /* 增、删、改期都会改接龙的次序：只要动过，就按同一把尺把整条轴
-         （音符、月份刻度、月份色块）重排一遍 */
+         （音符、月份刻度）重排一遍 */
       cv01.site.layoutTimeline(roll);
     }
     if (fresh.length && cv01.site && cv01.site.bindNotes) cv01.site.bindNotes(fresh);

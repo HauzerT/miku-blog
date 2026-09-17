@@ -115,9 +115,10 @@ export function timelineChain(posts) {
   return { notes, span: cursor - REST + TAIL };
 }
 
-/* 顶部刻度：每个月的牌子挂在这个月第一篇音符的起点上。
-   接龙轴上月份不再等宽，但先后还在——牌子按月序排，永不互相压住；
-   没发博的月份天然没有牌子，也就没有空档可标。 */
+/* 顶部刻度：每个月的牌子挂在这个月第一篇音符的起点上，牌子后面带着
+   这个月的篇数（只有一篇的不报数）。接龙轴上同月的音符本来就一篇挨
+   一篇排在一起，牌子只管报数，不再把音符归拢进色块；月份先后还在，
+   牌子按月序排，永不互相压住。没发博的月份天然没有牌子。 */
 export function chainMonths(chain) {
   if (!chain) return [];
   const out = [];
@@ -125,8 +126,10 @@ export function chainMonths(chain) {
   for (const n of chain.notes) {
     const label = String(n.date).slice(0, 7);
     if (label !== last) {
-      out.push({ x: Number(((n.x / chain.span) * 100).toFixed(2)), label });
+      out.push({ x: Number(((n.x / chain.span) * 100).toFixed(2)), label, count: 1 });
       last = label;
+    } else {
+      out[out.length - 1].count += 1;
     }
   }
   return out;
@@ -313,44 +316,18 @@ export function readIfExists(path) {
    首页那条大卷帘、以及板块页/文章页顶上的迷你定位条。
    tools/build.mjs 和 server 的动态页面共用这两个函数。 */
 
-export function noteMarkup(post, track, ti, base, { asLink = true, x, w, month, folded } = {}) {
+export function noteMarkup(post, track, ti, base, { asLink = true, x, w } = {}) {
   const [px, pw] = x == null ? noteWidth(slotOf(track, ti), post.pi) : [x, w];
   const label = `${post.date ? post.date + ' · ' : ''}${post.title}（${track.name}，${post.min} 分钟）`;
-  const attrs = `class="note${folded ? ' is-folded' : ''}" style="--x:${px};--w:${pw}" data-x="${px}"${
+  const attrs = `class="note" style="--x:${px};--w:${pw}" data-x="${px}"${
     post.date ? ` data-date="${post.date}"` : ''
-  }${month ? ` data-month="${month}"` : ''} data-pitch="${track.pitch}" data-title="${escapeHtml(
+  } data-pitch="${track.pitch}" data-title="${escapeHtml(
     post.title
   )}" data-min="${post.min}"`;
   if (!asLink) return `        <span ${attrs}></span>`;
   return `        <a ${attrs} href="${base}posts/${post.slug}.html" aria-label="${escapeHtml(
     label
   )}"><span class="note__short">${escapeHtml(post.short)}</span></a>`;
-}
-
-/* 同一个月有 ≥2 篇时归拢成一个色块。块盖住这几篇的横向跨度，
-   右缘顶到下一个块的左缘为止——块与块永不重叠，单篇的月份不成块 */
-export function monthClusters(placed) {
-  const byMonth = new Map();
-  for (const note of placed) {
-    if (!note.month) continue;
-    if (!byMonth.has(note.month)) byMonth.set(note.month, []);
-    byMonth.get(note.month).push(note);
-  }
-  const clusters = [...byMonth.entries()]
-    .map(([month, notes]) => ({
-      month,
-      count: notes.length,
-      x0: Math.min(...notes.map((n) => n.x)),
-      x1: Math.max(...notes.map((n) => n.x + n.w)),
-    }))
-    .filter((m) => m.count >= 2)
-    .sort((a, b) => a.x0 - b.x0);
-  clusters.forEach((m, i) => {
-    if (i < clusters.length - 1) m.x1 = Math.min(m.x1, clusters[i + 1].x0 - 0.5);
-    m.x0 = Math.max(m.x0, 0.5);
-    m.x1 = Math.max(m.x0 + 1, Math.min(m.x1, 99.5));
-  });
-  return clusters;
 }
 
 export function rollHero(base, tracks) {
@@ -376,7 +353,8 @@ export function rollHero(base, tracks) {
   if (chain) for (const n of chain.notes) posOf.set(n.post, n);
   const spanDays = chain ? chain.span : 0;
 
-  /* 先把每篇的位置算出来，再按月归拢：同月 ≥2 篇的折进色块里 */
+  /* 先把每篇的位置算出来。同月的几篇在接龙轴上天然一篇挨一篇，
+     各自是独立的音符，不归拢、不折叠 */
   const placed = [];
   tracks.forEach((t, ti) => {
     t.posts
@@ -391,41 +369,18 @@ export function rollHero(base, tracks) {
           ti,
           x: pos ? Number(((pos.x / spanDays) * 100).toFixed(2)) : fallback[0],
           w: pos ? Number(pos.w.toFixed(2)) : fallback[1],
-          month: pos ? String(post.date).slice(0, 7) : '',
         });
       });
   });
-  const clusters = monthClusters(placed);
-  const foldedMonths = new Set(clusters.map((m) => m.month));
 
   const lanes = tracks
     .map((t, ti) => {
       const notes = placed
         .filter((n) => n.track === t)
-        .map((n) =>
-          noteMarkup(n.post, t, ti, base, {
-            x: n.x,
-            w: n.w,
-            month: n.month,
-            folded: foldedMonths.has(n.month),
-          })
-        )
+        .map((n) => noteMarkup(n.post, t, ti, base, { x: n.x, w: n.w }))
         .join('\n');
       return `        <div class="lane${t.black ? ' lane--black' : ''}">\n${notes}\n        </div>`;
     })
-    .join('\n');
-
-  const clusterEls = clusters
-    .map(
-      (m) =>
-        `          <button class="roll__cluster" type="button" style="--x0:${m.x0.toFixed(
-          2
-        )};--x1:${m.x1.toFixed(2)}" data-month="${m.month}" aria-expanded="false">` +
-        `<span class="roll__cluster-name">${m.month}</span>` +
-        `<span class="roll__cluster-count">${m.count} 篇</span>` +
-        `<span class="roll__cluster-hint">点开挑一篇</span>` +
-        `</button>`
-    )
     .join('\n');
 
   const dates = tracks
@@ -444,7 +399,7 @@ export function rollHero(base, tracks) {
   return `<div class="roll roll--hero roll--bleed"${canvas} data-roll>
   <div class="roll__bar">
     <p class="roll__caption">时间轴 · 本站目录</p>
-    <p class="roll__live" data-live data-idle="点开一个月份色块，把指针停在音符上">点开一个月份色块，把指针停在音符上</p>
+    <p class="roll__live" data-live data-idle="把指针停在音符上，会报出日子与时长">把指针停在音符上，会报出日子与时长</p>
     <p class="roll__readout"><b>${tracks.length}</b> 轨 · <b>${total}</b> 篇 · <b>${span}</b> · ${bottom.pitch}–${top.pitch}</p>
   </div>
   <div class="roll__scroller">
@@ -457,23 +412,26 @@ ${keys}
       </div>
       <div class="roll__field">
         <div class="roll__ruler" aria-hidden="true">
-          ${months.map((m) => `<span class="roll__month" style="--x:${m.x}">${m.label}</span>`).join('\n          ')}
+          ${months
+            .map(
+              (m) =>
+                `<span class="roll__month" style="--x:${m.x}">${m.label}${
+                  m.count > 1 ? ` · ${m.count} 篇` : ''
+                }</span>`
+            )
+            .join('\n          ')}
         </div>
         <div class="roll__body">
           <div class="roll__lanes">
 ${lanes}
           </div>
-        </div>${
-          clusters.length
-            ? `\n        <div class="roll__clusters">\n${clusterEls}\n        </div>`
-            : ''
-        }
+        </div>
         <div class="roll__playhead" aria-hidden="true"></div>
       </div>
     </div>
   </div>
 </div>
-<p class="roll__hint">时间轴可以左右滑动；同一个月的几篇收在色块里，点开再挑。</p>`;
+<p class="roll__hint">时间轴可以左右滑动；同一个月的几篇一篇挨一篇排在一起，各回各的轨道。</p>`;
 }
 
 /* 迷你定位条：显示「我现在在卷帘的哪一格」 */
