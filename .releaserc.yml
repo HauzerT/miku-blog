@@ -1,0 +1,23 @@
+# miku-blog 发布配置 — release-skills 读取；规则说明见 AGENTS.md
+version:
+  file: VERSION
+
+changelog:
+  files:
+    - path: CHANGELOG.md
+      lang: zh
+  sections:
+    feat: 新功能
+    fix: 修复
+    docs: 文档
+    refactor: 重构
+    perf: 性能优化
+    test: 测试
+    chore: null
+
+commit:
+  message: "chore: release v{version}"
+
+tag:
+  prefix: v
+  sign: false
