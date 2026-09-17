@@ -19,6 +19,8 @@ node_modules/
 deploy/*.log
 # cloudflare-tunnel-skill 助手的运行时状态（里面可能有 tunnel 地址与 pid）
 .cloudflare-tunnel/
+# DSH web 的带 token 入口文件（token 就是远控进程的钥匙，永远不进仓库）
+deploy/dsh-web-url.txt
 # cloudflared 的凭据与 token：只放在 %USERPROFILE%\.cloudflared\，永远不要进来
 *.cfargotunnel.json
 cert.pem

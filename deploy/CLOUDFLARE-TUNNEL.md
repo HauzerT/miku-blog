@@ -363,3 +363,98 @@ stop.cmd
 | `CV01_TRUST_PROXY` | 关 | `1` 时按 `CF-Connecting-IP` 给限速计数。**只在「除了 cloudflared 没别的路能连上这台服务」时才开**——那个头谁都能自己填。 |
 | `CV01_AUTH_FREE` | `5` | 头几次口令试错不罚。调小便于自检。 |
 | `PORT` / 命令行参数 | `4321` | 上传服务端口。 |
+
+## 11. 已部署现状（2026-09-17 实际落地）
+
+本文前 10 节是「怎么走」；这一节是**本机真实跑着的东西**，改任何一环前先读它。
+
+### 11.1 隧道与域名
+
+| 项 | 值 |
+|---|---|
+| 隧道 | `miku-blog` · ID `9304e626-d788-4439-b50d-8ba51c6db7b5`（本机管理，路线 A） |
+| 凭据 | `%USERPROFILE%\.cloudflared\cert.pem` 与 `9304e626-….json`（**不进仓库**） |
+| 配置 | `%USERPROFILE%\.cloudflared\config.yml` |
+| `n1ngzhu0.dpdns.org` | → `http://127.0.0.1:4321`（博客源站） |
+| `dsh.n1ngzhu0.dpdns.org` | → `http://127.0.0.1:3080`（DSH web 远控，见 11.3） |
+| 兜底 | 其余一切 → `http_status:404` |
+
+云村小服务（3170）**没有**任何 Public Hostname，公网永远到不了它——这是有意的。
+
+### 11.2 常驻化：任务计划程序（不是 Startup 文件夹，也不是服务）
+
+| 任务 | 触发 | 动作 |
+|---|---|---|
+| `MikuBlog Keepalive Logon` | 用户登录 | 隐藏跑 `deploy\keepalive.ps1` |
+| `MikuBlog Keepalive` | 手动 / 补跑 | 同上（一次性，用于当下补拉） |
+
+`keepalive.ps1`：首跳把**隧道、源站（-PublicDeploy）、DSH web** 三个都确保一遍，
+之后每 5 分钟循环确保隧道与源站。三个 ensure 脚本全部幂等，在跑就跳过。
+
+- 源站：`deploy\start-blog-background.ps1 -PublicDeploy`（第 4.2 节那个）
+- 隧道：`deploy\start-tunnel-background.ps1`（检测带 `miku-blog` 的 cloudflared）
+- DSH：`deploy\start-dsh-web.ps1`（只在首跳确保，**不进循环**——重启它等于换钥匙，
+  见 11.3）
+
+**为什么必须走任务计划程序**：从 DSH 会话（本仓库的开发助手）里直接拉起的进程
+都是 DSH 的子孙，随时可能被连带清掉——部署当天源站就这么悄悄死过一回。
+任务计划程序拉起的进程挂在 svchost 下，谁也清不掉。
+
+### 11.3 DSH web 远控（手机）
+
+DSH web 的 `/api` 有道「浏览器信任栅栏」：Host 不是 loopback 就必须在启动参数
+`--trusted-host` 里，否则一率 403。所以远控实例必须这样起（`start-dsh-web.ps1`
+已经这么写死了）：
+
+```
+node D:\npm-global\node_modules\@deepseek-ai\dsh\lib\bin.js web --trusted-host dsh.n1ngzhu0.dpdns.org
+```
+
+鉴权是两层的：启动时生成的 launch token（URL 里 `?token=…`）换一枚**绑定域名的
+签名 cookie**；没 token 也没 cookie 的请求一率 401。所以手机首次访问用带 token
+的链接，之后 cookie 一直有效。
+
+- 重启：双击 `deploy\restart-dsh-web.cmd`（或 `start-dsh-web.ps1 -Restart`）。
+  **重启 = 换 token = 所有设备（本机 + 手机）全部登出**，要用新链接重新进门。
+- 两条带 token 的入口每次启动后写在 `deploy\dsh-web-url.txt`
+  （本机一条 + `https://dsh.n1ngzhu0.dpdns.org/?token=…` 一条）。
+  **该文件在 .gitignore 里，token 就是进程的钥匙，别外传、别提交。**
+- 想再上一道锁：Zero Trust 控制台 → Access → Applications → Self-hosted，
+  域名填 `dsh.n1ngzhu0.dpdns.org`，策略 Allow / Emails 填自己邮箱，
+  IdP 用 One-time PIN。邮箱验证码过了才看得到 DSH 的 401 页。
+
+### 11.4 日常操作速查
+
+```powershell
+# 看谁在跑
+Get-ScheduledTask -TaskName 'MikuBlog*' | Format-Table TaskName, State
+Get-CimInstance Win32_Process -Filter "Name='cloudflared.exe'" | Select ProcessId, CommandLine
+.\stop.ps1 -List
+
+# 公网验活
+curl.exe -I https://n1ngzhu0.dpdns.org/          # 302 = 门厅正常
+curl.exe -I https://dsh.n1ngzhu0.dpdns.org/      # 401 = 鉴权墙正常
+
+# 隧道视角
+cloudflared tunnel info miku-blog
+Get-Content deploy\tunnel.err.log -Tail 30       # cloudflared 的日志走 stderr
+
+# 彻底下线
+Stop-ScheduledTask -TaskName 'MikuBlog Keepalive'   # 停看门狗（登录任务下次登录还会起）
+Get-CimInstance Win32_Process -Filter "Name='cloudflared.exe'" |
+  Where-Object CommandLine -match miku-blog | ForEach-Object { Stop-Process -Id $_.ProcessId }
+.\stop.ps1                                            # 停源站
+# 不要了就：cloudflared tunnel delete miku-blog（连 DNS 一起删）
+```
+
+### 11.5 维护注意（踩过的坑）
+
+1. **.ps1 里的中文必须带 BOM 的 UTF-8**。用编辑工具改完 `.ps1` 要重新确认 BOM
+   还在（`[System.IO.File]::ReadAllBytes($p)[0] -eq 0xEF`），丢了就整个文件
+   `ParserError`，任务计划程序里跑还看不到报错（stdout 被丢）。校验：
+   `[System.Management.Automation.Language.Parser]::ParseFile($p, [ref]$null, [ref]$errs)`。
+2. **cloudflared 的 INF 日志走 stderr**：看 `deploy\tunnel.err.log`，别盯着空的
+   `tunnel.log` 疑神疑鬼。
+3. **任务计划程序里的动作 stdout 会被丢**：调试时把动作包一层
+   `cmd /c … > log 2>&1` 再看。
+4. 云村小服务照旧只服务本机；公网部署期间（4321 挂了 tunnel）不要让它起来。
