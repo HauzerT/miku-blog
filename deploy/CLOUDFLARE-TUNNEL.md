@@ -56,7 +56,7 @@ python "$env:USERPROFILE\.dsh\skills\cloudflare-tunnel-skill\scripts\tunnel_help
 ## 2. 先只在本机确认服务是好的  ← 不出网
 
 ```powershell
-cd D:\Codings\miku-blog
+cd <仓库根>
 .\start.cmd                 # 或 node server/server.mjs 4321
 ```
 
@@ -102,7 +102,7 @@ python "$env:USERPROFILE\.dsh\skills\cloudflare-tunnel-skill\scripts\tunnel_help
 
 ```yaml
 tunnel: miku-blog
-credentials-file: C:\Users\LENOVO\.cloudflared\<TUNNEL-ID>.json
+credentials-file: C:\Users\<你的用户名>\.cloudflared\<TUNNEL-ID>.json
 
 ingress:
   - hostname: blog.example.com
@@ -164,7 +164,7 @@ cloudflared.exe tunnel ingress validate
 你的 config：
 
 ```
-C:\Program Files (x86)\cloudflared\cloudflared.EXE --config=C:\Users\LENOVO\.cloudflared\config.yml tunnel run
+C:\Program Files (x86)\cloudflared\cloudflared.EXE --config=C:\Users\<你的用户名>\.cloudflared\config.yml tunnel run
 ```
 
 > 服务是以 **LocalSystem** 身份跑的，它读的是 `C:\Windows\System32\config\systemprofile\.cloudflared\`，
@@ -210,9 +210,9 @@ deploy\start-blog-background.cmd -PublicDeploy
 | 项 | 值 |
 |---|---|
 | 触发器 | 登录时（或「计算机启动时」，需要勾「不管用户是否登录都运行」）+ 可选「每 5 分钟」当看门狗 |
-| 操作 | 启动程序：`D:\Codings\miku-blog\deploy\start-blog-background.cmd` |
+| 操作 | 启动程序：`<仓库根>\deploy\start-blog-background.cmd` |
 | 添加参数 | `-PublicDeploy` |
-| 起始于 | `D:\Codings\miku-blog` |
+| 起始于 | `<仓库根>` |
 | 条件 | 取消「只有在计算机使用交流电源时才启动」（笔记本电池下也要跑） |
 | 设置 | 勾「如果任务失败，按以下频率重新启动：1 分钟 / 3 次」 |
 
@@ -364,90 +364,32 @@ stop.cmd
 | `CV01_AUTH_FREE` | `5` | 头几次口令试错不罚。调小便于自检。 |
 | `PORT` / 命令行参数 | `4321` | 上传服务端口。 |
 
-## 11. 已部署现状（2026-09-17 实际落地）
+## 11. 本机实况不在这份文档里
 
-本文前 10 节是「怎么走」；这一节是**本机真实跑着的东西**，改任何一环前先读它。
+这份文档是**公开的**，所以它只写流程与占位值。凡是「只对这台机器成立」的东西——
+域名、隧道 ID、本机绝对路径、计划任务名——都搬到下面这个不进仓库的文件里了：
 
-### 11.1 隧道与域名
-
-| 项 | 值 |
-|---|---|
-| 隧道 | `miku-blog` · ID `9304e626-d788-4439-b50d-8ba51c6db7b5`（本机管理，路线 A） |
-| 凭据 | `%USERPROFILE%\.cloudflared\cert.pem` 与 `9304e626-….json`（**不进仓库**） |
-| 配置 | `%USERPROFILE%\.cloudflared\config.yml` |
-| `n1ngzhu0.dpdns.org` | → `http://127.0.0.1:4321`（博客源站） |
-| `dsh.n1ngzhu0.dpdns.org` | → `http://127.0.0.1:3080`（DSH web 远控，见 11.3） |
-| 兜底 | 其余一切 → `http_status:404` |
-
-云村小服务（3170）**没有**任何 Public Hostname，公网永远到不了它——这是有意的。
-
-### 11.2 常驻化：任务计划程序（不是 Startup 文件夹，也不是服务）
-
-| 任务 | 触发 | 动作 |
+| 文件 | 内容 | 进仓库吗 |
 |---|---|---|
-| `MikuBlog Keepalive Logon` | 用户登录 | 隐藏跑 `deploy\keepalive.ps1` |
-| `MikuBlog Keepalive` | 手动 / 补跑 | 同上（一次性，用于当下补拉） |
+| `deploy/LOCAL-DEPLOY.md` | 已部署现状：隧道与域名对照表、常驻化怎么挂的、远控怎么起、日常速查 | **不进**（`.gitignore` 挡着） |
+| `deploy/local.config.ps1` | 上面那些值的机器可读版本，给脚本读 | **不进**（同上） |
+| `deploy/local.config.example.ps1` | 上面那个文件的模板 | 进 |
 
-`keepalive.ps1`：首跳把**隧道、源站（-PublicDeploy）、DSH web** 三个都确保一遍，
-之后每 5 分钟循环确保隧道与源站。三个 ensure 脚本全部幂等，在跑就跳过。
-
-- 源站：`deploy\start-blog-background.ps1 -PublicDeploy`（第 4.2 节那个）
-- 隧道：`deploy\start-tunnel-background.ps1`（检测带 `miku-blog` 的 cloudflared）
-- DSH：`deploy\start-dsh-web.ps1`（只在首跳确保，**不进循环**——重启它等于换钥匙，
-  见 11.3）
-
-**为什么必须走任务计划程序**：从 DSH 会话（本仓库的开发助手）里直接拉起的进程
-都是 DSH 的子孙，随时可能被连带清掉——部署当天源站就这么悄悄死过一回。
-任务计划程序拉起的进程挂在 svchost 下，谁也清不掉。
-
-### 11.3 DSH web 远控（手机）
-
-DSH web 的 `/api` 有道「浏览器信任栅栏」：Host 不是 loopback 就必须在启动参数
-`--trusted-host` 里，否则一率 403。所以远控实例必须这样起（`start-dsh-web.ps1`
-已经这么写死了）：
-
-```
-node D:\npm-global\node_modules\@deepseek-ai\dsh\lib\bin.js web --trusted-host dsh.n1ngzhu0.dpdns.org
-```
-
-鉴权是两层的：启动时生成的 launch token（URL 里 `?token=…`）换一枚**绑定域名的
-签名 cookie**；没 token 也没 cookie 的请求一率 401。所以手机首次访问用带 token
-的链接，之后 cookie 一直有效。
-
-- 重启：双击 `deploy\restart-dsh-web.cmd`（或 `start-dsh-web.ps1 -Restart`）。
-  **重启 = 换 token = 所有设备（本机 + 手机）全部登出**，要用新链接重新进门。
-- 两条带 token 的入口每次启动后写在 `deploy\dsh-web-url.txt`
-  （本机一条 + `https://dsh.n1ngzhu0.dpdns.org/?token=…` 一条）。
-  **该文件在 .gitignore 里，token 就是进程的钥匙，别外传、别提交。**
-- 想再上一道锁：Zero Trust 控制台 → Access → Applications → Self-hosted，
-  域名填 `dsh.n1ngzhu0.dpdns.org`，策略 Allow / Emails 填自己邮箱，
-  IdP 用 One-time PIN。邮箱验证码过了才看得到 DSH 的 401 页。
-
-### 11.4 日常操作速查
+新机器从模板开始：
 
 ```powershell
-# 看谁在跑
-Get-ScheduledTask -TaskName 'MikuBlog*' | Format-Table TaskName, State
-Get-CimInstance Win32_Process -Filter "Name='cloudflared.exe'" | Select ProcessId, CommandLine
-.\stop.ps1 -List
-
-# 公网验活
-curl.exe -I https://n1ngzhu0.dpdns.org/          # 302 = 门厅正常
-curl.exe -I https://dsh.n1ngzhu0.dpdns.org/      # 401 = 鉴权墙正常
-
-# 隧道视角
-cloudflared tunnel info miku-blog
-Get-Content deploy\tunnel.err.log -Tail 30       # cloudflared 的日志走 stderr
-
-# 彻底下线
-Stop-ScheduledTask -TaskName 'MikuBlog Keepalive'   # 停看门狗（登录任务下次登录还会起）
-Get-CimInstance Win32_Process -Filter "Name='cloudflared.exe'" |
-  Where-Object CommandLine -match miku-blog | ForEach-Object { Stop-Process -Id $_.ProcessId }
-.\stop.ps1                                            # 停源站
-# 不要了就：cloudflared tunnel delete miku-blog（连 DNS 一起删）
+Copy-Item deploy\local.config.example.ps1 deploy\local.config.ps1
+# 然后填四个值：站点域名、远控域名、隧道名、隧道 ID
 ```
 
-### 11.5 维护注意（踩过的坑）
+`deploy\start-dsh-web.ps1` 与 `deploy\start-tunnel-background.ps1` 每次跑都会重新读
+`local.config.ps1`；**文件不在就打印一句提示直接退出**——宁可不起，也不拿错域名去起隧道。
+
+> **为什么这么分**：这个仓库是公开的。把隧道 ID、真实域名、Windows 用户名、
+> DSH 的绝对安装路径写进来，等于顺手公开了「这台机器长什么样、从哪打」。
+> 那些值对读代码的人一点用都没有，对想找入口的人很有用。
+
+### 11.1 几条与机器无关、但迟早会踩的坑
 
 1. **.ps1 里的中文必须带 BOM 的 UTF-8**。用编辑工具改完 `.ps1` 要重新确认 BOM
    还在（`[System.IO.File]::ReadAllBytes($p)[0] -eq 0xEF`），丢了就整个文件
@@ -457,4 +399,38 @@ Get-CimInstance Win32_Process -Filter "Name='cloudflared.exe'" |
    `tunnel.log` 疑神疑鬼。
 3. **任务计划程序里的动作 stdout 会被丢**：调试时把动作包一层
    `cmd /c … > log 2>&1` 再看。
-4. 云村小服务照旧只服务本机；公网部署期间（4321 挂了 tunnel）不要让它起来。
+4. **云村小服务（3170）永远不要挂 Public Hostname**：它旁边就是 `.ncm-session.json`。
+   公网部署期间不要让它起来（`-PublicDeploy` 已经保证这一点）。
+5. **DSH web 远控入口值得单独上一道 Cloudflare Access**：它背后是一个能读写本机
+   文件的 AI 代理，目前只有 URL 里的 launch token 一道锁。做法见第 9.2 节，
+   域名换成远控那条即可。
+
+## 12. 提交前扫一遍密钥
+
+仓库带了一套密钥扫描，三道关，都不需要装东西也能用：
+
+| 关 | 命令 / 时机 | 说明 |
+|---|---|---|
+| 内置扫描器 | `node tools/secret-scan.mjs` | 零依赖，扫工作区 + 暂存区 + 全历史 |
+| pre-commit | `git commit` 时自动 | `.githooks/pre-commit`，命中就拦下提交 |
+| CI | push / PR 时自动 | `.github/workflows/secret-scan.yml`，gitleaks 官方 action |
+
+装了 gitleaks 的话，内置扫描器会自动改用它（更快、规则更多）；没装就用自己的规则集，
+照样能跑。配置在 `.gitleaks.toml`。
+
+```powershell
+node tools/secret-scan.mjs              # 全扫（工作区 + 暂存区 + 历史）
+node tools/secret-scan.mjs --staged     # 只看暂存区（pre-commit 用的就是这个）
+node tools/secret-scan.mjs --history    # 只翻历史
+node tools/secret-scan.mjs --list       # 列出所有规则，不扫描
+```
+
+启用钩子（**每个克隆都要做一次**，`core.hooksPath` 是本机配置，不跟着仓库走）：
+
+```powershell
+git config core.hooksPath .githooks
+```
+
+> 扫描器只报**规则命中**，不判断上下文。文档里的占位值（`blog.example.com`、
+> `<TUNNEL-ID>`、`eyJhIjoi...` 这种）已经在 `.gitleaks.toml` 与
+> `tools/secret-scan.mjs` 的白名单里，不会天天误报。

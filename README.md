@@ -52,7 +52,8 @@ F#3 做题区doge      EE学生的自我迭代
 
 **上线**
 
-- [发布](#发布) —— 静态托管 / Cloudflare Tunnel（[挂到公网之前先跑一次预检](#挂到公网之前先跑一次预检)）
+- [发布](#发布) —— 静态托管 / Cloudflare Tunnel（[挂到公网之前先跑一次预检](#挂到公网之前先跑一次预检) ·
+  [部署实况不进仓库](#部署实况不进仓库)）
 
 **设计**
 
@@ -745,6 +746,31 @@ node tools/preflight-check.mjs http://127.0.0.1:4399
 
 完整的长期部署流程（Cloudflare Tunnel + Access、开机自启、口令与限速怎么配）
 写在 `deploy/CLOUDFLARE-TUNNEL.md`。
+
+### 部署实况不进仓库
+
+`deploy/CLOUDFLARE-TUNNEL.md` 是**公开**的，所以它只写流程和占位值。凡是只对
+一台机器成立的东西——域名、隧道 ID、Windows 用户名、DSH 的绝对安装路径——
+都放在这两个文件里，而它们在 `.gitignore` 里：
+
+| 文件 | 内容 |
+|---|---|
+| `deploy/local.config.ps1` | 机器可读的那份（站点域名 / 远控域名 / 隧道名 / 隧道 ID / DSH 路径） |
+| `deploy/LOCAL-DEPLOY.md` | 给人看的那份（隧道与域名对照表、常驻化、日常速查） |
+| `deploy/local.config.example.ps1` | 上面第一个的模板，**这个进仓库** |
+
+新机器：
+
+```powershell
+Copy-Item deploy\local.config.example.ps1 deploy\local.config.ps1
+# 填四个值就行
+```
+
+`deploy\start-dsh-web.ps1` 与 `deploy\start-tunnel-background.ps1` 每次跑都会重新读它；
+**文件不在就打印提示直接退出**——宁可不起，也不拿错域名去起隧道。
+
+> 为什么这么分：这个仓库是公开的。把隧道 ID、真实域名、用户名写进来，对读代码的
+> 人一点用都没有，对想找入口的人很有用。
 
 **唯一的例外是 `kumura.html`。** 它要问本机的小服务，所以：
 - 只在你自己机器上跑：`node tools/ncm-server.mjs` 开着即可，页面照常；

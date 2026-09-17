@@ -14,6 +14,12 @@ node_modules/
 # 云村小服务的登录凭证（相当于你的网易云登录态，绝对不要提交）
 .ncm-session.json
 
+# 本机部署实况：域名、隧道 ID、本机绝对路径这些「只对一台机器成立」的值。
+# 公开仓库里只留 deploy/local.config.example.ps1 这份模板。
+# 模板：Copy-Item deploy\local.config.example.ps1 deploy\local.config.ps1
+deploy/local.config.ps1
+deploy/LOCAL-DEPLOY.md
+
 # Cloudflare Tunnel（长期部署用，见 deploy/CLOUDFLARE-TUNNEL.md）
 # 后台源站的日志开头就印着上传口令，不能进仓库
 deploy/*.log

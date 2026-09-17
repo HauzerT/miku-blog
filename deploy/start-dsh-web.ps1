@@ -2,7 +2,7 @@
 #  CV01 · 启动 / 重启 DSH web（远控入口）
 #  ---------------------------------------------------------------------------
 #  DSH web 的 /api 有道「浏览器信任栅栏」：Host 不是 loopback 就必须在启动参数
-#  --trusted-host 名单里。要手机走 dsh.n1ngzhu0.dpdns.org 访问，就必须带上它。
+#  --trusted-host 名单里。要手机走隧道访问，就必须把远控域名带上。
 #
 #    .\start-dsh-web.ps1            3080 没人听才启动（幂等）
 #    .\start-dsh-web.ps1 -Restart   先停掉现在这个，再带参数重启
@@ -10,8 +10,11 @@
 #  重启会换新的 launch token：所有已登录的浏览器（含手机）都会被登出，
 #  要用新链接重新进门。两条带 token 的入口会写进 deploy\dsh-web-url.txt：
 #    · 本机  http://127.0.0.1:3080/?token=...
-#    · 手机  https://dsh.n1ngzhu0.dpdns.org/?token=...
+#    · 手机  https://<远控域名>/?token=...
 #  token 就是这个进程的钥匙，别把那个文件提交进仓库（.gitignore 已挡）。
+#
+#  远控域名与 DSH 的安装路径从 deploy\local.config.ps1 读——那份不进仓库
+#  （模板见同目录 local.config.example.ps1）。理由见 CLOUDFLARE-TUNNEL.md 第 11 节。
 #
 #  日志：deploy\dsh-web.log / deploy\dsh-web.err.log
 # ============================================================================
@@ -24,9 +27,23 @@ $ErrorActionPreference = 'Stop'
 
 $deployDir = $PSScriptRoot
 $nodeBin   = 'node'
-$dshBin    = 'D:\npm-global\node_modules\@deepseek-ai\dsh\lib\bin.js'
-$extHost   = 'dsh.n1ngzhu0.dpdns.org'
 $port      = 3080
+
+# ---------------------------------------------------------------- 本机实况
+$localConfig = Join-Path $deployDir 'local.config.ps1'
+if (-not (Test-Path -LiteralPath $localConfig)) {
+    Write-Output "  缺少本机配置：$localConfig"
+    Write-Output "  先复制模板再填：Copy-Item deploy\local.config.example.ps1 deploy\local.config.ps1"
+    exit 1
+}
+. $localConfig
+
+$extHost = $CV01_DSH_HOST
+$dshBin  = $CV01_DSH_BIN
+if (-not $dshBin) {
+    # 没填就自己问 npm 全局装在哪
+    try { $dshBin = Join-Path (& npm root -g) '@deepseek-ai\dsh\lib\bin.js' } catch { $dshBin = '' }
+}
 
 function Test-Port([int]$p) {
     try {
@@ -57,6 +74,7 @@ if (Test-Port $port) {
 
 if (-not (Test-Path -LiteralPath $dshBin)) {
     Write-Output "  找不到 DSH：$dshBin"
+    Write-Output "  在 deploy\local.config.ps1 里把 CV01_DSH_BIN 指对（npm root -g 下面那个）。"
     exit 1
 }
 
@@ -64,9 +82,16 @@ if (-not (Test-Path -LiteralPath $dshBin)) {
 $outLog = Join-Path $deployDir 'dsh-web.log'
 $errLog = Join-Path $deployDir 'dsh-web.err.log'
 
-Write-Output "  正在启动 DSH web（trusted-host: $extHost）……"
+$webArgs = @($dshBin, 'web')
+if ($extHost) {
+    $webArgs += @('--trusted-host', $extHost)
+    Write-Output "  正在启动 DSH web（trusted-host: $extHost）……"
+} else {
+    Write-Output '  正在启动 DSH web（local.config.ps1 没填远控域名，只认 loopback）……'
+}
+
 $proc = Start-Process -FilePath $nodeBin `
-    -ArgumentList @($dshBin, 'web', '--trusted-host', $extHost) `
+    -ArgumentList $webArgs `
     -WorkingDirectory $env:USERPROFILE `
     -WindowStyle Hidden -PassThru `
     -RedirectStandardOutput $outLog -RedirectStandardError $errLog
@@ -94,7 +119,11 @@ if (-not $localUrl) {
 }
 
 # 手机走隧道的那条：同一个 launch token，换 base URL 就行
-$phoneUrl = $localUrl.Replace("http://127.0.0.1:$port", "https://$extHost")
+$phoneUrl = if ($extHost) {
+    $localUrl.Replace("http://127.0.0.1:$port", "https://$extHost")
+} else {
+    '（没配远控域名）'
+}
 $urlFile = Join-Path $deployDir 'dsh-web-url.txt'
 @(
     "生成时间：$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')",
