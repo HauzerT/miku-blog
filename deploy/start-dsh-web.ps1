@@ -72,7 +72,8 @@ $proc = Start-Process -FilePath $nodeBin `
     -RedirectStandardOutput $outLog -RedirectStandardError $errLog
 
 # ---------------------------------------------------------------- 等 URL（dsh web 自己会打印带 token 的入口）
-$deadline = (Get-Date).AddSeconds(60)
+# 冷启动要加载插件与会话，打印入口链接可能远超一分钟——给足 180 秒
+$deadline = (Get-Date).AddSeconds(180)
 $localUrl = $null
 while ((Get-Date) -lt $deadline) {
     if (Test-Port $port) {
@@ -88,7 +89,7 @@ while ((Get-Date) -lt $deadline) {
 }
 
 if (-not $localUrl) {
-    Write-Output "  端口/URL 60 秒内没就绪。看 $outLog 与 $errLog"
+    Write-Output "  端口/URL 180 秒内没就绪。看 $outLog 与 $errLog"
     exit 1
 }
 
