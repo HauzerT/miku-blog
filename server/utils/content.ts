@@ -56,7 +56,14 @@ const bodyOf = (source, override) => {
   return '';
 };
 
-let cache = { key: '', value: null };
+/* 缓存。写接口落盘之后由 store.ts 叫一声 invalidateContent()——
+   mtime 变了签名一般也就变了，但同一毫秒里连写两次（编辑页一次保存会写好几处）
+   签名可能一模一样，那种时候只有显式作废才保险。 */
+let cache: { key: string; value: any } = { key: '', value: null };
+
+export function invalidateContent() {
+  cache = { key: '', value: null };
+}
 
 const signature = () =>
   DATA_FILES.map((name) => {
@@ -70,7 +77,6 @@ const signature = () =>
 export function loadSiteContent() {
   const key = signature();
   if (cache.value && cache.key === key) return cache.value;
-
   const sectionsRaw = readJson('sections.json', []);
   const articlesRaw = readJson('articles.json', []);
   const overrides = readJson('overrides.json', {});
