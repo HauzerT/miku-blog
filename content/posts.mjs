@@ -22,7 +22,7 @@ export const site = {
   mark: 'CV01',
   tempo: '120',
   desc: '一个用钢琴卷帘当目录的个人博客：九个板块，九条轨道，越往上越轻。',
-  footer: 'STATIC HTML · ZERO DEPENDENCIES · 2025',
+  footer: 'STATIC HTML · ZERO DEPENDENCIES · 2026',
 };
 
 /* ---------------------------------------------------------------------------
