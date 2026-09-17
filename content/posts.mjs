@@ -22,6 +22,9 @@ export const site = {
   mark: 'CV01',
   tempo: '120',
   desc: '一个用钢琴卷帘当目录的个人博客：九个板块，九条轨道，越往上越轻。',
+  /* 首页 hero 那一句。可以直接写 HTML（<em>、<br>）。
+     生成器（tools/build.mjs）与 Nuxt 应用读的是同一份，改一处两边都变。 */
+  hero: '<em>荒诞的刻度，我将用生命丈量</em>。<br>下面这条时间轴就是本站的目录，灵感源于钢琴琴键。<br>指针停在音符上会报出日期与时长。',
   footer: 'STATIC HTML · ZERO DEPENDENCIES · 2026',
 };
 
