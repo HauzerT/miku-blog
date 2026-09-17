@@ -3,6 +3,41 @@
 本站的版本线。次位加一是有新功能进场，末位加一是修修补补。
 （1.1 及之前的历史按提交归纳，细节见对应的提交与 README。）
 
+## 1.7.5 - 2026-09-17
+
+### 修复
+
+- **公开仓库不再附带这台机器的实况**：`deploy/CLOUDFLARE-TUNNEL.md` 是公开的
+  部署文档，但它原来把「本机真实跑着的东西」整节写在里面——完整隧道 ID、两个
+  真实域名、Windows 用户名、DSH 的绝对安装路径、计划任务名。这些值对读代码的
+  人没用，对想找入口的人很有用，而这份文档就挂在 GitHub 上。现在那一节只剩
+  占位值和一条指向本地文件的说明，真实值搬进 `deploy/local.config.ps1` 与
+  `deploy/LOCAL-DEPLOY.md`（两个都在 `.gitignore` 里），另留一份
+  `deploy/local.config.example.ps1` 模板进仓库。
+- **两个部署脚本改为读本地配置**：`start-dsh-web.ps1` 与
+  `start-tunnel-background.ps1` 每次运行都重新读 `local.config.ps1`；文件不在
+  就打印提示直接退出——宁可不起，也不拿错域名去起隧道。新机器从模板复制一份
+  填四个值即可。
+- CHANGELOG 里那条把域名写成占位表述。历史里的旧值仍在（已经公开过，不重写
+  历史就删不掉），但不会再新增。
+
+### 变更
+
+- **提交前多了一道密钥扫描**：新增零依赖的 `node tools/secret-scan.mjs`，扫
+  通用凭据（GitHub 令牌、云厂商 key、私钥、JWT、Cloudflare tunnel token、
+  网易云登录 cookie、写在赋值里的口令），外加一件 gitleaks 做不了的事——拿
+  本地配置当尺子，查「本机实况有没有漏回仓库」。配套 `.githooks/pre-commit`
+  （提交时只扫暂存区，命中就拦）与 `.github/workflows/secret-scan.yml`
+  （push / PR 跑全量，gitleaks 官方 action 与自带扫描器各跑一遍）。装了
+  gitleaks 就用它，没装也能跑。钩子要每个克隆启用一次：
+  `git config core.hooksPath .githooks`。
+- **已经公开过的历史旧账记进 `.secret-scan-baseline.json`**（只存哈希，不存值）：
+  它们照常列出来，但不再让构建变红——一个永远红的门最后一定会被 `--no-verify`
+  绕过，基线就是为了让它一直是个能过的门。`--strict` 连旧账一起看，
+  `--update-baseline` 认下新命中。
+- README 补「部署实况不进仓库」与「提交前扫一遍」两节，AGENTS.md 补钩子启用
+  方式与「别把本机值写进公开文件」的约定。
+
 ## 1.7.4 - 2026-09-17
 
 ### 修复
