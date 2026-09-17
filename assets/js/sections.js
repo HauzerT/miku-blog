@@ -684,22 +684,29 @@
       (s.posts || []).forEach(function (p) { briefs[p.slug] = p; });
       (s.runtime || []).forEach(function (p) { briefs[p.slug] = p; });
     });
+    var touched = fresh.length > 0;
     each(lanes.querySelectorAll('a.note'), function (n) {
       var slug = idOf(n.getAttribute('href'));
-      if (gonePost[slug]) { n.parentNode.removeChild(n); return; }
+      if (gonePost[slug]) { n.parentNode.removeChild(n); touched = true; return; }
       var p = briefs[slug];
       if (!p) return;
       if (n.getAttribute('data-title') !== p.title) n.setAttribute('data-title', p.title);
-      if (p.date && n.getAttribute('data-date') !== p.date) n.setAttribute('data-date', p.date);
+      if (p.date && n.getAttribute('data-date') !== p.date) {
+        n.setAttribute('data-date', p.date);
+        touched = true;
+      }
       var label = (p.date ? p.date + ' · ' : '') + p.title + '（' + (p.sectionName || '') + '，' + (p.min || 3) + ' 分钟）';
       if (n.getAttribute('aria-label') !== label) n.setAttribute('aria-label', label);
     });
 
     if (fresh.length) {
-      /* 运行时文章是扫光之后才进来的：直接点亮，然后按日历把整条轴
-         （音符、月份刻度、月线）重排一遍——新文章的日子可能伸到右边 */
+      /* 运行时文章是扫光之后才进来的：直接点亮 */
       fresh.forEach(function (n) { n.classList.add('is-lit'); });
-      if (cv01.site && cv01.site.layoutTimeline) cv01.site.layoutTimeline(roll);
+    }
+    if (touched && cv01.site && cv01.site.layoutTimeline) {
+      /* 增、删、改期都会改日历：只要动过，就按同一把尺把整条轴
+         （音符、月份刻度、月线、月份色块）重排一遍 */
+      cv01.site.layoutTimeline(roll);
     }
     if (fresh.length && cv01.site && cv01.site.bindNotes) cv01.site.bindNotes(fresh);
   }

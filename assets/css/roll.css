@@ -196,6 +196,93 @@
   background: var(--roll-lane);
 }
 
+/* ------------------------------------------------------- 月份色块
+   同一个月有 ≥2 篇时，这几篇归拢成一块色块：默认收着，点一下展开，
+   音符回到各自轨道里再挑（一次只开一个月）。块盖住这几篇的横向跨度，
+   右缘顶到下一个块的左缘为止；单篇的月份不成块，那枚音符一直亮着。
+   生成器烤出块，运行时来了新文章由 site.js 重建。 */
+.roll__clusters {
+  position: absolute;
+  top: var(--ruler);
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 0;
+}
+.roll__cluster {
+  position: absolute;
+  top: 0.4rem;
+  bottom: 0.4rem;
+  left: calc(var(--x0) * 1%);
+  width: calc((var(--x1) - var(--x0)) * 1%);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.2rem;
+  padding: 0 0.8rem;
+  border: 0;
+  border-radius: 3px;
+  background: var(--win-note);
+  box-shadow: inset 0 0 0 1px var(--note-ring);
+  color: var(--win-note-ink);
+  cursor: pointer;
+  font-family: var(--f-measure);
+  text-align: left;
+  opacity: 0.9;
+  transition: opacity 0.2s ease, box-shadow 0.15s ease;
+}
+.roll__cluster:hover,
+.roll__cluster:focus-visible {
+  opacity: 1;
+  box-shadow: 0 0 0 1px var(--win-ring);
+}
+.roll__cluster-name {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+.roll__cluster-count {
+  font-size: 0.6875rem;
+  letter-spacing: 0.14em;
+  opacity: 0.85;
+}
+.roll__cluster-hint {
+  font-size: 0.6875rem;
+  letter-spacing: 0.1em;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.roll__cluster:hover .roll__cluster-hint,
+.roll__cluster:focus-visible .roll__cluster-hint { opacity: 0.85; }
+/* 展开的那个月：色块缩成顶部一条标签，再点一下收回去 */
+.roll__cluster.is-open {
+  top: 0;
+  bottom: auto;
+  height: 1.6rem;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0 0.7rem;
+}
+.roll__cluster.is-open .roll__cluster-name,
+.roll__cluster.is-open .roll__cluster-count { font-size: 0.75rem; font-weight: 400; }
+.roll__cluster.is-open .roll__cluster-count::after { content: " · 收起"; }
+.roll__cluster.is-open .roll__cluster-hint { display: none; }
+
+/* 收起的月份：音符退场（布局还在，展开时原地归位） */
+.js .roll--hero .note.is-folded {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+/* 没有 JS 就没有展开/收起：色块藏起来，所有音符摊开照常点 */
+html:not(.js) .roll__clusters { display: none; }
+html:not(.js) .roll--hero .note.is-folded {
+  visibility: visible;
+  pointer-events: auto;
+}
+
 .roll__body { position: relative; }
 
 /* 卷帘场里没有满铺的网格。
@@ -341,6 +428,11 @@ html:not(.js) .roll__hint { display: block; }
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  /* 手机上色块收窄内边距，悬停提示没有意义（没有悬停） */
+  .roll--hero .roll__cluster { top: 0.25rem; bottom: 0.25rem; padding: 0 0.5rem; }
+  .roll--hero .roll__cluster-name { font-size: 0.8125rem; }
+  .roll--hero .roll__cluster-hint { display: none; }
+  .roll--hero .roll__cluster.is-open { height: 1.5rem; }
   .roll__caption { display: none; }
   .roll__readout { font-size: 0.75rem; letter-spacing: 0.1em; }
 }
