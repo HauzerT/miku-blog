@@ -170,4 +170,8 @@ watch(openName, async (name) => {
     <audio ref="audioEl" data-bgm preload="metadata"></audio>
   </div>
   <KeyDialog />
+  <!-- 站长那两只手：右键菜单、页面上直接改字、全局编辑模式的工具条与浮层。
+       它们都挂在文档上，所以需要一个全站每页都在、换页不重建的宿主——
+       与 <audio> 和两颗球同一条理由。 -->
+  <EditOverlay />
 </template>
