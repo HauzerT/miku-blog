@@ -280,7 +280,7 @@ const hello = 'world';</code></pre>
 }
 
 /* -------------------------------------------------------------- 云村
-   扫码登录网易云、显示账号信息与红心歌单。
+   扫码登录网易云，看账号信息、我创建的歌单、每日推荐与红心歌单。
    这一页的取数不靠静态生成——没登录时它本来就是空的。页面只放挂载点和文案，
    assets/js/kumura.js 起服务后自己取数（tools/ncm-server.mjs）。
    四段内容由 [data-pane] 标记，显示哪一段交给 kumura.css 按状态机控制。 */
@@ -288,7 +288,7 @@ function buildKumura() {
   const main = `    <header class="sect-head">
       <p class="sect-head__pitch">G4 · 生活在云上</p>
       <h1 class="sect-head__name">云村</h1>
-      <p class="sect-head__def">用网易云扫码登录，在这里看自己的账号与红心歌单。登录凭证只存在本机。</p>
+      <p class="sect-head__def">用网易云扫码登录，在这里看自己创建的歌单、每日推荐与红心歌单。登录凭证只存在本机。</p>
     </header>
 
     <div class="km" data-music data-music-state="loading">
@@ -342,6 +342,22 @@ function buildKumura() {
         </div>
       </section>
 
+      <section class="km-sec km-shelf" data-pane="ready">
+        <div class="km-sec__head">
+          <h3 class="km-sec__title">我创建的歌单</h3>
+          <p class="km-sec__note" data-playlists-note></p>
+        </div>
+        <ul class="km-shelf__grid" data-playlists></ul>
+      </section>
+
+      <section class="km-sec km-daily" data-pane="ready">
+        <div class="km-sec__head">
+          <h3 class="km-sec__title">每日推荐</h3>
+          <p class="km-sec__note" data-daily-note></p>
+        </div>
+        <ol class="km-tracks" data-daily-list></ol>
+      </section>
+
       <section class="km-liked" data-pane="ready">
         <div class="km-liked__head">
           <div class="km-liked__cover" data-liked-cover hidden></div>
@@ -384,7 +400,7 @@ function buildKumura() {
 
   return page({
     title: `云村 · ${site.brand} ${site.mark}`,
-    desc: '扫码登录网易云音乐，查看账号信息与红心歌单。',
+    desc: '扫码登录网易云音乐，查看自己创建的歌单、每日推荐与红心歌单。',
     nav: 'kumura',
     tracks,
     styles: ['assets/css/kumura.css'],

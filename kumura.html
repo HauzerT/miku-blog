@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#f5f8f8">
 <title>云村 · 初音ミク CV01</title>
-<meta name="description" content="扫码登录网易云音乐，查看账号信息与红心歌单。">
+<meta name="description" content="扫码登录网易云音乐，查看自己创建的歌单、每日推荐与红心歌单。">
 <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="assets/css/palette.css">
 <link rel="stylesheet" href="assets/css/tokens.css">
@@ -64,7 +64,7 @@ if(!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches))
     <header class="sect-head">
       <p class="sect-head__pitch">G4 · 生活在云上</p>
       <h1 class="sect-head__name">云村</h1>
-      <p class="sect-head__def">用网易云扫码登录，在这里看自己的账号与红心歌单。登录凭证只存在本机。</p>
+      <p class="sect-head__def">用网易云扫码登录，在这里看自己创建的歌单、每日推荐与红心歌单。登录凭证只存在本机。</p>
     </header>
 
     <div class="km" data-music data-music-state="loading">
@@ -116,6 +116,22 @@ if(!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches))
             <button class="km-btn" type="button" data-logout>退出登录</button>
           </div>
         </div>
+      </section>
+
+      <section class="km-sec km-shelf" data-pane="ready">
+        <div class="km-sec__head">
+          <h3 class="km-sec__title">我创建的歌单</h3>
+          <p class="km-sec__note" data-playlists-note></p>
+        </div>
+        <ul class="km-shelf__grid" data-playlists></ul>
+      </section>
+
+      <section class="km-sec km-daily" data-pane="ready">
+        <div class="km-sec__head">
+          <h3 class="km-sec__title">每日推荐</h3>
+          <p class="km-sec__note" data-daily-note></p>
+        </div>
+        <ol class="km-tracks" data-daily-list></ol>
       </section>
 
       <section class="km-liked" data-pane="ready">

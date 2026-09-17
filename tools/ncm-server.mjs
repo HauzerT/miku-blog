@@ -16,10 +16,11 @@
      GET  /api/login/qr/create  取二维码内容（浏览器自己画成二维码）
      GET  /api/login/qr/check  轮询扫码状态：800 过期 / 801 待扫 / 802 待确认 / 803 成功
      GET  /api/account          账号信息（昵称、头像、等级、VIP、签名…）
-     GET  /api/playlists        我的歌单（用来找「我喜欢的音乐」）
+     GET  /api/playlists        我创建的歌单（含网易云封面；也用它定位「我喜欢的音乐」）
+     GET  /api/daily            每日推荐（网易按口味生成的那 30 来首，需要登录）
      GET  /api/likelist         红心歌曲 id 列表（无序，可能上万条）
      GET  /api/songs?ids=a,b,c  批量取歌曲详情
-     GET  /api/liked            红心歌单分页（= likelist + songs 的组合，前端直接用这个）
+     GET  /api/liked            红心歌单分页（按加入时间倒序；= 歌单详情 + songs 的组合）
      GET  /api/logout           忘掉本地保存的登录凭证
      GET  /api/img?url=…        图片代理（网易封面图不允许直接跨域取像素）
 
@@ -235,11 +236,50 @@ async function getPlaylists(jar, uid) {
   return Array.isArray(r.body.playlist) ? r.body.playlist : [];
 }
 
-async function findLikedPlaylist(jar, uid) {
+/* 歌单列表带缓存：一次进页要用它好几回（定位红心歌单、摆歌单架），
+   60 秒内不重复打网易。 */
+function getPlaylistsCached(jar, uid, sid) {
+  return cached(`playlists:${sid}:${uid}`, () => getPlaylists(jar, uid));
+}
+
+async function findLikedPlaylist(jar, uid, sid) {
   if (!uid) return { uid: null, playlist: null };
-  const playlists = await getPlaylists(jar, uid);
+  const playlists = await (sid ? getPlaylistsCached(jar, uid, sid) : getPlaylists(jar, uid));
   const liked = playlists.find((p) => p.specialType === LIKED_SPECIAL_TYPE) || null;
   return { uid, playlist: liked, playlists };
+}
+
+/* 红心歌单的曲目 + 加入时间。
+   ---------------------------------------------------------------------------
+   「我喜欢的音乐」本身就是一张真实歌单（specialType === 5）。v6/playlist/detail
+   会带回完整的 trackIds，每一项的 at 就是这首歌被收进歌单的那一刻（毫秒时间戳）；
+   网易 App 里红心歌单的默认顺序正是按它倒序。song/like/get 只给一串没有时间戳的
+   id，排序只能靠猜——所以排序依据不再用它。
+   实测 trackIds 比 trackCount 略多几条（已移出红心的墓碑条目还挂在里面），因此
+   再与 likelist（红心的权威集合）取一次交集：集合用它，时间与顺序用 trackIds。 */
+function getLikedEntries(jar, uid, sid, playlistId) {
+  return cached(`likedentries:${sid}:${uid}`, async () => {
+    let timed = [];
+    if (playlistId) {
+      const r = await netease('v6/playlist/detail', { id: playlistId, n: 0 }, jar);
+      const trackIds = Array.isArray(r.body?.playlist?.trackIds) ? r.body.playlist.trackIds : [];
+      timed = trackIds
+        .map((t) => ({ id: Number(t.id), at: Number(t.at) || 0 }))
+        .filter((t) => t.id > 0)
+        .sort((a, b) => b.at - a.at);   // 最新收进的最靠前
+    }
+    if (!timed.length) return [];
+    let likedIds = null;
+    try { likedIds = await getLikelist(jar, uid, sid); } catch { /* 交集取不到就用 trackIds 本身 */ }
+    if (!likedIds) return timed;
+    const inLiked = new Set(likedIds);
+    const out = timed.filter((t) => inLiked.has(t.id));
+    const seen = new Set(out.map((t) => t.id));
+    for (const id of likedIds) {
+      if (!seen.has(id)) out.push({ id, at: 0 });   // 歌单详情里没有的红心：没有时间戳，排在最后
+    }
+    return out;
+  });
 }
 
 /* 红心 id 列表：可能上万条，一次拿全（接口本身就是全量返回） */
@@ -499,6 +539,8 @@ const server = http.createServer(async (req, res) => {
       if (code === 803) {
         invalidate(`uid:${sid}`);
         invalidate(`likelist:${sid}`);
+        invalidate(`playlists:${sid}`);
+        invalidate(`likedentries:${sid}`);
         const saved = saveState();
         if (!saved) {
           return json(res, 200, { ok: true, code, loggedIn: false, message: '登录成功但没能拿到凭证，请重试' });
@@ -517,6 +559,8 @@ const server = http.createServer(async (req, res) => {
       sessions.delete(sid);
       invalidate(`uid:${sid}`);
       invalidate(`likelist:${sid}`);
+      invalidate(`playlists:${sid}`);
+      invalidate(`likedentries:${sid}`);
       clearState();
       return json(res, 200, { ok: true, loggedIn: false });
     }
@@ -539,7 +583,7 @@ const server = http.createServer(async (req, res) => {
       const profile = slimProfile(account, detail);
       let liked = null;
       try {
-        const found = await findLikedPlaylist(jar, uid);
+        const found = await findLikedPlaylist(jar, uid, sid);
         if (found.playlist) {
           liked = {
             id: found.playlist.id,
@@ -570,21 +614,33 @@ const server = http.createServer(async (req, res) => {
       if (!isLoggedIn(jar)) return json(res, 401, { ok: false, error: 'NOT_LOGGED_IN' });
       const uid = await getUid(jar, sid);
       if (!uid) return json(res, 401, { ok: false, error: 'NOT_LOGGED_IN' });
-      const playlists = await getPlaylists(jar, uid);
+      const playlists = await getPlaylistsCached(jar, uid, sid);
       return json(res, 200, {
         ok: true,
+        /* 只给「我创建的」（creator 是本人；网易云把收藏的歌单也塞在同一个接口里）。
+           红心歌单虽然也算创建，但它整段单独展示，这里不再重复出现。
+           封面直接用网易回传的 coverImgUrl——「和网易云同步」同步的就是这一张，
+           浏览器经 /api/img 代理取，不落第三方图床。 */
         playlists: playlists
-          .filter((p) => p.specialType !== 5)
+          .filter((p) => p.specialType !== LIKED_SPECIAL_TYPE && p.creator?.userId === uid)
           .map((p) => ({
             id: p.id,
             name: p.name,
             trackCount: p.trackCount,
-            cover: p.coverImgUrl,
+            cover: p.coverImgUrl || '',
             playCount: p.playCount,
-            subscribed: Boolean(p.subscribed),
+            createTime: p.createTime || null,
             url: `https://music.163.com/playlist?id=${p.id}`,
           })),
       });
+    }
+
+    /* ------------------------------------------------------------- 每日推荐 */
+    if (route === '/api/daily') {
+      if (!isLoggedIn(jar)) return json(res, 401, { ok: false, error: 'NOT_LOGGED_IN' });
+      const r = await netease('v3/discovery/recommend/songs', {}, jar);
+      const daily = Array.isArray(r.body?.data?.dailySongs) ? r.body.data.dailySongs : [];
+      return json(res, 200, { ok: true, total: daily.length, songs: daily.map(slimSong) });
     }
 
     /* ------------------------------------------------------- 红心歌单（本页主角） */
@@ -620,18 +676,35 @@ const server = http.createServer(async (req, res) => {
       const uid = await getUid(jar, sid);
       if (!uid) return json(res, 401, { ok: false, error: 'NOT_LOGGED_IN' });
 
-      const ids = await getLikelist(jar, uid, sid);
-      const page = ids.slice(offset, offset + limit);
-      const songs = page.length ? await getSongs(jar, page) : [];
+      /* 按「加入时间」倒序：at 来自红心歌单详情的 trackIds。歌单详情整个拿不到时
+         才退回无时间戳的 likelist——此时 orderBy 为空，前端不会标「按加入时间」。 */
+      let entries = [];
+      try {
+        const found = await findLikedPlaylist(jar, uid, sid);
+        entries = await getLikedEntries(jar, uid, sid, found.playlist?.id ?? null);
+      } catch { /* 走兜底 */ }
+      const timed = entries.some((t) => t.at > 0);
+      if (!entries.length) {
+        const ids = await getLikelist(jar, uid, sid);
+        entries = ids.map((id) => ({ id, at: 0 }));
+      }
+
+      const page = entries.slice(offset, offset + limit);
+      const songs = page.length ? await getSongs(jar, page.map((t) => t.id)) : [];
       const byId = new Map(songs.map((s) => [s.id, slimSong(s)]));
 
       return json(res, 200, {
         ok: true,
-        total: ids.length,
+        total: entries.length,
         offset,
         limit,
-        hasMore: offset + limit < ids.length,
-        songs: page.map((id) => byId.get(id) || { id, missing: true }),
+        hasMore: offset + limit < entries.length,
+        orderBy: timed ? 'added-desc' : null,
+        songs: page.map((t) => {
+          const song = byId.get(t.id) || { id: t.id, missing: true };
+          if (t.at) song.likedAt = t.at;
+          return song;
+        }),
       });
     }
 
@@ -689,6 +762,35 @@ async function selftest() {
     const r = await netease('song/like/get', { uid: 1 }, emptyJar());
     if (r.code !== 301 && r.code !== 200) throw new Error(`意外返回 ${r.code}`);
     return `code = ${r.code}（未登录被拒）`;
+  });
+
+  /* 下面两项与播放地址一样，登录过才测得了；没登录就跳过而不是失败 */
+  check('接口：每日推荐（需要已登录，没有则跳过）', async () => {
+    if (!existsSync(STATE_FILE)) return '跳过：还没登录过，登录后可以再跑一次 --selftest';
+    const jar = JSON.parse(readFileSync(STATE_FILE, 'utf8')).jar;
+    if (!jar?.cookies?.MUSIC_U) return '跳过：凭证里没有 MUSIC_U';
+    const r = await netease('v3/discovery/recommend/songs', {}, jar);
+    const n = Array.isArray(r.body?.data?.dailySongs) ? r.body.data.dailySongs.length : 0;
+    if (!n) throw new Error('dailySongs 是空的：' + JSON.stringify(r.body).slice(0, 120));
+    return `拿到 ${n} 首`;
+  });
+
+  check('接口：红心 trackIds 全部带加入时间（需要已登录，没有则跳过）', async () => {
+    if (!existsSync(STATE_FILE)) return '跳过：还没登录过，登录后可以再跑一次 --selftest';
+    const jar = JSON.parse(readFileSync(STATE_FILE, 'utf8')).jar;
+    if (!jar?.cookies?.MUSIC_U) return '跳过：凭证里没有 MUSIC_U';
+    const acc = await netease('nuser/account/get', {}, jar);
+    const uid = acc.body?.account?.id;
+    if (!uid) return '跳过：凭证似乎已失效';
+    const pls = await netease('user/playlist', { uid, limit: 1, offset: 0, includeVideo: false }, jar);
+    const liked = (pls.body?.playlist || []).find((p) => p.specialType === LIKED_SPECIAL_TYPE);
+    if (!liked) return '跳过：找不到红心歌单';
+    const det = await netease('v6/playlist/detail', { id: liked.id, n: 0 }, jar);
+    const tids = det.body?.playlist?.trackIds || [];
+    if (!tids.length) throw new Error('trackIds 是空的');
+    const withAt = tids.filter((t) => t.at > 0).length;
+    if (withAt !== tids.length) throw new Error(`${tids.length} 条 trackIds 里只有 ${withAt} 条带 at`);
+    return `${tids.length} 条全部带 at，最新一条是 ${new Date(tids[0].at).toISOString().slice(0, 10)}`;
   });
 
   /* 只有已经登录过，才测得了播放地址；没登录就跳过而不是失败 */

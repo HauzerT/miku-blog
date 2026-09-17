@@ -1,5 +1,5 @@
 /* ==========================================================================
-   kumura.js · 云村页：扫码登录 → 账号信息 → 红心歌单
+   kumura.js · 云村页：扫码登录 → 账号信息 → 我创建的歌单 → 每日推荐 → 红心歌单
    ---------------------------------------------------------------------------
    这一页自己会说话：小服务没起、没登录、二维码过期、歌单为空，都有对应的说法，
    不靠弹窗报错。取数全部走本机小服务（tools/ncm-server.mjs）；
@@ -19,6 +19,8 @@
   if (!panel) return;
 
   var liked = { offset: 0, total: 0, hasMore: false, loading: false };
+  var shelf = { loading: false };
+  var daily = { loading: false };
   var qrState = { key: null, deadline: 0, pollTimer: null, ticker: null, refreshTimer: null, polling: false, expired: false };
 
   /* ------------------------------------------------------------ 取节点 */
@@ -36,6 +38,10 @@
     profileBg: q('[data-profile-bg]'),
     likedCover: q('[data-liked-cover]'),
     likedMeta: q('[data-liked-meta]'),
+    playlists: q('[data-playlists]'),
+    playlistsNote: q('[data-playlists-note]'),
+    dailyList: q('[data-daily-list]'),
+    dailyNote: q('[data-daily-note]'),
     list: q('[data-list]'),
     listNote: q('[data-list-note]'),
     more: q('[data-more]'),
@@ -377,6 +383,13 @@
       : song.artist + (song.album ? ' · ' + song.album : '')));
     li.appendChild(main);
 
+    /* 加入时间这一列只有红心歌单的行有值；每日推荐的行留一个空 span
+       撑住网格列位，不然后面的格子会集体左移。悬停说明写清它是哪一刻，
+       省得被当成发行日期。 */
+    var at = make('span', 'km-track__at', song.likedAt ? dateOnly(song.likedAt) : '');
+    if (song.likedAt) at.title = '加入红心歌单的时间';
+    li.appendChild(at);
+
     li.appendChild(make('span', 'km-track__time', song.duration ? duration(song.duration) : ''));
 
     /* 播放键只给"能播的"：下架的条目点了也是白点，索性不给按钮 */
@@ -404,6 +417,88 @@
     return li;
   }
 
+  /* ------------------------------------------------------------ 歌单架
+     「我创建的歌单」：封面就是网易回传的那张（经 /api/img 代理），
+     所以页面上永远和网易云长着同一张脸。整卡可点，落到网易云的歌单页。 */
+
+  function playlistCard(p) {
+    var li = make('li', 'km-shelf__item');
+    var card = make('a', 'km-shelf__card');
+    card.href = p.url || ('https://music.163.com/playlist?id=' + p.id);
+    card.target = '_blank';
+    card.rel = 'noopener noreferrer';
+    card.setAttribute('aria-label', (p.name || '歌单') + '（在网易云音乐打开）');
+
+    var cover = make('span', 'km-shelf__cover');
+    if (p.cover) {
+      var im = make('img', 'km-shelf__cover-img');
+      im.src = img(p.cover, 300);
+      im.alt = '';
+      im.loading = 'lazy';
+      cover.appendChild(im);
+    }
+    card.appendChild(cover);
+    card.appendChild(make('span', 'km-shelf__name', p.name || '未命名歌单'));
+    card.appendChild(make('span', 'km-shelf__count',
+      p.trackCount != null ? compact(p.trackCount) + ' 首' : ''));
+    li.appendChild(card);
+    return li;
+  }
+
+  function loadShelf() {
+    if (!el.playlists || shelf.loading) return;
+    shelf.loading = true;
+    text(el.playlistsNote, '正在读取歌单…');
+    api('/api/playlists').then(function (r) {
+      shelf.loading = false;
+      var d = r.data || {};
+      if (!d.ok) {
+        if (r.status === 401) { beginQrLogin(); return; }
+        text(el.playlistsNote, '读取失败：' + (d.message || d.error || '未知错误'));
+        return;
+      }
+      var ps = d.playlists || [];
+      clear(el.playlists);
+      ps.forEach(function (p) { el.playlists.appendChild(playlistCard(p)); });
+      text(el.playlistsNote, ps.length
+        ? '共 ' + ps.length + ' 个 · 封面与网易云同步'
+        : '还没有创建过歌单。');
+    }).catch(function (err) {
+      shelf.loading = false;
+      text(el.playlistsNote, '读取失败：' + ((err && err.message) || '网络错误'));
+    });
+  }
+
+  /* ---------------------------------------------------------- 每日推荐
+     网易按口味每天生成的那一小摞。和红心歌单共用同一套曲目行，
+     所以点歌、播放器、上一首/下一首都不用另写一份。 */
+
+  function loadDaily() {
+    if (!el.dailyList || daily.loading) return;
+    daily.loading = true;
+    text(el.dailyNote, '正在读取今日推荐…');
+    api('/api/daily').then(function (r) {
+      daily.loading = false;
+      var d = r.data || {};
+      if (!d.ok) {
+        if (r.status === 401) { beginQrLogin(); return; }
+        text(el.dailyNote, '读取失败：' + (d.message || d.error || '未知错误'));
+        return;
+      }
+      var songs = d.songs || [];
+      clear(el.dailyList);
+      songs.forEach(function (song, i) {
+        el.dailyList.appendChild(songRow(song, i, 0));
+      });
+      text(el.dailyNote, songs.length
+        ? '根据你的音乐口味生成 · 每天 6:00 更新'
+        : '今天没有拿到推荐，明天再来看看。');
+    }).catch(function (err) {
+      daily.loading = false;
+      text(el.dailyNote, '读取失败：' + ((err && err.message) || '网络错误'));
+    });
+  }
+
   function loadLiked(reset) {
     if (liked.loading) return;
     liked.loading = true;
@@ -425,6 +520,16 @@
       }
       liked.total = d.total || 0;
       liked.hasMore = Boolean(d.hasMore);
+
+      /* 服务端确实按加入时间排了序，才把这句话挂到歌单头上——
+         拿不到时间戳的兜底顺序不能瞎标。 */
+      if (d.orderBy === 'added-desc' && el.likedMeta && !el.likedMeta.querySelector('.km-liked__sort')) {
+        var chip = make('span', 'km-liked__sort', '按加入时间 · 最新在前');
+        var dot = make('span', 'km-liked__dot', '·');
+        var upd = el.likedMeta.querySelector('.km-liked__upd');
+        if (upd) { el.likedMeta.insertBefore(dot, upd); el.likedMeta.insertBefore(chip, upd); }
+        else { el.likedMeta.appendChild(dot); el.likedMeta.appendChild(chip); }
+      }
       (d.songs || []).forEach(function (song, i) {
         el.list.appendChild(songRow(song, i, liked.offset));
       });
@@ -452,6 +557,8 @@
       if (r.status === 401 || !d.ok) { beginQrLogin(); return; }
       renderProfile(d.profile, d.liked);
       setState('ready');
+      loadShelf();
+      loadDaily();
       loadLiked(true);
     }).catch(function () {
       setState('offline');
@@ -727,6 +834,12 @@
         if (el.likedMeta) clear(el.likedMeta);
         text(el.listNote, '');
         if (el.more) el.more.hidden = true;
+        clear(el.playlists);
+        text(el.playlistsNote, '');
+        shelf = { loading: false };
+        clear(el.dailyList);
+        text(el.dailyNote, '');
+        daily = { loading: false };
         beginQrLogin();
       });
     });

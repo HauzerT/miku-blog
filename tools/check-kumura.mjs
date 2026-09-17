@@ -330,11 +330,25 @@ try {
       liked: { id: 999, name: '我喜欢的音乐', trackCount: 3, cover: '', updateTime: 1757692800000 },
     },
     '/api/liked': {
-      ok: true, total: 3, offset: 0, limit: 50, hasMore: false,
+      ok: true, total: 3, offset: 0, limit: 50, hasMore: false, orderBy: 'added-desc',
       songs: [
-        { id: 1, name: '夜に駆ける', artist: 'YOASOBI', artists: ['YOASOBI'], album: 'THE BOOK', cover: '', duration: 261000, url: 'https://music.163.com/song?id=1' },
-        { id: 2, name: '千本桜', artist: '初音ミク', artists: ['初音ミク'], album: '千本桜', cover: '', duration: 244000, mvId: 12345, url: 'https://music.163.com/song?id=2' },
-        { id: 3, name: '（已下架或不可用）', missing: true, id: 3, url: 'https://music.163.com/song?id=3' },
+        { id: 1, name: '夜に駆ける', artist: 'YOASOBI', artists: ['YOASOBI'], album: 'THE BOOK', cover: '', duration: 261000, likedAt: 1757692800000, url: 'https://music.163.com/song?id=1' },
+        { id: 2, name: '千本桜', artist: '初音ミク', artists: ['初音ミク'], album: '千本桜', cover: '', duration: 244000, mvId: 12345, likedAt: 1757606400000, url: 'https://music.163.com/song?id=2' },
+        { id: 3, name: '（已下架或不可用）', missing: true, id: 3, likedAt: 1757520000000, url: 'https://music.163.com/song?id=3' },
+      ],
+    },
+    '/api/playlists': {
+      ok: true,
+      playlists: [
+        { id: 101, name: '深夜写码用', trackCount: 42, cover: 'https://p1.music.126.net/mock/shelf-a.jpg', playCount: 7, createTime: 1700000000000, url: 'https://music.163.com/playlist?id=101' },
+        { id: 102, name: '一个名字特别长的歌单，看看窄卡片里会不会老老实实截断', trackCount: 13, cover: '', playCount: 0, createTime: 1700000000000, url: 'https://music.163.com/playlist?id=102' },
+      ],
+    },
+    '/api/daily': {
+      ok: true, total: 2,
+      songs: [
+        { id: 11, name: 'マリンブルーの庭園', artist: 'comune', artists: ['comune'], album: 'シングル', cover: '', duration: 200000, url: 'https://music.163.com/song?id=11' },
+        { id: 12, name: '群青', artist: 'YOASOBI', artists: ['YOASOBI'], album: '群青', cover: '', duration: 223000, url: 'https://music.163.com/song?id=12' },
       ],
     },
     /* 播放地址给一条连不上的直链：测的是"服务返回的地址有没有被挂上去"，
@@ -377,14 +391,29 @@ try {
     facts: Array.from(document.querySelectorAll('.km-facts__row')).map(r => r.textContent),
     likedName: (document.querySelector('.km-liked__name')||{}).textContent || '',
     likedCount: (document.querySelector('.km-liked__count')||{}).textContent || '',
-    tracks: Array.from(document.querySelectorAll('.km-track')).map(t => ({
+    sortChip: (document.querySelector('.km-liked__sort')||{}).textContent || '',
+    tracks: Array.from(document.querySelectorAll('[data-list] .km-track')).map(t => ({
       no: (t.querySelector('.km-track__no')||{}).textContent,
       name: (t.querySelector('.km-track__name')||{}).textContent,
       artist: (t.querySelector('.km-track__artist')||{}).textContent,
       time: (t.querySelector('.km-track__time')||{}).textContent,
+      at: (t.querySelector('.km-track__at')||{}).textContent,
       href: (t.querySelector('.km-track__link')||{}).href,
       mv: Boolean(t.querySelector('.km-track__mv'))
     })),
+    likedDates: Array.from(document.querySelectorAll('[data-list] .km-track__at')).map(n => n.textContent),
+    shelf: Array.from(document.querySelectorAll('.km-shelf__card')).map(c => ({
+      name: (c.querySelector('.km-shelf__name')||{}).textContent,
+      count: (c.querySelector('.km-shelf__count')||{}).textContent,
+      cover: (c.querySelector('.km-shelf__cover-img')||{}).src || '',
+      href: c.getAttribute('href')
+    })),
+    daily: Array.from(document.querySelectorAll('[data-daily-list] .km-track')).map(t => ({
+      name: (t.querySelector('.km-track__name')||{}).textContent,
+      at: (t.querySelector('.km-track__at')||{}).textContent
+    })),
+    dailyNote: (document.querySelector('[data-daily-note]')||{}).textContent || '',
+    shelfNote: (document.querySelector('[data-playlists-note]')||{}).textContent || '',
     moreHidden: (document.querySelector('[data-more]')||{}).hidden,
     visiblePanes: Array.from(document.querySelectorAll('[data-pane]'))
       .filter(n => getComputedStyle(n).display !== 'none').map(n => n.getAttribute('data-pane'))
@@ -414,11 +443,60 @@ try {
   check('每行都有网易云外链',
     ready.tracks.every((t) => /music\.163\.com\/song\?id=/.test(t.href || '')));
   check('到底时不再显示"再多读"', ready.moreHidden === true);
-  check('ready 时只剩 profile/liked 两段可见',
-    ready.visiblePanes.length === 2 && ready.visiblePanes.every((p) => p === 'ready'),
+  check('红心头说明按加入时间排序', /按加入时间/.test(ready.sortChip), ready.sortChip);
+  check('红心行全部标注了加入时间',
+    ready.likedDates.length === 3 && ready.likedDates.every((d) => /^\d{4}\.\d{2}\.\d{2}$/.test(d)),
+    JSON.stringify(ready.likedDates));
+  check('歌单架渲染出创建的歌单', ready.shelf.length === 2, 'shelf=' + ready.shelf.length);
+  check('歌单卡带曲目数', /42|13/.test(ready.shelf.map((s) => s.count).join(' ')),
+    JSON.stringify(ready.shelf.map((s) => s.count)));
+  check('歌单封面走本站代理（与网易云同步）',
+    /\/api\/img\?url=/.test(ready.shelf[0].cover || '') && /p1\.music\.126\.net/.test(ready.shelf[0].cover || ''),
+    ready.shelf[0] && ready.shelf[0].cover);
+  check('没有封面的歌单不渲染空图', ready.shelf[1] && ready.shelf[1].cover === '',
+    ready.shelf[1] && ready.shelf[1].cover);
+  check('歌单卡可点到网易云的歌单页',
+    ready.shelf.every((s) => /music\.163\.com\/playlist\?id=/.test(s.href || '')),
+    JSON.stringify(ready.shelf.map((s) => s.href)));
+  check('每日推荐渲染出曲目', ready.daily.length === 2, 'daily=' + ready.daily.length);
+  check('每日推荐的行不带加入时间',
+    ready.daily.every((d) => d.at === ''), JSON.stringify(ready.daily.map((d) => d.at)));
+  check('歌单架有一句说法', /共 2 个|封面/.test(ready.shelfNote), ready.shelfNote);
+  check('每日推荐有一句说法', /口味|6:00/.test(ready.dailyNote), ready.dailyNote);
+  check('ready 时四段内容一起可见',
+    ready.visiblePanes.length === 4 && ready.visiblePanes.every((p) => p === 'ready'),
     ready.visiblePanes.join(','));
   check('已登录模式控制台干净', consoleErrors.length === 0, consoleErrors.join(' | '));
   await shot('kumura-ready');
+
+  /* 布局几何：日期列、时长列要各自右缘对齐，封面货架要是正方形，
+     整页不许横向溢出。DOM 断言量不出"错位"，这一段量得出。 */
+  const geo = JSON.parse(await evaluate(`JSON.stringify((function () {
+    var rows = Array.prototype.slice.call(document.querySelectorAll('[data-list] .km-track'));
+    var rights = function (sel) {
+      return rows.map(function (r) {
+        var n = r.querySelector(sel);
+        return n ? Math.round(n.getBoundingClientRect().right) : null;
+      });
+    };
+    var uniq = function (a) { return Array.from(new Set(a)); };
+    var covers = Array.prototype.slice.call(document.querySelectorAll('.km-shelf__cover'))
+      .map(function (c) { var b = c.getBoundingClientRect(); return [Math.round(b.width), Math.round(b.height)]; });
+    return {
+      atRights: uniq(rights('.km-track__at')),
+      timeRights: uniq(rights('.km-track__time')),
+      covers: covers,
+      overflowX: document.documentElement.scrollWidth > document.documentElement.clientWidth
+    };
+  })())`));
+  check('加入时间列右缘对齐', geo.atRights.length === 1 && geo.atRights[0] !== null,
+    JSON.stringify(geo.atRights));
+  check('时长列右缘对齐', geo.timeRights.length === 1 && geo.timeRights[0] !== null,
+    JSON.stringify(geo.timeRights));
+  check('歌单封面是正方形',
+    geo.covers.length > 0 && geo.covers.every(([w, h]) => w === h && w > 40),
+    JSON.stringify(geo.covers));
+  check('页面不横向溢出', geo.overflowX === false, 'overflowX=' + geo.overflowX);
 
   /* ------------------------------------------------ 5. 播放（页面内直接播） */
   const playUi = JSON.parse(await evaluate(`JSON.stringify({
@@ -426,11 +504,12 @@ try {
     noplay: document.querySelectorAll('.km-track__noplay').length,
     playerHidden: document.querySelector('[data-player]').hidden
   })`));
-  check('可播的歌都有播放键', playUi.playBtns === 2, 'play=' + playUi.playBtns);
+  check('可播的歌都有播放键（红心 2 + 每日推荐 2）', playUi.playBtns === 4, 'play=' + playUi.playBtns);
   check('下架的歌不给播放键', playUi.noplay === 1, 'noplay=' + playUi.noplay);
   check('播放条初始收起', playUi.playerHidden === true);
 
-  await evaluate(`document.querySelector('[data-km-play]').click()`);
+  /* 播放测试点的是红心歌单里的歌（[data-list]），不是页面上靠前的每日推荐 */
+  await evaluate(`document.querySelector('[data-list] [data-km-play]').click()`);
   await evaluate('new Promise(r => setTimeout(r, 1500))');
   const playing = JSON.parse(await evaluate(`JSON.stringify({
     playerHidden: document.querySelector('[data-player]').hidden,
@@ -456,7 +535,7 @@ try {
   await shot('kumura-playing');
 
   /* 不可播的那一首：要给说法，而不是无声无息 */
-  await evaluate(`document.querySelectorAll('[data-km-play]')[1].click()`);
+  await evaluate(`document.querySelectorAll('[data-list] [data-km-play]')[1].click()`);
   await evaluate('new Promise(r => setTimeout(r, 1200))');
   const unplayable = await evaluate(`(document.querySelector('[data-player-sub]')||{}).textContent || ''`);
   check('不可播的歌给出说明', /拿不到播放地址|不可播/.test(unplayable), unplayable);
