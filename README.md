@@ -1,12 +1,23 @@
 # 初音ミク CV01 · 个人博客骨架
 
-一个用**钢琴卷帘当目录**的静态个人博客。零构建也能跑：双击 `index.html` 就能看。
-主题是一条工程界面式的人声合成器：九个板块 = 九条轨道 = 一个和弦的九个音。
-再双击一次 `start.cmd`，它就多出一套**上传系统**：音乐盒、新建板块。
+一个用**钢琴卷帘当目录**的个人博客。主题是一条工程界面式的人声合成器：
+九个板块 = 九条轨道 = 一个和弦的九个音。
 
-> **关于「零依赖」**：现在这句话要改一半——除 `assets/vendor/` 里的两个库
-> （marked 与 KaTeX，都是本地文件，见那一节的说明）之外，整站依然是手写的、
-> 零构建的、**不联网也完整可用**的（`file://` 双击照跑）。
+站点现在有两条线，读的是同一份内容、穿的是同一身 CSS：
+
+| 线路 | 是什么 | 怎么跑 |
+|---|---|---|
+| **Nuxt 应用** —— 2.0 起的主线 | Vue 3 + Vite 页面 + Nitro 服务端：首页 / 归档 / 板块 / 文章 / 关于 / 云村 / 写博客 / 门厅都是 Vue 组件，上传、鉴权、门厅与内容装配全在 `server/**` | `pnpm install` 之后 `pnpm dev`；要跑成品就 `pnpm build` 再 `node .output/server/index.mjs` |
+| **零构建静态页** —— 1.x 那条线，原样留着 | `node tools/build.mjs` 把 `content/posts.mjs` 生成成 `index.html` / `sections/*.html` / `posts/*.html`，双击就能看，`file://` 照跑；另有那套上传系统（`server/server.mjs`） | `node tools/build.mjs`，然后双击 `index.html`；要上传系统就双击 `start.cmd` |
+
+两条线共用一份真相：内容来自 `content/posts.mjs`（外加界面写进 `data/*.json` 的那一半），
+卷帘的位置算式都在 `content/roll.mjs`，颜色只写在 `content/palette.mjs`，
+样式还是 `assets/css/` 里那几张——Nuxt 这一侧不重画 CSS，只把同一批 class 名交给 Vue 组件去吐。
+
+> **1.x 的两条底线，在 2.0 里只属于静态那条线**：零构建、双击 `index.html` 就能看、
+> `file://` 照跑，这些都还是 `tools/build.mjs` 那条路的事；Nuxt 应用需要一次
+> `pnpm install` 与一次构建。两边都不碰网络：Vue、marked、KaTeX 全部随站打包，
+> 字体与音频都在本地。
 
 ```
 A5  二次生命        二次元
@@ -66,7 +77,26 @@ F#3 做题区doge      EE学生的自我迭代
 
 ## 文件地图
 
+### Nuxt 应用（2.0 起的主线）
+
+| 目录 / 文件 | 说明 |
+|---|---|
+| `nuxt.config.ts` | 外壳配置：仓库根就是 srcDir；`assets/` `media/` `design/` 原地挂成静态资源；预渲染路由表也在这里 |
+| `app.vue` · `layouts/` | 三张壳：`default`（每日一句 + 命令栏 + 轨道栏 + 页脚 + 悬浮球）、`gate`（门厅自己一张）、`editor`（编辑页自己一张） |
+| `pages/` | 路由：`/`、`/archive`、`/about`、`/sections/<板块>`、`/sections/<板块>/<子板块>`、`/posts/<slug>`、`/kumura`、`/login`、`/editor` |
+| `components/` | 卷帘（`RollHero` / `RollStrip`）、外壳零件、音乐盒与站长工具箱、口令框、提示条、编辑工具条 |
+| `composables/` | 行为：主题、钢琴声、每日一句、卷帘交互、内容状态、HTTP 与口令、音乐、悬浮球、编辑模式 |
+| `plugins/site-data.server.ts` | 服务端把装配好的内容灌进共享状态（客户端从 payload 里拿） |
+| `server/api/**` | Nitro 接口，一个方法一个文件；形状与 1.x 的 `server/server.mjs` 一致 |
+| `server/utils/**` | 数据层与内容装配：`store`（五个 JSON）/ `briefs` / `auth` / `content` / `media-store` |
+| `server/middleware/` | `gate.ts` 是门厅这道门；`legacy-urls.ts` 把旧的 `.html` 地址 301 到新路由 |
+| `content/roll.mjs` | 卷帘的几何（节奏槽 + 时间轴接龙）：生成器、Nitro 与浏览器共用这一份 |
+| `.output/` | 构建产物：`server/` 是 Node 服务，`public/` 是预渲染出来的静态页 |
+
+### 静态页那条线（1.x，仍在）
+
 双击 `index.html` 就能看的纯静态站；跑起 `server/server.mjs` 之后，多出上传、门禁与云村。
+下面这几张表说的都是它——2.0 之后它们依然成立，只是不再是唯一的路。
 
 ### 页面
 
@@ -115,6 +145,8 @@ F#3 做题区doge      EE学生的自我迭代
 | `python tools/check-links.py` | 站内链接体检 |
 | `node tools/check-qr.mjs` | 二维码编码器的实扫验证（需要 python + opencv） |
 | `node tools/dom-check.mjs` | 页面自检：无头浏览器开每一页，查控制台报错并截图 |
+| `node tools/nuxt-check.mjs http://127.0.0.1:3987` | Nuxt 应用的浏览器自检：一页一页看控制台、该有的元素、主题按钮、卷帘扫光、每日一句、门厅两颗键；零依赖（Node 自带 WebSocket 直接跟无头 Chrome 说话），`--shot` 顺带截图 |
+| `node tools/nuxt-parity.mjs` | 迁移期对照：拿 Nuxt 预渲染出来的页面与生成器产出的静态页比外壳骨架与每颗音符的（音高，宽度） |
 | `node tools/upload-check.mjs` | 上传自检：从文件选择器走一遍真实的传音乐 |
 | `node tools/editor-check.mjs` | 编辑页自检：写一篇 → 四处页面都跟上 → 再删掉 |
 | `node tools/login-check.mjs` | 门厅自检：颜色、空 / 错口令、门禁、访客不写钥匙（需要 Chrome） |
@@ -159,6 +191,24 @@ F#3 做题区doge      EE学生的自我迭代
 | `deploy/` | Cloudflare Tunnel 长期部署：手册、后台源站启动脚本（见「发布」） |
 
 ## 上传系统（本机跑，数据落在自己硬盘上）
+
+> 这一段讲的是这套东西**是什么**——两套线路共用同一批接口与同一份数据，
+> 只是 1.x 那台服务（`server/server.mjs`）现在换成了 Nitro 的 `server/api/**`。
+> 下面提到的地址若是旧写法，对照关系是：
+>
+> | 1.x 静态线 | 2.0 Nuxt 应用 |
+> |---|---|
+> | `index.html` · `archive.html` · `about.html` | `/` · `/archive` · `/about` |
+> | `login.html` | `/login` |
+> | `editor.html` | `/editor` |
+> | `kumura.html` | `/kumura` |
+> | `sections/<id>.html` · `sections/<id>/<sub>.html` | `/sections/<id>` · `/sections/<id>/<sub>` |
+> | `posts/<slug>.html` | `/posts/<slug>` |
+>
+> 旧地址不会断：`server/middleware/legacy-urls.ts` 把它们 301 到新路由。
+> 接口那一层完全没变（`/api/health`、`/api/auth`、`/api/sections`、`/api/posts`、
+> `/api/articles`、`/api/render`、`/api/music`、`/api/media`、`/api/state`），
+> 所以浏览器里那把口令（`localStorage` 的 `cv01-key`）换了线路也不用重输。
 
 **启动**：双击 `start.cmd`（或 `node server/server.mjs`），开 `http://127.0.0.1:4321/`。
 第一次会先落在**门厅**（`login.html`）：访客按一下就进，站长要输口令——
@@ -725,8 +775,29 @@ node tools/build.mjs
 
 ## 发布
 
-整站是纯静态的，丢到任何静态托管即可（GitHub Pages / Cloudflare Pages / 自己的机器）。
-`file://` 直接打开也完整可用——字体与那两个库都在本地，没有任何外部请求。
+**Nuxt 应用**（2.0 起的主线）有两种发法，产物都在 `.output/`：
+
+```bash
+pnpm install
+pnpm build                        # 构建 + 预渲染；产物里既有 Node 服务也有静态页
+node .output/server/index.mjs     # 起服务（默认 3000，用 PORT 换），门厅与写接口都在这台上
+pnpm generate                     # 只要静态页：全部页面预渲染进 .output/public/
+```
+
+三种托管各自成立：
+
+| 发到哪 | 怎么发 | 门厅 |
+|---|---|---|
+| 自己的机器 / 隧道（长期部署那条路） | 跑 `.output/server/index.mjs` | **有效**：没盖章的页面请求 302 到 `/login`，写接口每次现验口令 |
+| 静态托管（Pages / 自己的机器当静态站） | 把 `.output/public/` 丢上去 | **没有**：静态托管没有服务端，`data/*.json` 也进不了产物——这条路上的站点是「生成时的那一版」 |
+| 1.x 那条零构建静态线 | `node tools/build.mjs`，丢 `index.html` 那一套 | 同样没有（`file://` 直接打开也完整可用） |
+
+> 静态那条线为什么没有门厅：`data/settings.json` 里的 `"gate"` 是**服务端**在拦，
+> 静态托管没有服务端这一层；接口那一层的口令校验也一并消失。想在静态托管上挡人，
+> 得靠 Cloudflare Access 这类东西。
+
+**1.x 静态线**：整站是纯静态的，丢到任何静态托管即可；`file://` 直接打开也完整可用——
+字体与那两个库都在本地，没有任何外部请求。
 
 ### 挂到公网之前：先跑一次预检
 
