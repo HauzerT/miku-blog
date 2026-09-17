@@ -127,19 +127,25 @@ if (!base) {
     }
   }
 
-  /* 该被门厅挡住的：站点页面 */
-  const gated = ['/', '/index.html', '/archive.html', '/editor.html', '/about.html', '/login.html'];
+  /* 该被门厅挡住的：站点页面。
+     旧站的地址带 .html（archive.html），Nuxt 这边是干净路由（/archive）——
+     两种写法都探一遍，这样这个脚本对着新旧哪一台服务跑都成立。 */
+  const gated = ['/', '/index.html', '/archive', '/archive.html', '/editor', '/editor.html', '/about', '/about.html'];
   for (const p of gated) {
     const r = await probe(p);
     if (r.status === 0) { bad(`连不上 ${p}`, r.error, '服务起来了吗？'); continue; }
-    if (p === '/login.html') {
-      if (r.status === 200) ok('/login.html 不挡（门厅自己必须进得去）');
-      else warn(`/login.html 返回 ${r.status}`, '门厅自己应该永远可读。', '检查 gateApplies() 里的例外。');
-      continue;
-    }
-    if (r.status === 302 && /login\.html/.test(r.location)) ok(`${p} → 302 门厅`);
+    /* 门厅可能把人送回 /login 或旧站的 /login.html，两种都算挡住了 */
+    if (r.status === 302 && /\/login(\.html)?(\?|$)/.test(r.location)) ok(`${p} → 302 门厅`);
     else bad(`${p} 没被门厅挡住（${r.status}）`, '任何拿到地址的人都能直接读到这一页。',
       '确认 data/settings.json 里没有 "gate": false。');
+  }
+
+  /* 门厅自己必须永远进得去 */
+  for (const p of ['/login', '/login.html']) {
+    const r = await probe(p);
+    if (r.status === 200) ok(`${p} 不挡（门厅自己必须进得去）`);
+    else if (r.status === 404 && p === '/login.html') warn(`${p} 返回 404`, '旧地址；Nuxt 这一侧的门厅在 /login。', '要对旧站跑这个脚本时才需要它。');
+    else warn(`${p} 返回 ${r.status}`, '门厅自己应该永远可读。', '检查门厅在 gate 里的例外。');
   }
 
   /* 必须挡住的：服务端数据与源码 */
