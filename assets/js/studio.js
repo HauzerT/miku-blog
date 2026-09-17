@@ -106,7 +106,7 @@
         '<p class="keygate__title">上传口令</p>' +
         '<p class="keygate__hint">' + (message || '第一次上传需要口令。它印在启动服务的那个终端窗口里。') + '</p>' +
         '<div class="keygate__row">' +
-        '<input class="keygate__input" type="password" inputmode="latin" autocomplete="off" placeholder="例如 3f9a1c02" aria-label="上传口令">' +
+        '<input class="keygate__input" type="password" inputmode="latin" name="passphrase" autocomplete="current-password" placeholder="例如 3f9a1c02" aria-label="上传口令">' +
         '<button class="keygate__go" type="submit">确认</button>' +
         '</div>' +
         '<button class="keygate__cancel" type="button">以后再说</button>' +
@@ -134,6 +134,15 @@
         cv01.fetchJSON(API + 'auth', { method: 'POST', json: {} , headers: { 'x-cv01-key': value } })
           .then(function () {
             cv01.setKey(value);
+            /* 口令顺手交给浏览器的密码库（如果它愿意收）——与门厅 login.js 同一套：
+               存上之后，下次这个框一弹出来浏览器就替你填好了。存不上就静默算了。 */
+            try {
+              if (window.PasswordCredential && navigator.credentials && navigator.credentials.store) {
+                navigator.credentials.store(
+                  new window.PasswordCredential({ id: 'cv01-owner', name: 'CV01 站长', password: value })
+                ).catch(function () {});
+              }
+            } catch (e) { /* 浏览器不给存就不存 */ }
             close();
             resolve(value);
           })

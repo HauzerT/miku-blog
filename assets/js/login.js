@@ -100,6 +100,20 @@
     return (err && err.message) || '没进去。' + TERMINAL;
   }
 
+  /* 把口令交给浏览器自己的密码库（如果它愿意收）。
+     这是现代网站「记住你」的标准做法：加密落盘、随浏览器账号同步、解锁交给系统
+     （Windows Hello）——32 位的随机串本来就不该由人去背，也不该只躺在 localStorage。
+     Firefox 没有这套 API 就跳过，它靠输入框的 autocomplete 属性自己提示保存。
+     存不上就算了（catch 里什么都不做），localStorage 那份照旧写入。 */
+  function remember(value) {
+    try {
+      if (window.PasswordCredential && navigator.credentials && navigator.credentials.store) {
+        var cred = new window.PasswordCredential({ id: 'cv01-owner', name: 'CV01 站长', password: value });
+        navigator.credentials.store(cred).catch(function () { /* 浏览器拒绝就不存 */ });
+      }
+    } catch (e) { /* 同上 */ }
+  }
+
   function enter() {
     var value = input.value.trim();
     if (!value) {
@@ -132,8 +146,11 @@
       .then(function () {
         stop();
         write(value);
-        /* 口令过了服务就已经盖了门厅那枚章，这一跳直接去本来要去的地方 */
-        window.location.href = NEXT;
+        remember(value);
+        /* 口令过了服务就已经盖了门厅那枚章，这一跳直接去本来要去的地方。
+           给浏览器的「保存口令」留一小拍：store() 是异步的，立刻跳走会把
+           第一次保存掐死在半路。 */
+        window.setTimeout(function () { window.location.href = NEXT; }, 250);
       }, function (err) {
         stop();
         say(reason(err), true);

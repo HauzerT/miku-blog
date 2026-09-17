@@ -41,7 +41,7 @@ if(!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches))
       <form class="gate__pass" id="gate-pass" data-pass novalidate hidden>
         <label class="gate__label" for="gate-input">口令</label>
         <input class="gate__input" id="gate-input" data-pass-input type="password" inputmode="latin"
-               autocomplete="off" spellcheck="false" enterkeyhint="go" placeholder="例如 3f9a1c02">
+               name="passphrase" autocomplete="current-password" spellcheck="false" enterkeyhint="go" placeholder="例如 3f9a1c02">
         <button class="gate-key gate-key--owner gate-key--go" type="submit">进入</button>
       </form>
 
