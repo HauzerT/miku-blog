@@ -13,7 +13,9 @@
      5) 回来：状态行出现；点「忘掉口令」再消失
      6) 访客键：直接进首页，且不写任何钥匙
      7) #owner：地址栏写了就直接停在口令那一行
-     8) 360×640 上截图看一眼（门厅是首屏页面，手机上的样子就是它的样子）
+     8) 记着口令：点「站长登录」一击进门；记的是旧口令：401 清账、回到手输
+        （自检自己会故意错口令——别在已被限速打爆的服务上跑，或把 CV01_AUTH_FREE 调大）
+     9) 360×640 上截图看一眼（门厅是首屏页面，手机上的样子就是它的样子）
 
    用法（服务要先跑起来）：
      node server/server.mjs 4321
@@ -455,7 +457,28 @@ try {
   s = await shape();
   check('#owner：口令行直接展开', s.passHidden === false);
 
-  /* --- 10. 手机上：两颗键并排，页脚那把尺不横向溢出 --- */
+  /* --- 10. 记着口令：点「站长登录」直接进门，不用再粘一次 --- */
+  await goto(url('login.html'));
+  await evaluate(`localStorage.setItem('cv01-key', ${JSON.stringify(key)})`);
+  await goto(url('login.html'));
+  await evaluate('document.querySelector(\'[data-owner]\').click()');
+  const remembered = await waitPath(/index\.html$/);
+  check('记着口令：一击进门（预填+自动试门）', /index\.html$/.test(remembered),
+    remembered || '还停在门厅');
+
+  /* --- 11. 记的是旧口令：自动试门吃 401，旧账当场清掉、回到手输 --- */
+  await goto(url('login.html'));
+  await evaluate("localStorage.setItem('cv01-key', 'stale-key-from-last-season')");
+  await goto(url('login.html'));
+  await evaluate('document.querySelector(\'[data-owner]\').click()');
+  await evaluate('new Promise(r => setTimeout(r, 1200))');
+  s = await shape();
+  check('旧口令：被拦下，人还在门厅', /login\.html$/.test(s.path) && s.passHidden === false,
+    `${s.path} 展开=${!s.passHidden}`);
+  check('旧口令：旧账当场清掉（localStorage 归零）', s.key === '', s.key === '' ? '归零' : `残留：${s.key}`);
+  check('旧口令：黑板说话了', s.clue.length > 0, s.clue || '一句没说');
+
+  /* --- 12. 手机上：两颗键并排，页脚那把尺不横向溢出 --- */
   await send('Emulation.setDeviceMetricsOverride', {
     width: 360, height: 640, deviceScaleFactor: 2, mobile: true,
   });
