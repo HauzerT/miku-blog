@@ -7,17 +7,25 @@
   @font-face{font-family:"Big Shoulders";src:url("../assets/fonts/BigShoulders-Regular.ttf") format("truetype");font-weight:400;font-display:block}
   @font-face{font-family:"Big Shoulders";src:url("../assets/fonts/BigShoulders-Bold.ttf") format("truetype");font-weight:700;font-display:block}
 
+  /* ------------------------------------------------------------------
+     2026-09-16 与站点同步：只换值，不换骨架（同第 12 节的手法）。
+     站点现行 = r3 中性地面 + 青窗（content/palette.mjs · windows.cyan）。
+     这张图因此不再以青底立论，而以「中性地面 + 一扇青窗」立论——
+     青从地面搬进了窗里，粉从窗里走上来承担指认，等级差交给墨量。
+     色值全部取自站点实测过的那几张表（palette.css 顶部的对比度注释）。
+     ------------------------------------------------------------------ */
   :root{
-    --ground:#39c5bb;      /* 青：初音标志色，整块地面 */
-    --rose:#6e0b3e;        /* 深玫瑰：青底上唯一能读的"粉"（5.6:1） */
-    --rose-soft:#7a2350;   /* 次要（4.5:1） */
-    --pink:#ff9ecb;        /* 亮樱粉：只在深色暗窗上出现（9.9:1） */
-    --display:#071316;
-    --display-2:#0e2226;
-    --on-dark:#d6ecea;
-    --on-dark-soft:#7fa5a6;
-    --cuer:#f5a623;        /* 此刻 */
-    --hair:rgba(110,11,62,.34);
+    --ground:#f5f8f8;       /* 地 · 中性冷灰（站点 --paper） */
+    --ink:#2d3033;          /* 墨 · 正文与结构线（对 --ground 12.43:1） */
+    --ink-soft:#666a6d;     /* 墨 · 次要（5.11:1） */
+    --cue:#ff3399;          /* 示 · 地面上的「此刻」：观察场的游标（对 --ground 3.18:1，2px 线 ≥3 即可） */
+    --cue-deep:#d81b7a;     /* 签 · 地面上的指认：锚句的下划线（4.51:1） */
+    --win-ground:#39c5bb;   /* 窗·地 · 青，全画唯一的高彩度色场 */
+    --win-ink:#101214;      /* 窗·墨 · 窗里只留得下黑（对青 8.83:1） */
+    --win-ink-soft:#20484a; /* 窗·次墨（4.73:1） */
+    --win-note:#101214;     /* 窗·音符块 · 黑键（白字 17.58:1） */
+    --win-note-ink:#f5f8f8; /* 窗·块上的字 */
+    --hair:rgba(45,48,51,.28);
     --serif:"Noto Serif SC","Source Han Serif SC","Songti SC",SimSun,serif;
     --sans:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
     --measure:"Big Shoulders","Noto Sans SC",system-ui,sans-serif;
@@ -28,48 +36,49 @@
   @media print{html,body{width:2400px;height:3394px;background:var(--ground)}}
   .stage{
     position:relative; width:2400px; height:3394px; overflow:hidden;
-    background:var(--ground); color:var(--rose);
+    background:var(--ground); color:var(--ink);
     font-family:var(--sans);
   }
   .abs{position:absolute}
-  .rule-top{position:absolute;left:0;top:112px;width:2400px;height:3px;background:var(--rose)}
+  .rule-top{position:absolute;left:0;top:112px;width:2400px;height:3px;background:var(--ink)}
   .rule-top2{position:absolute;left:0;top:121px;width:2400px;height:1px;background:var(--hair)}
 
   .slug{
     position:absolute;left:168px;right:168px;top:152px;
     display:flex;justify-content:space-between;
-    font-family:var(--measure);font-size:22px;letter-spacing:.24em;color:var(--rose-soft);
+    font-family:var(--measure);font-size:22px;letter-spacing:.24em;color:var(--ink-soft);
   }
   .title{
     position:absolute;left:160px;top:196px;
     font-family:var(--measure);font-weight:700;font-size:300px;line-height:.84;
-    letter-spacing:-.02em;margin:0;color:var(--rose);
+    letter-spacing:-.02em;margin:0;color:var(--ink);
   }
   .title-cn{
     position:absolute;left:172px;top:790px;margin:0;
     font-family:var(--serif);font-weight:700;font-size:92px;letter-spacing:.26em;
-    color:var(--rose);
+    color:var(--ink);
   }
   .title-note{
     position:absolute;left:176px;top:918px;margin:0;
-    font-size:24px;letter-spacing:.08em;color:var(--rose-soft);
+    font-size:24px;letter-spacing:.08em;color:var(--ink-soft);
   }
-  .title-note b{color:var(--rose);font-weight:400;font-family:var(--measure);letter-spacing:.16em}
+  .title-note b{color:var(--ink);font-weight:400;font-family:var(--measure);letter-spacing:.16em}
 
   /* 标本数据块：与标题同高，靠右，压在色场的空白里 */
   .spec{
     position:absolute;right:168px;top:236px;width:520px;padding-top:22px;
-    border-top:1px solid var(--rose);text-align:right;
+    border-top:1px solid var(--ink);text-align:right;
     font-family:var(--measure);font-size:21px;line-height:2.05;
-    letter-spacing:.2em;color:var(--rose-soft);
+    letter-spacing:.2em;color:var(--ink-soft);
   }
-  .spec b{font-weight:700;color:var(--rose)}
+  .spec b{font-weight:700;color:var(--ink)}
 
-  /* 暗窗：地平线，唯一允许出现亮樱粉与琥珀的地方 */
-  .window{position:absolute;left:0;top:1010px;width:2400px;height:1050px;background:var(--display)}
+  /* 暗窗：地平线。它是青色的实体——日间与夜间长得一样，不属于任何主题。
+     窗里只留得下黑：粉落青上 1.60:1，近白 2.13:1，黑 8.83:1。这是算出来的。 */
+  .window{position:absolute;left:0;top:1010px;width:2400px;height:1050px;background:var(--win-ground)}
   .win-ruler{
     position:absolute;left:430px;top:66px;width:1802px;height:56px;
-    border-bottom:1px solid rgba(255,158,203,.24);
+    border-bottom:1px solid rgba(16,18,20,.3);
   }
   .win-roll{position:absolute;left:430px;top:122px;width:1802px;height:810px}
   .win-axis{position:absolute;left:168px;top:122px;width:230px;height:810px}
@@ -77,51 +86,53 @@
     position:absolute;right:0;display:flex;align-items:baseline;gap:12px;
     height:90px;font-family:var(--measure);letter-spacing:.14em;
   }
-  .pitch .n{font-size:27px;font-weight:700;color:var(--on-dark)}
-  .pitch .h{font-size:18px;color:var(--on-dark-soft)}
+  .pitch .n{font-size:27px;font-weight:700;color:var(--win-ink)}
+  .pitch .h{font-size:18px;color:var(--win-ink-soft)}
   .win-foot{
     position:absolute;left:430px;top:946px;width:1802px;height:1px;
-    border-top:1px solid rgba(255,158,203,.24);
+    border-top:1px solid rgba(16,18,20,.3);
   }
-  .time-tick{position:absolute;top:962px;font-family:var(--measure);font-size:20px;letter-spacing:.18em;color:var(--on-dark-soft)}
-  .playhead{position:absolute;top:56px;width:2px;background:var(--cuer);box-shadow:0 0 14px rgba(245,166,35,.55)}
+  .time-tick{position:absolute;top:962px;font-family:var(--measure);font-size:20px;letter-spacing:.18em;color:var(--win-ink-soft)}
+  /* 日间的播放头是一条黑线，不发光——发光的那根只在夜里 */
+  .playhead{position:absolute;top:56px;width:2px;background:var(--win-ink)}
   .now{
     position:absolute;font-family:var(--measure);font-size:26px;letter-spacing:.18em;
-    color:var(--cuer);white-space:nowrap;
+    color:var(--win-ink);white-space:nowrap;
   }
 
-  /* 观察场：青底上的玫瑰墨 */
+  /* 观察场：中性地面上的墨。等级差全部交给墨量（基频最深，泛音 ≤.28），
+     「此刻」是地面上唯一的高彩度——樱粉。 */
   .field{position:absolute;left:0;top:2200px;width:2400px;height:876px}
   .field-plot{position:absolute;left:430px;top:0;width:1802px;height:876px}
   .field-axis{position:absolute;left:168px;top:0;width:230px;height:876px}
   .flabel{
     position:absolute;right:0;font-family:var(--measure);font-size:20px;
-    letter-spacing:.14em;color:var(--rose-soft);white-space:nowrap;
+    letter-spacing:.14em;color:var(--ink-soft);white-space:nowrap;
   }
   .flabel i{font-style:normal;opacity:.62;padding-right:10px}
   .field-foot{
     position:absolute;left:430px;top:900px;width:1802px;height:1px;border-top:1px solid var(--hair);
   }
-  .scalebar{position:absolute;left:430px;top:916px;height:12px;border-left:1px solid var(--rose);border-right:1px solid var(--rose);border-bottom:1px solid var(--rose)}
-  .scalebar-label{position:absolute;left:0;top:-2px;font-family:var(--measure);font-size:19px;letter-spacing:.16em;color:var(--rose-soft);white-space:nowrap}
-  .field-cap{position:absolute;right:168px;top:910px;text-align:right;font-family:var(--sans);font-size:19px;letter-spacing:.06em;color:var(--rose-soft)}
+  .scalebar{position:absolute;left:430px;top:916px;height:12px;border-left:1px solid var(--ink);border-right:1px solid var(--ink);border-bottom:1px solid var(--ink)}
+  .scalebar-label{position:absolute;left:0;top:-2px;font-family:var(--measure);font-size:19px;letter-spacing:.16em;color:var(--ink-soft);white-space:nowrap}
+  .field-cap{position:absolute;right:168px;top:910px;text-align:right;font-family:var(--sans);font-size:19px;letter-spacing:.06em;color:var(--ink-soft)}
 
-  /* 注册十字 */
+  /* 注册十字：地面上的用墨，窗沿上的用粉 */
   .reg{position:absolute;width:26px;height:26px}
-  .reg::before,.reg::after{content:"";position:absolute;background:var(--rose);opacity:.5}
+  .reg::before,.reg::after{content:"";position:absolute;background:var(--ink);opacity:.5}
   .reg::before{left:12px;top:0;width:1px;height:26px}
   .reg::after{left:0;top:12px;width:26px;height:1px}
-  .reg.d::before,.reg.d::after{background:var(--pink);opacity:.75}
+  .reg.d::before,.reg.d::after{background:var(--cue);opacity:.75}
 
-  .rule-bottom{position:absolute;left:0;top:3150px;width:2400px;height:1px;background:var(--rose)}
+  .rule-bottom{position:absolute;left:0;top:3150px;width:2400px;height:1px;background:var(--ink)}
   .anchor{
     position:absolute;left:168px;top:3196px;margin:0;
-    font-family:var(--serif);font-size:58px;letter-spacing:.04em;color:var(--rose);
+    font-family:var(--serif);font-size:58px;letter-spacing:.04em;color:var(--ink);
   }
-  .anchor u{text-decoration:none;border-bottom:3px solid var(--rose)}
+  .anchor u{text-decoration:none;border-bottom:3px solid var(--cue-deep)}
   .colophon{
     position:absolute;left:168px;right:168px;top:3322px;display:flex;justify-content:space-between;
-    font-family:var(--measure);font-size:24px;letter-spacing:.22em;color:var(--rose-soft);
+    font-family:var(--measure);font-size:24px;letter-spacing:.22em;color:var(--ink-soft);
   }
 </style>
 </head>
@@ -129,7 +140,7 @@
 <div class="stage" id="stage">
   <div class="rule-top"></div>
   <div class="rule-top2"></div>
-  <div class="slug"><span>CV01 ／ 調声機構</span><span>PLATE 01 · 07</span></div>
+  <div class="slug"><span>CV01 ／ 調声機構</span><span>PLATE 01 · 09</span></div>
 
   <h1 class="title">CALIBRATED<br>BREATH</h1>
   <p class="title-cn">校准之息</p>
@@ -156,7 +167,7 @@
     <div class="field-axis" id="fieldAxis"></div>
     <div class="field-foot"></div>
     <div class="scalebar" id="scaleBar"></div>
-    <div class="field-cap" id="fieldCap">FIG. 1 — 同一时间轴上的泛音分布：最深的玫瑰为基频，浅者为泛音</div>
+    <div class="field-cap" id="fieldCap">FIG. 1 — 同一时间轴上的泛音分布：最深的墨为基频，浅者为泛音</div>
   </section>
 
   <div class="rule-bottom"></div>
@@ -171,7 +182,7 @@
   var BEATS = 64, BPM = 120, DUR = BEATS * (60 / BPM);             // 64 拍 @120BPM = 32 秒
   var NOW = 0.64;                                                  // 此刻：第 20.5 秒
 
-  var ROSE = '#6e0b3e', PINK = '#ff9ecb', DARK = '#071316';
+  var INK = '#2d3033', WIN_INK = '#101214', WIN_NOTE_TEXT = '#f5f8f8', CUE = '#ff3399';
 
   /* 种子随机：同一张图每次渲染完全一致 */
   function rng(seed) {
@@ -204,25 +215,26 @@
   }
   var px = function (p) { return p / 100 * W; };
 
-  /* ---------------------------------------------------- 卷帘（九个声部） */
+  /* ---------------------------------------------------- 卷帘（九个声部）
+     窗里的线全是黑的——青 alpha 铺在青地上会整片消失（站点换青窗时踩过） */
   function buildRoll() {
     var out = [], i;
     // 隔小节淡带
     for (i = 0; i < 4; i++) {
-      if (i % 2 === 0) out.push(el('rect', { x: px(i * 25), y: 0, width: px(25), height: ROLL_H, fill: PINK, opacity: '.045' }));
+      if (i % 2 === 0) out.push(el('rect', { x: px(i * 25), y: 0, width: px(25), height: ROLL_H, fill: WIN_INK, opacity: '.05' }));
     }
     // 拍线与小节线
     for (i = 0; i < 64; i++) {
       var strong = i % 4 === 0;
       out.push(el('line', { x1: px(i * 1.5625), y1: 0, x2: px(i * 1.5625), y2: ROLL_H,
-        stroke: PINK, 'stroke-opacity': strong ? '.20' : '.075' }));
+        stroke: WIN_INK, 'stroke-opacity': strong ? '.20' : '.075' }));
     }
     // 轨道分隔
     for (i = 0; i <= LANES; i++) {
-      out.push(el('line', { x1: 0, y1: i * LANE_H, x2: W, y2: i * LANE_H, stroke: PINK, 'stroke-opacity': '.13' }));
+      out.push(el('line', { x1: 0, y1: i * LANE_H, x2: W, y2: i * LANE_H, stroke: WIN_INK, 'stroke-opacity': '.13' }));
     }
     // 黑键轨（F#3，最下一行）
-    out.push(el('rect', { x: 0, y: 8 * LANE_H, width: W, height: LANE_H, fill: '#000', opacity: '.26' }));
+    out.push(el('rect', { x: 0, y: 8 * LANE_H, width: W, height: LANE_H, fill: WIN_INK, opacity: '.16' }));
 
     // 音符块 + 起音标记 + 每轨脊线
     TRACKS.forEach(function (t, ti) {
@@ -231,11 +243,11 @@
       t.r.forEach(function (n) {
         var x = px(n[0]), w = px(n[1]);
         end = Math.max(end, x + w);
-        out.push(el('rect', { x: x, y: cy - 21, width: w, height: 42, rx: 3, fill: PINK }));
-        out.push(el('rect', { x: x, y: cy - 21, width: 3, height: 42, fill: DARK, opacity: '.55' }));
-        out.push(el('line', { x1: x, y1: cy - 31, x2: x, y2: cy + 31, stroke: '#ffe3f0', 'stroke-opacity': '.4' }));
+        out.push(el('rect', { x: x, y: cy - 21, width: w, height: 42, rx: 2, fill: WIN_INK }));
+        out.push(el('rect', { x: x, y: cy - 21, width: 3, height: 42, fill: WIN_NOTE_TEXT, opacity: '.55' }));
+        out.push(el('line', { x1: x, y1: cy - 31, x2: x, y2: cy + 31, stroke: WIN_NOTE_TEXT, 'stroke-opacity': '.45' }));
       });
-      out.push(el('line', { x1: 0, y1: cy, x2: end, y2: cy, stroke: PINK, 'stroke-opacity': '.5', 'stroke-width': 1 }));
+      out.push(el('line', { x1: 0, y1: cy, x2: end, y2: cy, stroke: WIN_INK, 'stroke-opacity': '.5', 'stroke-width': 1 }));
     });
 
     document.getElementById('winRoll').innerHTML =
@@ -245,8 +257,8 @@
     var ruler = [], n;
     for (n = 1; n <= 16; n++) {
       var x = px((n - 1) * 6.25);
-      ruler.push(el('line', { x1: x, y1: 40, x2: x, y2: 56, stroke: PINK, 'stroke-opacity': n % 4 === 1 ? '.5' : '.2' }));
-      if (n % 4 === 1) ruler.push(el('text', { x: x + 8, y: 30, fill: '#7fa5a6', 'font-family': 'Big Shoulders', 'font-size': 22, 'letter-spacing': '0.14em' }, String(n)));
+      ruler.push(el('line', { x1: x, y1: 40, x2: x, y2: 56, stroke: WIN_INK, 'stroke-opacity': n % 4 === 1 ? '.5' : '.2' }));
+      if (n % 4 === 1) ruler.push(el('text', { x: x + 8, y: 30, fill: '#20484a', 'font-family': 'Big Shoulders', 'font-size': 22, 'letter-spacing': '0.14em' }, String(n)));
     }
     document.getElementById('winRuler').innerHTML =
       el('svg', { width: W, height: 56, viewBox: '0 0 ' + W + ' 56' }, ruler.join(''));
@@ -283,15 +295,15 @@
     // 对数频率网格
     for (var g = 0; g <= 32; g++) {
       var gy = g / 32 * 876;
-      out.push(el('line', { x1: 0, y1: gy.toFixed(1), x2: W, y2: gy.toFixed(1), stroke: ROSE, 'stroke-opacity': '.05' }));
+      out.push(el('line', { x1: 0, y1: gy.toFixed(1), x2: W, y2: gy.toFixed(1), stroke: INK, 'stroke-opacity': '.05' }));
     }
     F_LABELS.forEach(function (f) {
       var y = uOf(f) * 876;
-      out.push(el('line', { x1: 0, y1: y.toFixed(1), x2: W, y2: y.toFixed(1), stroke: ROSE, 'stroke-opacity': '.14' }));
+      out.push(el('line', { x1: 0, y1: y.toFixed(1), x2: W, y2: y.toFixed(1), stroke: INK, 'stroke-opacity': '.14' }));
     });
 
     /* 每个音符 = 一串水平谐波条纹。
-       基频压到最深最实（青底上等级靠墨量表达，不靠色相），泛音浅。 */
+       地面变中性之后，等级差不能靠色相，只能靠墨量：基频最深最实，泛音压到 0.28 以下。 */
     TRACKS.forEach(function (tr) {
       tr.r.forEach(function (n) {
         var x0 = px(n[0]);
@@ -316,7 +328,7 @@
             out.push(el('rect', {
               x: (x0 + s * sw).toFixed(2), y: y.toFixed(2),
               width: (sw * 0.93).toFixed(2), height: h.toFixed(2), rx: 2,
-              fill: ROSE,
+              fill: INK,
               opacity: k === 1 ? Math.min(.95, .65 + a * .35).toFixed(3) : Math.min(.28, .03 + a * .3).toFixed(3)
             }));
           }
@@ -324,10 +336,10 @@
       });
     });
 
-    // 此刻：贯穿观察场的游标（青底上琥珀不可读，让位给最深的玫瑰；
-    // 琥珀"此刻"留在上方暗窗的播放头上，两者同一时刻、同一横坐标）
+    // 此刻：贯穿观察场的游标。窗里的播放头必须是黑的（粉落青上 1.60:1），
+    // 地面上的「此刻」归樱粉——两条线同一时刻、同一横坐标，各用各的场上唯一读得了的颜色。
     var nx = NOW * W;
-    out.push(el('line', { x1: nx, y1: -8, x2: nx, y2: 884, stroke: ROSE, 'stroke-width': 2, opacity: '.75' }));
+    out.push(el('line', { x1: nx, y1: -8, x2: nx, y2: 884, stroke: CUE, 'stroke-width': 2 }));
 
     document.getElementById('fieldPlot').innerHTML =
       el('svg', { width: W, height: 876, viewBox: '0 0 ' + W + ' 876' }, out.join(''));
