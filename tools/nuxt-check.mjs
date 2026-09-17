@@ -215,6 +215,21 @@ async function main() {
       ['/posts/lru', ['.roll--strip', 'article.article', '.prose', 'nav.pager']],
       ['/about', ['.spec__row', '.swatch']],
       ['/login', ['main.gate', '.gate-key--visitor', '.gate-key--owner']],
+      /* 云村：四段内容都在 DOM 里，显示哪一段由容器上的 data-music-state 决定。
+         这里挑的是「小服务没在跑」那段自己的东西——服务在不在都查得到，
+         所以自检不会因为本机恰好跑着 ncm-server 就翻脸。 */
+      [
+        '/kumura',
+        [
+          '[data-music]',
+          '[data-pane="loading"]',
+          '[data-pane="offline"]',
+          '[data-pane="offline"] code',
+          '[data-service-hint]',
+          '[data-qr]',
+          '[data-player]',
+        ],
+      ],
     ];
 
     for (const [path, selectors] of routes) {
