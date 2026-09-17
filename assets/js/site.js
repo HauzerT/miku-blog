@@ -1,6 +1,6 @@
 /* ==========================================================================
    site.js · 主题切换 / 时间轴播放头 / 悬停读数 / 时间轴键盘导航
-   站点在不加载本文件时依然完整可读：音符站在生成器算好的日子上，全亮，
+   站点在不加载本文件时依然完整可读：音符按生成器烤好的位置排开，全亮，
    主题跟随系统。
 
    分两半：
@@ -17,60 +17,59 @@
   var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var toArray = function (list) { return Array.prototype.slice.call(list); };
 
-  /* ------------------------------------------------------------- 日历比例尺
-     首页那条大卷帘的横轴是真实的日历。这份算式与生成器
-     （server/lib/shell.mjs 的 timelineScale / timelinePos / monthClusters）
-     是同一套，两边要一起改：静态页烤着生成器算好的位置；运行时新写的文章
-     进来后，layoutTimeline 按同一把尺把整条时间轴（音符、刻度、月线、
-     月份色块）重排一遍。 */
-  var DAY = 86400000;
-  function dayOf(value) {
-    var m = /^(\d{4})\.(\d{2})\.(\d{2})$/.exec(String(value || ''));
-    return m ? Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : NaN;
-  }
+  /* ------------------------------------------------------------- 接龙比例尺
+     首页那条大卷帘的横轴是接龙：文章按日期从旧到新排成一列，一篇紧挨一篇
+     往右接——中间隔了三天还是十个月，都只是一个音符的宽度加一格休止，
+     没发博的日子不留空白。这份算式与生成器（server/lib/shell.mjs 的
+     timelineChain / chainMonths / monthClusters）是同一套，两边要一起改：
+     静态页烤着生成器算好的位置；运行时新写的文章进来后，layoutTimeline
+     按同一把尺把整条时间轴（音符、月份刻度、月份色块）重排一遍。 */
+  var HEAD_DAYS = 2;   /* 左端留白 */
+  var REST_DAYS = 4;   /* 相邻两篇之间的休止 */
+  var TAIL_DAYS = 14;  /* 右端留白：还没写的下一篇，只留一格 */
   function layoutTimeline(roll) {
     var ruler = roll.querySelector('.roll__ruler');
-    var grid = roll.querySelector('.roll__grid');
     var dated = toArray(roll.querySelectorAll('.note')).filter(function (n) {
-      return Number.isFinite(dayOf(n.getAttribute('data-date')));
+      return /^(\d{4})\.(\d{2})\.(\d{2})$/.test(String(n.getAttribute('data-date') || ''));
     });
-    if (!dated.length || !ruler || !grid) return;
+    if (!dated.length || !ruler) return;
 
-    var days = dated.map(function (n) { return dayOf(n.getAttribute('data-date')); });
-    var t0 = Math.min.apply(null, days) - 2 * DAY;
-    var span = Math.max.apply(null, days) + 18 * DAY - t0;
+    /* 接龙：按日期从旧到新排成一列（排序稳定，同一天按轨道自上而下的
+       次序接——与生成器同一规则）；每个音符占 min×1.3 天（压在 5–11 之间） */
+    dated.sort(function (a, b) {
+      var da = a.getAttribute('data-date'), db = b.getAttribute('data-date');
+      return da < db ? -1 : da > db ? 1 : 0;
+    });
+    var cursor = HEAD_DAYS;
+    var months = [];
+    var lastMonth = '';
+    dated.forEach(function (n) {
+      var w = Math.min(11, Math.max(5, (parseFloat(n.getAttribute('data-min')) || 5) * 1.3));
+      var month = String(n.getAttribute('data-date')).slice(0, 7);
+      if (month !== lastMonth) { months.push({ x: cursor, label: month }); lastMonth = month; }
+      n.__cv01Day = { x: cursor, w: w };
+      cursor += w + REST_DAYS;
+    });
+    var span = cursor - REST_DAYS + TAIL_DAYS;
 
-    /* 画布跟着日子走：运行时文章把比例尺拉长，轴就往右长出新的地去 */
-    roll.style.setProperty('--days', String(Math.ceil(span / DAY)));
+    /* 画布跟着压缩过的日子走：运行时文章接上来，轴就往右长出新的地去 */
+    roll.style.setProperty('--days', String(Math.ceil(span)));
 
     dated.forEach(function (n) {
-      var x = ((dayOf(n.getAttribute('data-date')) - t0) / span) * 100;
-      var w = Math.min(11, Math.max(5, (parseFloat(n.getAttribute('data-min')) || 5) * 1.3));
+      var day = n.__cv01Day;
+      delete n.__cv01Day;
+      var x = (day.x / span) * 100;
       n.style.setProperty('--x', x.toFixed(2));
-      n.style.setProperty('--w', w.toFixed(2));
+      n.style.setProperty('--w', day.w.toFixed(2));
       n.setAttribute('data-x', x.toFixed(2));
       n.setAttribute('data-month', String(n.getAttribute('data-date')).slice(0, 7));
     });
 
-    /* 月份刻度与贯穿的月线跟着新的比例尺重画：每个月的第一天都落上轴。
-       只画到最后一篇文章所在的月份——再往右是还没写的留白，不挂牌子 */
-    var months = [];
-    var horizon = t0 + span - 16 * DAY;
-    var cursor = new Date(t0);
-    cursor.setUTCDate(1);
-    if (cursor.getTime() < t0) cursor.setUTCMonth(cursor.getUTCMonth() + 1);
-    while (cursor.getTime() <= horizon) {
-      months.push({
-        x: (((cursor.getTime() - t0) / span) * 100).toFixed(2),
-        label: cursor.getUTCFullYear() + '.' + ('0' + (cursor.getUTCMonth() + 1)).slice(-2),
-      });
-      cursor.setUTCMonth(cursor.getUTCMonth() + 1);
-    }
+    /* 顶部刻度：每个月的牌子挂在这个月第一篇音符的起点上。接龙轴上
+       月份不再等宽，但先后还在——牌子按月序排，永不互相压住；
+       没发博的月份天然没有牌子。轨道场里不拉月份竖线，音符自己就是刻度。 */
     ruler.innerHTML = months.map(function (m) {
-      return '<span class="roll__month" style="--x:' + m.x + '">' + m.label + '</span>';
-    }).join('');
-    grid.innerHTML = months.map(function (m) {
-      return '<i style="--x:' + m.x + '"></i>';
+      return '<span class="roll__month" style="--x:' + ((m.x / span) * 100).toFixed(2) + '">' + m.label + '</span>';
     }).join('');
 
     rebuildClusters(roll, dated);
@@ -190,7 +189,7 @@
   /* ------------------------------------------------------------ 卷帘 */
   function initRolls() {
     toArray(doc.querySelectorAll('[data-roll]')).forEach(function (roll) {
-      /* 页面若已经带着运行时补进来的音符（比如从后台切回来），按日历重排 */
+      /* 页面若已经带着运行时补进来的音符（比如从后台切回来），按同一把尺重排 */
       if (roll.querySelector('.note[data-live]')) layoutTimeline(roll);
       setupRoll(roll);
     });
@@ -221,6 +220,35 @@
       });
     }
     applyFold(roll, roll.getAttribute('data-open-month') || '');
+
+    /* Ctrl + 滚轮：调时间尺度（一天多宽）。滚上 = 放大、滚下 = 缩小，
+       写进卷帘自己的 --roll-day，roll.css 的画布算式就地生效——
+       所有位置都是百分比，音符、色块、刻度跟着一起胖瘦。
+       preventDefault 拦下浏览器自己的页面缩放；缩放后按比例留在
+       原来的横向上，不把人甩回开头。只绑首页大卷帘。 */
+    var scroller = roll.querySelector('.roll__scroller');
+    if (scroller && roll.classList.contains('roll--hero') && !scroller.__cv01Zoom) {
+      scroller.__cv01Zoom = true;
+      scroller.addEventListener('wheel', function (e) {
+        if (!e.ctrlKey) return;
+        e.preventDefault();
+        var declared = window.getComputedStyle(roll).getPropertyValue('--roll-day').trim();
+        var rem = parseFloat(window.getComputedStyle(root).fontSize) || 16;
+        var day = declared.indexOf('rem') >= 0
+          ? (parseFloat(declared) || 1.15) * rem
+          : (parseFloat(declared) || 1.15 * rem);
+        var next = day * (e.deltaY < 0 ? 1.12 : 1 / 1.12);
+        if (next < 8) next = 8;
+        if (next > 56) next = 56;
+        if (Math.abs(next - day) < 0.05) return;
+        var before = scroller.scrollWidth - scroller.clientWidth;
+        var left = scroller.scrollLeft;
+        roll.style.setProperty('--roll-day', next.toFixed(2) + 'px');
+        var after = scroller.scrollWidth - scroller.clientWidth;
+        if (after > 0 && before > 0) scroller.scrollLeft = left * (after / before);
+        measureRolls();
+      }, { passive: false });
+    }
 
     /* 播放头扫过一次，经过的音符依次点亮；随后全站再无自动动画。
        音符按日子排在横轴上，扫光就是按写作顺序把目录点亮一遍——
@@ -361,7 +389,7 @@
   }
 
   /* layoutTimeline 给 sections.js 用：运行时文章补进卷帘之后，
-     按日历把整条时间轴重排一遍（音符、月份刻度、月线一起动） */
+     按接龙把整条时间轴重排一遍（音符、月份刻度、月份色块一起动） */
   cv01.site = { initPage: initPage, bindNotes: bindNotes, layoutTimeline: layoutTimeline };
   initPage();
 })();

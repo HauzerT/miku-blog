@@ -11,7 +11,7 @@
      · articleBrief() 给前端合并用的瘦身版（含卷帘上的 x/w）
    ========================================================================== */
 
-import { site, page, escapeHtml, noteWidth, slotOf, rollStrip } from './shell.mjs';
+import { site, page, escapeHtml, noteWidth, slotOf, rollStrip, timelineChain } from './shell.mjs';
 import { sortByPitch, hiddenIn } from './store.mjs';
 import { renderMarkdown, needsMath } from './markdown.mjs';
 
@@ -80,14 +80,20 @@ export function trackOf(tracks, sectionId) {
   return tracks.find((t) => t.id === sectionId) || null;
 }
 
-/* 运行时文章在卷帘上的位置（前端补音符时要用同一套数字） */
+/* 运行时文章在卷帘上的位置（前端补音符时要用同一套数字）。
+   横轴是接龙：把整份 tracks 的全部文章排一条链，认出这篇在链上的那格；
+   认不出日期的（不会发生，挡一手）退回节奏槽。 */
 export function articleNote(tracks, article) {
   const ti = tracks.findIndex((t) => t.id === article.section);
   if (ti === -1) return null;
   const track = tracks[ti];
   const pi = track.posts.findIndex((p) => p.runtime && p.id === article.id);
   if (pi === -1) return null;
-  const [x, w] = noteWidth(slotOf(track, ti), pi);
+  const chain = timelineChain(tracks.flatMap((t) => t.posts || []));
+  const note = chain ? chain.notes.find((n) => n.post === track.posts[pi]) : null;
+  const [x, w] = note
+    ? [Number(((note.x / chain.span) * 100).toFixed(2)), Number(note.w.toFixed(2))]
+    : noteWidth(slotOf(track, ti), pi);
   return { x, w, pi, pitch: track.pitch, slot: slotOf(track, ti) };
 }
 

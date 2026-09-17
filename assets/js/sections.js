@@ -642,7 +642,7 @@
     }
 
     /* 运行时文章的音符：带上自己的日子。位置先按服务给的占个位，
-       插完马上按日历把整条时间轴重排（见 cv01.site.layoutTimeline） */
+       插完马上按接龙把整条时间轴重排（见 cv01.site.layoutTimeline） */
     var fresh = [];
     all.forEach(function (s, index) {
       var lane = lanes.children[index];
@@ -704,8 +704,8 @@
       fresh.forEach(function (n) { n.classList.add('is-lit'); });
     }
     if (touched && cv01.site && cv01.site.layoutTimeline) {
-      /* 增、删、改期都会改日历：只要动过，就按同一把尺把整条轴
-         （音符、月份刻度、月线、月份色块）重排一遍 */
+      /* 增、删、改期都会改接龙的次序：只要动过，就按同一把尺把整条轴
+         （音符、月份刻度、月份色块）重排一遍 */
       cv01.site.layoutTimeline(roll);
     }
     if (fresh.length && cv01.site && cv01.site.bindNotes) cv01.site.bindNotes(fresh);

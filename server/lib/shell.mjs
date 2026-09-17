@@ -72,60 +72,62 @@ export function noteWidth(trackIndex, postIndex) {
 export const slotOf = (track, index) => (Number.isFinite(track.slot) ? track.slot : index);
 
 /* ------------------------------------------------------------------ 时间轴
-   首页那条大卷帘的横轴不是小节，是真实的日历：音符站在文章写下的那天，
-   越往右越新。比例尺由全部文章的日期算出来，生成器与浏览器用的是同一套
-   算式（浏览器那份在 assets/js/site.js 的 layoutTimeline，改要两边一起改）：
-   · 左端往回退两天当边距；右端往后留十八天——装得下最后一格音符的宽度，
-     也留出「还没写的那段未来」。
-   · 画布按日子算宽（--days × --roll-day），文章越写越多，时间轴就往右长，
-     左右滚动是真的在「翻日历」，不是把日子挤进一屏。
-   · 音符的宽度仍是阅读分钟数：min × 1.3 天（压在 5–11 天之间）。
-     同一条轨道上两篇文章最少隔半个月，挤不到一起。 */
-const DAY_MS = 86400000;
+   首页那条大卷帘的横轴不是日历，是接龙：全部文章按日期从旧到新排成一列，
+   一篇紧挨一篇往右接——中间隔了三天还是十个月，卷帘上都只是一个音符的
+   宽度加一格休止，没发博的日子不留空白。尺子的单位仍是「天」
+   （--roll-day = 一天的宽），只是这些天是压缩过的：
+   · 每篇音符占 min × 1.3 天（压在 5–11 天之间）：宽 = 读得久；
+   · 相邻两篇之间空 REST 天当休止；同一天的多篇也依次往右排，挤不重叠；
+   · 左端留 HEAD 天、右端留 TAIL 天——右端那格是「还没写的下一篇」，
+     只留一格，不再跟着空月份往右拉。
+   · 画布按这些压缩过的天算宽（--days × --roll-day），文章越写越多，
+     轴往右长；左右滚动是沿着写作顺序翻目录。
+   生成器与浏览器用同一套算式（浏览器那份在 assets/js/site.js 的
+   layoutTimeline，改要两边一起改）。 */
+const REST = 4;   /* 相邻两篇之间的休止（压缩天） */
+const HEAD = 2;   /* 左端留白 */
+const TAIL = 14;  /* 右端留白 */
 const dateDay = (value) => {
   const m = /^(\d{4})\.(\d{2})\.(\d{2})$/.exec(String(value || ''));
   return m ? Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : NaN;
 };
 const clamp01 = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+const noteDays = (min) => clamp01((Number(min) || 5) * 1.3, 5, 11);
 
-/* dates：一串 YYYY.MM.DD。没有一天能认出来就返回 null，调用方退回节奏槽 */
-export function timelineScale(dates) {
-  const days = (dates || []).map(dateDay).filter((n) => Number.isFinite(n));
-  if (!days.length) return null;
-  const t0 = Math.min.apply(null, days) - 2 * DAY_MS;
-  const t1 = Math.max.apply(null, days) + 18 * DAY_MS;
-  return { t0, span: t1 - t0 };
+/* posts：文章对象（认 .date 与 .min，顺序随意）。按日期从旧到新接成一条链，
+   返回 { notes, span }：notes 是按接龙顺序排好的 [{ post, date, x, w }]
+   （x/w 的单位是压缩天，CSS 里按 --roll-day 折成像素——画布拉宽，音符
+   不会跟着虚胖），span 是整条轴的长度。一篇认得出的日期都没有就返回
+   null，调用方退回节奏槽。同一天的多篇按传入顺序接（排序是稳定的，
+   传入顺序即轨道自上而下的次序，浏览器那份也对得上）。 */
+export function timelineChain(posts) {
+  const dated = (posts || [])
+    .filter((p) => p && Number.isFinite(dateDay(p.date)))
+    .sort((a, b) => dateDay(a.date) - dateDay(b.date));
+  const notes = [];
+  let cursor = HEAD;
+  for (const post of dated) {
+    const w = noteDays(post.min);
+    notes.push({ post, date: post.date, x: cursor, w });
+    cursor += w + REST;
+  }
+  if (!notes.length) return null;
+  return { notes, span: cursor - REST + TAIL };
 }
 
-/* 日期 → [x%, w(天)]。x 是画布上的百分比；w 是音符的宽（天），
-   CSS 里按 --roll-day 折成像素——画布变宽，音符也不会跟着虚胖。
-   认不出的日期返回 null，调用方自己退回节奏槽 */
-export function timelinePos(date, min, scale) {
-  if (!scale) return null;
-  const day = dateDay(date);
-  if (!Number.isFinite(day)) return null;
-  const x = ((day - scale.t0) / scale.span) * 100;
-  const w = clamp01((Number(min) || 5) * 1.3, 5, 11);
-  return [Number(x.toFixed(2)), Number(w.toFixed(2))];
-}
-
-/* 比例尺里每个月的第一天 → { x, label }，月份刻度与贯穿的月线都用它。
-   只画到「最后一篇文章」所在的月份为止：再往后是还没写的留白，
-   不挂日历的牌子（挂了也会顶出窗沿）。 */
-export function timelineMonths(scale) {
-  if (!scale) return [];
+/* 顶部刻度：每个月的牌子挂在这个月第一篇音符的起点上。
+   接龙轴上月份不再等宽，但先后还在——牌子按月序排，永不互相压住；
+   没发博的月份天然没有牌子，也就没有空档可标。 */
+export function chainMonths(chain) {
+  if (!chain) return [];
   const out = [];
-  const horizon = scale.t0 + scale.span - 16 * DAY_MS;
-  const cursor = new Date(scale.t0);
-  cursor.setUTCDate(1);
-  if (cursor.getTime() < scale.t0) cursor.setUTCMonth(cursor.getUTCMonth() + 1);
-  while (cursor.getTime() <= horizon) {
-    const x = ((cursor.getTime() - scale.t0) / scale.span) * 100;
-    out.push({
-      x: Number(x.toFixed(2)),
-      label: cursor.getUTCFullYear() + '.' + String(cursor.getUTCMonth() + 1).padStart(2, '0'),
-    });
-    cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+  let last = '';
+  for (const n of chain.notes) {
+    const label = String(n.date).slice(0, 7);
+    if (label !== last) {
+      out.push({ x: Number(((n.x / chain.span) * 100).toFixed(2)), label });
+      last = label;
+    }
   }
   return out;
 }
@@ -365,10 +367,14 @@ export function rollHero(base, tracks) {
     .map((t) => `        <span class="keycap${t.black ? ' keycap--black' : ''}"></span>`)
     .join('\n');
 
-  /* 横轴 = 日历。所有文章的日子摆上同一把比例尺，月份刻度与贯穿的月线
-     一起从比例尺算出来；认不出日期的文章退回节奏槽（不会发生，挡一手） */
-  const scale = timelineScale(tracks.flatMap((t) => t.posts.map((p) => p.date)));
-  const months = timelineMonths(scale);
+  /* 横轴 = 接龙。全部文章按日期从旧到新排成一列，一篇紧挨一篇往右接，
+     顶部每个月的牌子挂在这个月第一篇的起点上。
+     认不出日期的文章退回节奏槽（不会发生，挡一手） */
+  const chain = timelineChain(tracks.flatMap((t) => t.posts || []));
+  const months = chainMonths(chain);
+  const posOf = new Map();
+  if (chain) for (const n of chain.notes) posOf.set(n.post, n);
+  const spanDays = chain ? chain.span : 0;
 
   /* 先把每篇的位置算出来，再按月归拢：同月 ≥2 篇的折进色块里 */
   const placed = [];
@@ -377,13 +383,14 @@ export function rollHero(base, tracks) {
       .slice()
       .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
       .forEach((post) => {
-        const pos = timelinePos(post.date, post.min, scale);
+        const pos = posOf.get(post);
+        const fallback = noteWidth(slotOf(t, ti), Math.max(0, t.posts.indexOf(post)));
         placed.push({
           post,
           track: t,
           ti,
-          x: pos ? pos[0] : noteWidth(slotOf(t, ti), post.pi)[0],
-          w: pos ? pos[1] : noteWidth(slotOf(t, ti), post.pi)[1],
+          x: pos ? Number(((pos.x / spanDays) * 100).toFixed(2)) : fallback[0],
+          w: pos ? Number(pos.w.toFixed(2)) : fallback[1],
           month: pos ? String(post.date).slice(0, 7) : '',
         });
       });
@@ -430,8 +437,8 @@ export function rollHero(base, tracks) {
   const top = tracks[0];
   const bottom = tracks[tracks.length - 1];
 
-  /* 画布宽度 = 日子数 × --roll-day（见 roll.css）：文章变多，轴就变长 */
-  const days = scale ? Math.ceil(scale.span / DAY_MS) : 0;
+  /* 画布宽度 = 压缩过的日子数 × --roll-day（见 roll.css）：文章变多，轴就变长 */
+  const days = spanDays ? Math.ceil(spanDays) : 0;
   const canvas = days ? ` style="--days:${days}"` : '';
 
   return `<div class="roll roll--hero roll--bleed"${canvas} data-roll>
@@ -456,9 +463,6 @@ ${keys}
           <div class="roll__lanes">
 ${lanes}
           </div>
-        </div>
-        <div class="roll__grid" aria-hidden="true">
-          ${months.map((m) => `<i style="--x:${m.x}"></i>`).join('\n          ')}
         </div>${
           clusters.length
             ? `\n        <div class="roll__clusters">\n${clusterEls}\n        </div>`
