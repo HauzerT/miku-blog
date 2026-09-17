@@ -50,8 +50,7 @@ if(!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches))
 const BASE_STYLES = ['/assets/css/palette.css', '/assets/css/tokens.css', '/assets/css/base.css'];
 
 /* 需要预渲染（nuxt generate）的静态路由：内容真源里有什么就生成什么。
-   隐藏掉的文章与板块不给（见 data/overrides.json），界面上新建的照给。
-   门厅与编辑页是固定的两页；云村那一页还要等它自己搬过来。 */
+   隐藏掉的文章与板块不给（见 data/overrides.json），界面上新建的照给。 */
 const hiddenPosts = new Set(
   Object.entries(readJson('overrides.json', {}).posts || {})
     .filter(([, v]) => v && v.hidden)
@@ -69,6 +68,7 @@ const contentRoutes = [
   '/',
   '/archive',
   '/about',
+  '/kumura',
   '/login',
   '/editor',
   ...seedTracks.filter((t) => !hiddenSections.has(t.id)).map((t) => `/sections/${t.id}`),
