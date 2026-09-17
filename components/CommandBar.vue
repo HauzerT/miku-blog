@@ -1,11 +1,18 @@
 <script setup>
 /* 命令栏：站名、四个去处、以及三颗站长/体验按钮。
    三颗按钮默认 hidden —— 与静态页同一条规矩：没 JS（或没服务）就不摆按不动的东西。
-   音效那颗等「钢琴声」那一半搬完之后再解开（见 composables/useSound，下一轮）。 */
+   「全局编辑」那一颗等 editmode 搬完再解开。 */
 const props = defineProps({ current: { type: String, default: '' } })
 
 const site = useSiteMeta()
 const { ready, label, ariaLabel, dark, toggle } = useTheme()
+const {
+  ready: soundReady,
+  enabled: soundOn,
+  label: soundLabel,
+  ariaLabel: soundAria,
+  toggle: toggleSound,
+} = useSound()
 
 const items = [
   { to: '/', label: '首页', id: 'home' },
@@ -36,6 +43,16 @@ const items = [
       :aria-label="ariaLabel"
       @click="toggle"
     >{{ label }}</button>
-    <button class="bar__sound" type="button" data-sound-toggle hidden>开启音效</button>
+    <!-- 「开启音效」：默认关着。CSS 里 .bar__sound 的 display 会盖过 hidden，
+         SSR 出来的那一瞬就看得见，与静态页一样（那边也是脚本挂载后才解开）。 -->
+    <button
+      class="bar__sound"
+      type="button"
+      data-sound-toggle
+      :hidden="!soundReady"
+      :aria-pressed="soundOn ? 'true' : 'false'"
+      :aria-label="soundAria"
+      @click="toggleSound"
+    >{{ soundLabel }}</button>
   </header>
 </template>

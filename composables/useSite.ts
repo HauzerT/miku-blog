@@ -37,6 +37,19 @@ export const useExcerptPool = () => {
   return computed(() => site.value.excerpts || seedExcerpts);
 };
 
+/* 界面上刚写完一篇文章 / 刚建完一个板块之后喊一声：把服务端装配好的那一份重新取回来。
+   旧站的 assets/js/sections.js 之所以有四十多行「就地改轨道栏、索引、卷帘、文章列表」，
+   是因为静态页把内容烤进了 HTML；在这里内容本来就是一份共享状态，重取一次就够。 */
+export const refreshSite = async () => {
+  const state = useSite();
+  try {
+    state.value = await $fetch('/api/content');
+  } catch {
+    /* 服务不在：留着手上这份，页面照样能读 */
+  }
+  return state.value;
+};
+
 /* 按 slug 找一篇（认得出它属于哪条轨道），文章页与「上一篇 / 下一篇」都用它 */
 export const useFindPost = (slug) => {
   const site = useSite();

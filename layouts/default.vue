@@ -12,6 +12,16 @@
 const route = useRoute()
 const tracks = useTracks()
 
+/* 站内页面自己那一套样式与配色脚本：门厅不借它们（见 layouts/gate.vue） */
+useHead({
+  link: [
+    { rel: 'stylesheet', href: '/assets/css/roll.css' },
+    { rel: 'stylesheet', href: '/assets/css/page.css' },
+    { rel: 'stylesheet', href: '/assets/css/studio.css' },
+  ],
+  script: [{ src: '/assets/js/palette.js' }],
+})
+
 const nav = computed(() => {
   const p = route.path
   if (p === '/') return 'home';
@@ -50,4 +60,5 @@ onMounted(() => {
     <SiteFooter />
   </div>
   <StudioDock />
+  <ToastBar />
 </template>

@@ -12,10 +12,23 @@
    · 不引任何 CDN：vue / marked / katex 全从 node_modules 打包进产物，离线可用。
 */
 import { fileURLToPath } from 'node:url';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { tracks as seedTracks } from './content/posts.mjs';
 import { rounds as PALETTE_ROUNDS, active as PALETTE_ACTIVE } from './content/palette.mjs';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
+
+/* data/ 里那几个文件：预渲染要按它们决定生成哪些页（data 不进仓库，缺了就退回空） */
+const readJson = (name, fallback) => {
+  const file = join(root, 'data', name);
+  if (!existsSync(file)) return fallback;
+  try {
+    return JSON.parse(readFileSync(file, 'utf8'));
+  } catch {
+    return fallback;
+  }
+};
 
 /* 首帧的地址栏颜色：色值只在 content/palette.mjs 里写一次（见 server/lib/shell.mjs 的 paperHex） */
 const paperHex = (theme = 'light') => {
@@ -32,27 +45,37 @@ else if(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches){r
 /* 手机浏览器地址栏的颜色紧接着由 assets/js/palette.js 按当前配色算，这里不再写死 */
 if(!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)){r.classList.add('js')}})();`;
 
-/* 全站都要的样式表，顺序与 server/lib/shell.mjs 的 head() 完全一致 */
-const BASE_STYLES = [
-  '/assets/css/palette.css',
-  '/assets/css/tokens.css',
-  '/assets/css/base.css',
-  '/assets/css/roll.css',
-  '/assets/css/page.css',
-  '/assets/css/studio.css',
-];
+/* 每一页都要的样式表。roll / page / studio 只在站内页面用得上，
+   由 layouts/default.vue 自己带上；门厅（layouts/gate.vue）只借前三个。 */
+const BASE_STYLES = ['/assets/css/palette.css', '/assets/css/tokens.css', '/assets/css/base.css'];
 
-/* 需要预渲染（nuxt generate）的静态路由：内容真源里有什么就生成什么 */
+/* 需要预渲染（nuxt generate）的静态路由：内容真源里有什么就生成什么。
+   隐藏掉的文章与板块不给（见 data/overrides.json），界面上新建的照给。
+   门厅与编辑页是固定的两页；云村那一页还要等它自己搬过来。 */
+const hiddenPosts = new Set(
+  Object.entries(readJson('overrides.json', {}).posts || {})
+    .filter(([, v]) => v && v.hidden)
+    .map(([slug]) => slug)
+);
+const hiddenSections = new Set(
+  Object.entries(readJson('overrides.json', {}).sections || {})
+    .filter(([, v]) => v && v.hidden)
+    .map(([id]) => id)
+);
+const runtimeSections = readJson('sections.json', []).filter((s) => s && s.seed === false);
+const runtimeArticles = readJson('articles.json', []);
+
 const contentRoutes = [
   '/',
   '/archive',
   '/about',
-  '/kumura',
-  '/editor',
   '/login',
-  ...seedTracks.map((t) => `/sections/${t.id}`),
-  ...seedTracks.flatMap((t) => t.posts.map((p) => `/posts/${p.slug}`)),
-];
+  '/editor',
+  ...seedTracks.filter((t) => !hiddenSections.has(t.id)).map((t) => `/sections/${t.id}`),
+  ...runtimeSections.filter((s) => !hiddenSections.has(s.id)).map((s) => `/sections/${s.id}`),
+  ...seedTracks.flatMap((t) => (t.posts || []).map((p) => `/posts/${p.slug}`)).filter((p) => !hiddenPosts.has(p.split('/').pop())),
+  ...runtimeArticles.filter((a) => a && a.slug && !hiddenPosts.has(a.slug)).map((a) => `/posts/${a.slug}`),
+].filter((route, i, all) => all.indexOf(route) === i);
 
 export default defineNuxtConfig({
   compatibilityDate: '2026-01-01',
@@ -75,8 +98,6 @@ export default defineNuxtConfig({
       ],
       script: [
         { innerHTML: BOOT, tagPriority: 30 },
-        /* 配色轮次与地址栏颜色：生成出来的文件，和静态页用同一份 */
-        { src: '/assets/js/palette.js', tagPriority: 29 },
       ],
     },
   },
