@@ -65,7 +65,7 @@ function buildIndex() {
   const main = `    <section class="hero">
       <h1 class="hero__name">${site.brand}</h1>
       <p class="hero__latin">${site.latin}</p>
-      <p class="hero__note">${VOICE_CN}个板块是一个和弦的${VOICE_CN}个音，<em>越往上越轻</em>。下面这条卷帘就是本站的目录：点任意一个音符进文章，点左边的轨道名进板块。指针停在音符上会报出它的音高、标题和时长。</p>
+      <p class="hero__note">${VOICE_CN}个板块是一个和弦的${VOICE_CN}个音，<em>越往上越轻</em>。下面这条时间轴就是本站的目录：音符站在文章写下的那天，越往右越新，越宽读得越久。点音符进文章，点左边的轨道名进板块；指针停在音符上会报出日期与时长。</p>
     </section>
 
 ${rollHero('', tracks)}

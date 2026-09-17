@@ -1,10 +1,11 @@
 /* ==========================================================================
-   site.js · 主题切换 / 卷帘播放头 / 悬停读数 / 卷帘键盘导航
-   站点在不加载本文件时依然完整可读：音符默认全亮，主题跟随系统。
+   site.js · 主题切换 / 时间轴播放头 / 悬停读数 / 时间轴键盘导航
+   站点在不加载本文件时依然完整可读：音符站在生成器算好的日子上，全亮，
+   主题跟随系统。
 
    分两半：
      · 主题开关、resize 量尺 —— 整个会话只装一次
-     · initPage() —— 跟着「当前这一页的正文」走（卷帘、每日一句）；
+     · initPage() —— 跟着「当前这一页的正文」走（时间轴、每日一句）；
        nav.js 局部换完正文之后会再喊它一遍，所以每次切页播放头都会重扫。
    ========================================================================== */
 (function () {
@@ -15,6 +16,64 @@
   var cv01 = (window.cv01 = window.cv01 || {});
   var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var toArray = function (list) { return Array.prototype.slice.call(list); };
+
+  /* ------------------------------------------------------------- 日历比例尺
+     首页那条大卷帘的横轴是真实的日历。这份算式与生成器
+     （server/lib/shell.mjs 的 timelineScale / timelinePos）是同一套，
+     两边要一起改：静态页烤着生成器算好的位置；运行时新写的文章进来后，
+     layoutTimeline 按同一把尺把整条时间轴（音符、刻度、月线）重排一遍。 */
+  var DAY = 86400000;
+  function dayOf(value) {
+    var m = /^(\d{4})\.(\d{2})\.(\d{2})$/.exec(String(value || ''));
+    return m ? Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : NaN;
+  }
+  function layoutTimeline(roll) {
+    var ruler = roll.querySelector('.roll__ruler');
+    var grid = roll.querySelector('.roll__grid');
+    var dated = toArray(roll.querySelectorAll('.note')).filter(function (n) {
+      return Number.isFinite(dayOf(n.getAttribute('data-date')));
+    });
+    if (!dated.length || !ruler || !grid) return;
+
+    var days = dated.map(function (n) { return dayOf(n.getAttribute('data-date')); });
+    var t0 = Math.min.apply(null, days) - 2 * DAY;
+    var span = Math.max.apply(null, days) + 18 * DAY - t0;
+
+    /* 画布跟着日子走：运行时文章把比例尺拉长，轴就往右长出新的地去 */
+    roll.style.setProperty('--days', String(Math.ceil(span / DAY)));
+
+    dated.forEach(function (n) {
+      var x = ((dayOf(n.getAttribute('data-date')) - t0) / span) * 100;
+      var w = Math.min(11, Math.max(5, (parseFloat(n.getAttribute('data-min')) || 5) * 1.3));
+      n.style.setProperty('--x', x.toFixed(2));
+      n.style.setProperty('--w', w.toFixed(2));
+      n.setAttribute('data-x', x.toFixed(2));
+    });
+
+    /* 月份刻度与贯穿的月线跟着新的比例尺重画：每个月的第一天都落上轴。
+       只画到最后一篇文章所在的月份——再往右是还没写的留白，不挂牌子 */
+    var months = [];
+    var horizon = t0 + span - 16 * DAY;
+    var cursor = new Date(t0);
+    cursor.setUTCDate(1);
+    if (cursor.getTime() < t0) cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+    while (cursor.getTime() <= horizon) {
+      months.push({
+        x: (((cursor.getTime() - t0) / span) * 100).toFixed(2),
+        label: cursor.getUTCFullYear() + '.' + ('0' + (cursor.getUTCMonth() + 1)).slice(-2),
+      });
+      cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+    }
+    ruler.innerHTML = months.map(function (m) {
+      return '<span class="roll__month" style="--x:' + m.x + '">' + m.label + '</span>';
+    }).join('');
+    grid.innerHTML = months.map(function (m) {
+      return '<i style="--x:' + m.x + '"></i>';
+    }).join('');
+
+    /* 音符重排过，横向的宽窄可能变——「可以左右滑动」的提示重新量一遍 */
+    measureRolls();
+  }
 
   /* ------------------------------------------------------------ 主题 */
   var toggle = doc.querySelector('[data-theme-toggle]');
@@ -63,7 +122,11 @@
 
   /* ------------------------------------------------------------ 卷帘 */
   function initRolls() {
-    toArray(doc.querySelectorAll('[data-roll]')).forEach(setupRoll);
+    toArray(doc.querySelectorAll('[data-roll]')).forEach(function (roll) {
+      /* 页面若已经带着运行时补进来的音符（比如从后台切回来），按日历重排 */
+      if (roll.querySelector('.note[data-live]')) layoutTimeline(roll);
+      setupRoll(roll);
+    });
   }
 
   function setupRoll(roll) {
@@ -80,22 +143,31 @@
       live.setAttribute('data-idle', idle);
     }
 
-    /* 播放头扫过一次，经过的音符依次点亮；随后全站再无自动动画 */
+    /* 播放头扫过一次，经过的音符依次点亮；随后全站再无自动动画。
+       音符按日子排在横轴上，扫光就是按写作顺序把目录点亮一遍——
+       终点按最右那格音符归一，不写死。 */
     if (reduce || !root.classList.contains('js')) {
       notes.forEach(function (n) { n.classList.add('is-lit'); });
     } else {
+      var maxX = notes.reduce(function (m, n) {
+        return Math.max(m, parseFloat(n.getAttribute('data-x')) || 0);
+      }, 0) || 93;
       notes.forEach(function (n) {
         var x = parseFloat(n.getAttribute('data-x') || '0');
-        var at = Math.min(2200, (x / 78) * 2200);
+        var at = Math.min(2200, (x / maxX) * 2200);
         window.setTimeout(function () { n.classList.add('is-lit'); }, at);
       });
     }
 
     function show(note) {
       if (!live) return;
-      live.textContent = note.getAttribute('data-pitch') + ' · ' +
-        note.getAttribute('data-title') + ' · ' +
-        note.getAttribute('data-min') + ' 分钟';
+      var parts = [
+        note.getAttribute('data-pitch'),
+        note.getAttribute('data-title'),
+        note.getAttribute('data-date'),
+        (note.getAttribute('data-min') || '') + ' 分钟',
+      ].filter(Boolean);
+      live.textContent = parts.join(' · ');
       live.classList.add('is-live');
     }
     function clear() {
@@ -193,9 +265,13 @@
 
   function showNote(live, note) {
     if (!live) return;
-    live.textContent = note.getAttribute('data-pitch') + ' · ' +
-      note.getAttribute('data-title') + ' · ' +
-      note.getAttribute('data-min') + ' 分钟';
+    var parts = [
+      note.getAttribute('data-pitch'),
+      note.getAttribute('data-title'),
+      note.getAttribute('data-date'),
+      (note.getAttribute('data-min') || '') + ' 分钟',
+    ].filter(Boolean);
+    live.textContent = parts.join(' · ');
     live.classList.add('is-live');
   }
 
@@ -205,6 +281,8 @@
     live.classList.remove('is-live');
   }
 
-  cv01.site = { initPage: initPage, bindNotes: bindNotes };
+  /* layoutTimeline 给 sections.js 用：运行时文章补进卷帘之后，
+     按日历把整条时间轴重排一遍（音符、月份刻度、月线一起动） */
+  cv01.site = { initPage: initPage, bindNotes: bindNotes, layoutTimeline: layoutTimeline };
   initPage();
 })();

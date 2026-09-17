@@ -64,14 +64,14 @@ if(!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches))
     <section class="hero">
       <h1 class="hero__name">初音ミク</h1>
       <p class="hero__latin">HATSUNE MIKU</p>
-      <p class="hero__note">九个板块是一个和弦的九个音，<em>越往上越轻</em>。下面这条卷帘就是本站的目录：点任意一个音符进文章，点左边的轨道名进板块。指针停在音符上会报出它的音高、标题和时长。</p>
+      <p class="hero__note">九个板块是一个和弦的九个音，<em>越往上越轻</em>。下面这条时间轴就是本站的目录：音符站在文章写下的那天，越往右越新，越宽读得越久。点音符进文章，点左边的轨道名进板块；指针停在音符上会报出日期与时长。</p>
     </section>
 
-<div class="roll roll--hero roll--bleed" data-roll>
+<div class="roll roll--hero roll--bleed" style="--days:92" data-roll>
   <div class="roll__bar">
-    <p class="roll__caption">卷帘 · 本站目录</p>
+    <p class="roll__caption">时间轴 · 本站目录</p>
     <p class="roll__live" data-live data-idle="把指针停在音符上，或者用方向键走一遍">把指针停在音符上，或者用方向键走一遍</p>
-    <p class="roll__readout"><b>9</b> 轨 · <b>F#3–A5</b> · <b>120</b> BPM</p>
+    <p class="roll__readout"><b>9</b> 轨 · <b>27</b> 篇 · <b>2025.01–03</b> · F#3–A5</p>
   </div>
   <div class="roll__scroller">
     <div class="roll__inner">
@@ -125,62 +125,71 @@ if(!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches))
         <span class="keycap keycap--black"></span>
       </div>
       <div class="roll__field">
-        <div class="roll__ruler" aria-hidden="true"><span>1</span><span>5</span><span>9</span><span>13</span></div>
+        <div class="roll__ruler" aria-hidden="true">
+          <span class="roll__month" style="--x:0">2025.01</span>
+          <span class="roll__month" style="--x:33.7">2025.02</span>
+          <span class="roll__month" style="--x:64.13">2025.03</span>
+        </div>
         <div class="roll__body">
           <div class="roll__lanes">
         <div class="lane">
-        <a class="note" style="--x:4;--w:15" data-x="4" data-pitch="A5" data-title="《孤独摇滚》里的社恐是准确的" data-min="7" href="posts/bocchi-social-anxiety.html" aria-label="《孤独摇滚》里的社恐是准确的（二次生命，7 分钟）"><span class="note__short">社恐</span></a>
-        <a class="note" style="--x:25;--w:19" data-x="25" data-pitch="A5" data-title="把 MMD 模型导进 Blender 的第一晚" data-min="8" href="posts/mmd-to-blender.html" aria-label="把 MMD 模型导进 Blender 的第一晚（二次生命，8 分钟）"><span class="note__short">MMD</span></a>
-        <a class="note" style="--x:54;--w:21" data-x="54" data-pitch="A5" data-title="漫展前一晚的行李箱" data-min="5" href="posts/convention-suitcase.html" aria-label="漫展前一晚的行李箱（二次生命，5 分钟）"><span class="note__short">行李箱</span></a>
+        <a class="note" style="--x:31.52;--w:6.5" data-x="31.52" data-date="2025.01.30" data-pitch="A5" data-title="漫展前一晚的行李箱" data-min="5" href="posts/convention-suitcase.html" aria-label="2025.01.30 · 漫展前一晚的行李箱（二次生命，5 分钟）"><span class="note__short">行李箱</span></a>
+        <a class="note" style="--x:59.78;--w:10.4" data-x="59.78" data-date="2025.02.25" data-pitch="A5" data-title="把 MMD 模型导进 Blender 的第一晚" data-min="8" href="posts/mmd-to-blender.html" aria-label="2025.02.25 · 把 MMD 模型导进 Blender 的第一晚（二次生命，8 分钟）"><span class="note__short">MMD</span></a>
+        <a class="note" style="--x:80.43;--w:9.1" data-x="80.43" data-date="2025.03.16" data-pitch="A5" data-title="《孤独摇滚》里的社恐是准确的" data-min="7" href="posts/bocchi-social-anxiety.html" aria-label="2025.03.16 · 《孤独摇滚》里的社恐是准确的（二次生命，7 分钟）"><span class="note__short">社恐</span></a>
         </div>
         <div class="lane">
-        <a class="note" style="--x:2;--w:21" data-x="2" data-pitch="F#5" data-title="高三教室后排的三个人" data-min="9" href="posts/back-row-three.html" aria-label="高三教室后排的三个人（恰同学少年，9 分钟）"><span class="note__short">后排</span></a>
-        <a class="note" style="--x:30;--w:14" data-x="30" data-pitch="F#5" data-title="毕业照上少了谁" data-min="6" href="posts/missing-from-photo.html" aria-label="毕业照上少了谁（恰同学少年，6 分钟）"><span class="note__short">毕业照</span></a>
-        <a class="note" style="--x:52;--w:24" data-x="52" data-pitch="F#5" data-title="把同学群重新置顶" data-min="5" href="posts/class-group-chat.html" aria-label="把同学群重新置顶（恰同学少年，5 分钟）"><span class="note__short">同学群</span></a>
+        <a class="note" style="--x:11.96;--w:6.5" data-x="11.96" data-date="2025.01.12" data-pitch="F#5" data-title="把同学群重新置顶" data-min="5" href="posts/class-group-chat.html" aria-label="2025.01.12 · 把同学群重新置顶（恰同学少年，5 分钟）"><span class="note__short">同学群</span></a>
+        <a class="note" style="--x:55.43;--w:7.8" data-x="55.43" data-date="2025.02.21" data-pitch="F#5" data-title="毕业照上少了谁" data-min="6" href="posts/missing-from-photo.html" aria-label="2025.02.21 · 毕业照上少了谁（恰同学少年，6 分钟）"><span class="note__short">毕业照</span></a>
+        <a class="note" style="--x:79.35;--w:11" data-x="79.35" data-date="2025.03.15" data-pitch="F#5" data-title="高三教室后排的三个人" data-min="9" href="posts/back-row-three.html" aria-label="2025.03.15 · 高三教室后排的三个人（恰同学少年，9 分钟）"><span class="note__short">后排</span></a>
         </div>
         <div class="lane">
-        <a class="note" style="--x:2;--w:19" data-x="2" data-pitch="D5" data-title="雨天不适合做决定" data-min="6" href="posts/rainy-day.html" aria-label="雨天不适合做决定（胡盐乱雨集，6 分钟）"><span class="note__short">雨天</span></a>
-        <a class="note" style="--x:27;--w:23" data-x="27" data-pitch="D5" data-title="论“差不多”的精确度" data-min="5" href="posts/precision.html" aria-label="论“差不多”的精确度（胡盐乱雨集，5 分钟）"><span class="note__short">差不多</span></a>
-        <a class="note" style="--x:58;--w:14" data-x="58" data-pitch="D5" data-title="我给所有东西起了名字" data-min="7" href="posts/naming.html" aria-label="我给所有东西起了名字（胡盐乱雨集，7 分钟）"><span class="note__short">起名</span></a>
+        <a class="note" style="--x:2.17;--w:9.1" data-x="2.17" data-date="2025.01.03" data-pitch="D5" data-title="我给所有东西起了名字" data-min="7" href="posts/naming.html" aria-label="2025.01.03 · 我给所有东西起了名字（胡盐乱雨集，7 分钟）"><span class="note__short">起名</span></a>
+        <a class="note" style="--x:52.17;--w:6.5" data-x="52.17" data-date="2025.02.18" data-pitch="D5" data-title="论“差不多”的精确度" data-min="5" href="posts/precision.html" aria-label="2025.02.18 · 论“差不多”的精确度（胡盐乱雨集，5 分钟）"><span class="note__short">差不多</span></a>
+        <a class="note" style="--x:77.17;--w:7.8" data-x="77.17" data-date="2025.03.13" data-pitch="D5" data-title="雨天不适合做决定" data-min="6" href="posts/rainy-day.html" aria-label="2025.03.13 · 雨天不适合做决定（胡盐乱雨集，6 分钟）"><span class="note__short">雨天</span></a>
         </div>
         <div class="lane">
-        <a class="note" style="--x:5;--w:13" data-x="5" data-pitch="B4" data-title="在《艾尔登法环》里看建筑" data-min="8" href="posts/elden-ring-architecture.html" aria-label="在《艾尔登法环》里看建筑（千千千世界，8 分钟）"><span class="note__short">黄金树</span></a>
-        <a class="note" style="--x:24;--w:21" data-x="24" data-pitch="B4" data-title="像素世界的尺度感" data-min="6" href="posts/pixel-scale.html" aria-label="像素世界的尺度感（千千千世界，6 分钟）"><span class="note__short">像素</span></a>
-        <a class="note" style="--x:52;--w:26" data-x="52" data-pitch="B4" data-title="给一座虚构城市画地铁图" data-min="9" href="posts/metro-map.html" aria-label="给一座虚构城市画地铁图（千千千世界，9 分钟）"><span class="note__short">地铁图</span></a>
+        <a class="note" style="--x:10.87;--w:11" data-x="10.87" data-date="2025.01.11" data-pitch="B4" data-title="给一座虚构城市画地铁图" data-min="9" href="posts/metro-map.html" aria-label="2025.01.11 · 给一座虚构城市画地铁图（千千千世界，9 分钟）"><span class="note__short">地铁图</span></a>
+        <a class="note" style="--x:41.3;--w:7.8" data-x="41.3" data-date="2025.02.08" data-pitch="B4" data-title="像素世界的尺度感" data-min="6" href="posts/pixel-scale.html" aria-label="2025.02.08 · 像素世界的尺度感（千千千世界，6 分钟）"><span class="note__short">像素</span></a>
+        <a class="note" style="--x:67.39;--w:10.4" data-x="67.39" data-date="2025.03.04" data-pitch="B4" data-title="在《艾尔登法环》里看建筑" data-min="8" href="posts/elden-ring-architecture.html" aria-label="2025.03.04 · 在《艾尔登法环》里看建筑（千千千世界，8 分钟）"><span class="note__short">黄金树</span></a>
         </div>
         <div class="lane">
-        <a class="note" style="--x:2;--w:26" data-x="2" data-pitch="G4" data-title="一台 2C2G 小机器的极限" data-min="7" href="posts/small-vps.html" aria-label="一台 2C2G 小机器的极限（生活在云上，7 分钟）"><span class="note__short">2C2G</span></a>
-        <a class="note" style="--x:34;--w:12" data-x="34" data-pitch="G4" data-title="3-2-1 备份，我做到了 2" data-min="6" href="posts/backup-321.html" aria-label="3-2-1 备份，我做到了 2（生活在云上，6 分钟）"><span class="note__short">备份</span></a>
-        <a class="note" style="--x:55;--w:17" data-x="55" data-pitch="G4" data-title="把博客搬回自己的机器" data-min="8" href="posts/self-host-blog.html" aria-label="把博客搬回自己的机器（生活在云上，8 分钟）"><span class="note__short">自托管</span></a>
+        <a class="note" style="--x:15.22;--w:10.4" data-x="15.22" data-date="2025.01.15" data-pitch="G4" data-title="把博客搬回自己的机器" data-min="8" href="posts/self-host-blog.html" aria-label="2025.01.15 · 把博客搬回自己的机器（生活在云上，8 分钟）"><span class="note__short">自托管</span></a>
+        <a class="note" style="--x:57.61;--w:7.8" data-x="57.61" data-date="2025.02.23" data-pitch="G4" data-title="3-2-1 备份，我做到了 2" data-min="6" href="posts/backup-321.html" aria-label="2025.02.23 · 3-2-1 备份，我做到了 2（生活在云上，6 分钟）"><span class="note__short">备份</span></a>
+        <a class="note" style="--x:75;--w:9.1" data-x="75" data-date="2025.03.11" data-pitch="G4" data-title="一台 2C2G 小机器的极限" data-min="7" href="posts/small-vps.html" aria-label="2025.03.11 · 一台 2C2G 小机器的极限（生活在云上，7 分钟）"><span class="note__short">2C2G</span></a>
         </div>
         <div class="lane">
-        <a class="note" style="--x:8;--w:16" data-x="8" data-pitch="E4" data-title="我的剪辑时间线只有三条轨" data-min="5" href="posts/three-tracks.html" aria-label="我的剪辑时间线只有三条轨（剪剪又辑辑，5 分钟）"><span class="note__short">三条轨</span></a>
-        <a class="note" style="--x:30;--w:25" data-x="30" data-pitch="E4" data-title="给鬼畜素材做降噪" data-min="6" href="posts/denoise.html" aria-label="给鬼畜素材做降噪（剪剪又辑辑，6 分钟）"><span class="note__short">降噪</span></a>
-        <a class="note" style="--x:63;--w:19" data-x="63" data-pitch="E4" data-title="把 40 分钟压到 8 分钟" data-min="7" href="posts/compress-40-to-8.html" aria-label="把 40 分钟压到 8 分钟（剪剪又辑辑，7 分钟）"><span class="note__short">压片</span></a>
+        <a class="note" style="--x:22.83;--w:9.1" data-x="22.83" data-date="2025.01.22" data-pitch="E4" data-title="把 40 分钟压到 8 分钟" data-min="7" href="posts/compress-40-to-8.html" aria-label="2025.01.22 · 把 40 分钟压到 8 分钟（剪剪又辑辑，7 分钟）"><span class="note__short">压片</span></a>
+        <a class="note" style="--x:47.83;--w:7.8" data-x="47.83" data-date="2025.02.14" data-pitch="E4" data-title="给鬼畜素材做降噪" data-min="6" href="posts/denoise.html" aria-label="2025.02.14 · 给鬼畜素材做降噪（剪剪又辑辑，6 分钟）"><span class="note__short">降噪</span></a>
+        <a class="note" style="--x:69.57;--w:6.5" data-x="69.57" data-date="2025.03.06" data-pitch="E4" data-title="我的剪辑时间线只有三条轨" data-min="5" href="posts/three-tracks.html" aria-label="2025.03.06 · 我的剪辑时间线只有三条轨（剪剪又辑辑，5 分钟）"><span class="note__short">三条轨</span></a>
         </div>
         <div class="lane">
-        <a class="note" style="--x:3;--w:21" data-x="3" data-pitch="C4" data-title="空气炸锅的十八种可能" data-min="4" href="posts/air-fryer.html" aria-label="空气炸锅的十八种可能（整点薯条，4 分钟）"><span class="note__short">炸锅</span></a>
-        <a class="note" style="--x:32;--w:15" data-x="32" data-pitch="C4" data-title="关于薯条，我有意见" data-min="5" href="posts/fries-opinion.html" aria-label="关于薯条，我有意见（整点薯条，5 分钟）"><span class="note__short">薯条</span></a>
-        <a class="note" style="--x:56;--w:22" data-x="56" data-pitch="C4" data-title="搬家第七天" data-min="4" href="posts/moving-day-7.html" aria-label="搬家第七天（整点薯条，4 分钟）"><span class="note__short">第七天</span></a>
+        <a class="note" style="--x:29.35;--w:5.2" data-x="29.35" data-date="2025.01.28" data-pitch="C4" data-title="搬家第七天" data-min="4" href="posts/moving-day-7.html" aria-label="2025.01.28 · 搬家第七天（整点薯条，4 分钟）"><span class="note__short">第七天</span></a>
+        <a class="note" style="--x:54.35;--w:6.5" data-x="54.35" data-date="2025.02.20" data-pitch="C4" data-title="关于薯条，我有意见" data-min="5" href="posts/fries-opinion.html" aria-label="2025.02.20 · 关于薯条，我有意见（整点薯条，5 分钟）"><span class="note__short">薯条</span></a>
+        <a class="note" style="--x:72.83;--w:5.2" data-x="72.83" data-date="2025.03.09" data-pitch="C4" data-title="空气炸锅的十八种可能" data-min="4" href="posts/air-fryer.html" aria-label="2025.03.09 · 空气炸锅的十八种可能（整点薯条，4 分钟）"><span class="note__short">炸锅</span></a>
         </div>
         <div class="lane">
-        <a class="note" style="--x:6;--w:12" data-x="6" data-pitch="A3" data-title="我把 RSS 读成了书架" data-min="6" href="posts/rss-bookshelf.html" aria-label="我把 RSS 读成了书架（网上囚徒，6 分钟）"><span class="note__short">RSS</span></a>
-        <a class="note" style="--x:23;--w:26" data-x="23" data-pitch="A3" data-title="凌晨三点的信息食谱" data-min="7" href="posts/info-diet.html" aria-label="凌晨三点的信息食谱（网上囚徒，7 分钟）"><span class="note__short">食谱</span></a>
-        <a class="note" style="--x:56;--w:18" data-x="56" data-pitch="A3" data-title="关于“稍后阅读”的 47 个未读" data-min="5" href="posts/read-later-47.html" aria-label="关于“稍后阅读”的 47 个未读（网上囚徒，5 分钟）"><span class="note__short">稍后读</span></a>
+        <a class="note" style="--x:4.35;--w:6.5" data-x="4.35" data-date="2025.01.05" data-pitch="A3" data-title="关于“稍后阅读”的 47 个未读" data-min="5" href="posts/read-later-47.html" aria-label="2025.01.05 · 关于“稍后阅读”的 47 个未读（网上囚徒，5 分钟）"><span class="note__short">稍后读</span></a>
+        <a class="note" style="--x:44.57;--w:9.1" data-x="44.57" data-date="2025.02.11" data-pitch="A3" data-title="凌晨三点的信息食谱" data-min="7" href="posts/info-diet.html" aria-label="2025.02.11 · 凌晨三点的信息食谱（网上囚徒，7 分钟）"><span class="note__short">食谱</span></a>
+        <a class="note" style="--x:65.22;--w:7.8" data-x="65.22" data-date="2025.03.02" data-pitch="A3" data-title="我把 RSS 读成了书架" data-min="6" href="posts/rss-bookshelf.html" aria-label="2025.03.02 · 我把 RSS 读成了书架（网上囚徒，6 分钟）"><span class="note__short">RSS</span></a>
         </div>
         <div class="lane lane--black">
-        <a class="note" style="--x:2;--w:17" data-x="2" data-pitch="F#3" data-title="单调栈的三个不变式" data-min="9" href="posts/monotonic-stack.html" aria-label="单调栈的三个不变式（做题区doge，9 分钟）"><span class="note__short">单调栈</span></a>
-        <a class="note" style="--x:26;--w:14" data-x="26" data-pitch="F#3" data-title="二分的四种写法，和它们的边界" data-min="8" href="posts/binary-search.html" aria-label="二分的四种写法，和它们的边界（做题区doge，8 分钟）"><span class="note__short">二分</span></a>
-        <a class="note" style="--x:48;--w:29" data-x="48" data-pitch="F#3" data-title="把 LRU 写到手不抖" data-min="7" href="posts/lru.html" aria-label="把 LRU 写到手不抖（做题区doge，7 分钟）"><span class="note__short">LRU</span></a>
+        <a class="note" style="--x:19.57;--w:9.1" data-x="19.57" data-date="2025.01.19" data-pitch="F#3" data-title="把 LRU 写到手不抖" data-min="7" href="posts/lru.html" aria-label="2025.01.19 · 把 LRU 写到手不抖（做题区doge，7 分钟）"><span class="note__short">LRU</span></a>
+        <a class="note" style="--x:61.96;--w:10.4" data-x="61.96" data-date="2025.02.27" data-pitch="F#3" data-title="二分的四种写法，和它们的边界" data-min="8" href="posts/binary-search.html" aria-label="2025.02.27 · 二分的四种写法，和它们的边界（做题区doge，8 分钟）"><span class="note__short">二分</span></a>
+        <a class="note" style="--x:78.26;--w:11" data-x="78.26" data-date="2025.03.14" data-pitch="F#3" data-title="单调栈的三个不变式" data-min="9" href="posts/monotonic-stack.html" aria-label="2025.03.14 · 单调栈的三个不变式（做题区doge，9 分钟）"><span class="note__short">单调栈</span></a>
         </div>
           </div>
+        </div>
+        <div class="roll__grid" aria-hidden="true">
+          <i style="--x:0"></i>
+          <i style="--x:33.7"></i>
+          <i style="--x:64.13"></i>
         </div>
         <div class="roll__playhead" aria-hidden="true"></div>
       </div>
     </div>
   </div>
 </div>
-<p class="roll__hint">卷帘可以左右滑动；轨道名在左边，也能点。</p>
+<p class="roll__hint">时间轴可以左右滑动；轨道名在左边，也能点。</p>
 
     <div class="index-head">
       <h2>九板块索引</h2>

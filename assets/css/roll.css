@@ -76,6 +76,23 @@
   max-width: 87.5rem;
 }
 
+/* ------------------------------------------------------------ 时间轴画布
+   首页大卷帘的横轴是日历：一天 = --roll-day 宽。画布的最小宽由日子数算出
+   （--days 由生成器写在卷帘上，运行时新文章来了 site.js 会重算）——
+   文章越写越多，轴就往右长，左右滚动是真的在翻日历。
+   12.25rem = 轨道名 9.5 + 琴键 2.75；嫌挤改 --roll-day，别改算式。 */
+.roll--hero {
+  --roll-day: 0.7rem;
+  --canvas: max(62rem, calc(12.25rem + var(--days, 92) * var(--roll-day)));
+}
+.roll--hero .roll__inner {
+  min-width: var(--canvas);
+  max-width: max(87.5rem, var(--canvas));
+}
+/* 音符的宽以天计（--w 是天数，见生成器 / site.js）：
+   画布拉宽时音符不跟着虚胖，「宽 = 读得久」才一直成立 */
+.roll--hero .note { width: calc(var(--w) * var(--roll-day)); }
+
 /* ------------------------------------------------------------ 轨道名（左） */
 .roll__heads {
   position: sticky;
@@ -135,26 +152,57 @@
   min-width: 0;
   overflow: hidden;
 }
+/* 横轴是日历：月份刻度站在刻度条里，一根细线顺着同一刻度贯穿轨道场。
+   一个月一根，是「现在读到几月」的参照，不是当年那张坐标纸——
+   那套三层渐变的网格铺满全场，抢的是音符的对比；月线只在日期需要
+   对照的地方出现，颜色也退到隔线那一档。 */
 .roll__ruler {
-  display: flex;
+  position: relative;
   height: var(--ruler);
   font-family: var(--f-measure);
   font-size: 0.625rem;
   letter-spacing: 0.12em;
   color: var(--win-ink-soft);
   border-bottom: 1px solid var(--roll-line);
+  overflow: hidden;
 }
-.roll__ruler span { flex: 1 1 25%; padding-left: 0.35rem; line-height: var(--ruler); }
+.roll__month {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--x) * 1%);
+  padding: 0 0.5rem 0 0.35rem;
+  border-left: 1px solid var(--roll-line-strong);
+  line-height: var(--ruler);
+  white-space: nowrap;
+}
+.roll__grid {
+  position: absolute;
+  top: var(--ruler);
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+.roll__grid i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--x) * 1%);
+  width: 1px;
+  background: var(--roll-lane);
+}
 
 .roll__body { position: relative; }
 
-/* 卷帘场里没有网格。
-   原来这里铺着三层 repeating-linear-gradient：小节线、拍线、隔小节淡带。
-   那套东西一铺上去，整块看起来像坐标纸——太像仪表，不像乐器；而且它抢的
-   正是音符块的对比（音符才是这块地上唯一该被看见的东西）。
-   时间轴的信息改由两处承载：上面那排小节号（.roll__ruler），
-   以及音符自己的宽度与位置。行与行的界线留在 .lane 上——那不是网格，
-   是"这个音符属于哪条轨道"的归属线。 */
+/* 卷帘场里没有满铺的网格。
+   原来这里铺着三层 repeating-linear-gradient：小节线、拍线、隔小节淡带，
+   整块看起来像坐标纸——太像仪表，不像乐器；而且它抢的正是音符块的对比。
+   现在横轴是日历，需要对照的只有「月份」这一件事：月线由生成器按真实
+   日期一根根摆在 .roll__grid 里，稀疏、退后（见上）。
+   行与行的界线留在 .lane 上——那不是网格，是「这个音符属于哪条轨道」的
+   归属线。时间的信息由三处承载：月份刻度、月线，以及音符自己的位置。 */
 .roll__lanes { position: relative; z-index: 1; }
 
 .lane {
@@ -199,13 +247,14 @@
   box-shadow: 0 0 0 1px var(--win-ring);
 }
 
-/* 播放头：全站唯一允许移动的东西，也标示"此刻" */
+/* 播放头：全站唯一允许移动的东西，也标示"此刻"。
+   扫到最后一格音符再往前一点——那里是还没写的那段未来。 */
 .roll__playhead {
   position: absolute;
   inset: 0;
   z-index: 2;
   pointer-events: none;
-  transform: translateX(var(--play-x, 78%));
+  transform: translateX(var(--play-x, 93%));
 }
 .roll__playhead::after {
   content: "";
@@ -220,7 +269,7 @@
 .js .roll__playhead { animation: roll-sweep 2.2s cubic-bezier(0.42, 0, 0.28, 1) forwards; }
 @keyframes roll-sweep {
   from { transform: translateX(0); }
-  to { transform: translateX(78%); }
+  to { transform: translateX(var(--play-x, 93%)); }
 }
 
 /* ------------------------------------------------------------ 移动端提示 */
@@ -259,11 +308,17 @@ html:not(.js) .roll__hint { display: block; }
 .roll--strip .roll__playhead::after { box-shadow: 0 0 8px var(--win-cursor-glow); }
 
 @media (max-width: 900px) {
-  /* 手机上卷帘仍要能读：压矮轨道、收窄轨道名、把键盘列让给音符 */
-  .roll--hero { --lane-h: 2.25rem; --roll-heads: 5.5rem; }
+  /* 手机上时间轴仍要能读：压矮轨道、收窄轨道名、把键盘列让给音符。
+     画布的最小宽换手机那套（没有琴键列，轨道名 5.5rem），日子照旧铺开——
+     手指本来就要左右滑着翻日历 */
+  .roll--hero {
+    --lane-h: 2.25rem;
+    --roll-heads: 5.5rem;
+    --canvas: max(44rem, calc(5.5rem + var(--days, 92) * var(--roll-day)));
+  }
   .roll--hero .roll__inner {
     grid-template-columns: var(--roll-heads) minmax(0, 1fr);
-    min-width: 30rem;
+    min-width: var(--canvas);
   }
   .roll--hero .roll__keys { display: none; }
   .roll--hero .roll__heads { padding-left: var(--s-4); }

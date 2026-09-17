@@ -65,11 +65,78 @@ export function noteWidth(trackIndex, postIndex) {
   return [Math.min(x, 96 - 12), 12];
 }
 
-/* 一条轨道在卷帘上的「节奏槽」：音符的 x 位置由它决定。
+/* 一条轨道在卷帘上的「节奏槽」：迷你定位条（roll--strip）的 x 位置由它决定。
    显示顺序按音高排（高音在上），但节奏槽钉在内容顺序上——
    否则运行时新建一个更高的板块，会让所有已有轨道的音符节奏跟着挪位。
    静态页由生成器写死节奏槽（就是数组下标），服务端渲染时用 track.slot。 */
 export const slotOf = (track, index) => (Number.isFinite(track.slot) ? track.slot : index);
+
+/* ------------------------------------------------------------------ 时间轴
+   首页那条大卷帘的横轴不是小节，是真实的日历：音符站在文章写下的那天，
+   越往右越新。比例尺由全部文章的日期算出来，生成器与浏览器用的是同一套
+   算式（浏览器那份在 assets/js/site.js 的 layoutTimeline，改要两边一起改）：
+   · 左端往回退两天当边距；右端往后留十八天——装得下最后一格音符的宽度，
+     也留出「还没写的那段未来」。
+   · 画布按日子算宽（--days × --roll-day），文章越写越多，时间轴就往右长，
+     左右滚动是真的在「翻日历」，不是把日子挤进一屏。
+   · 音符的宽度仍是阅读分钟数：min × 1.3 天（压在 5–11 天之间）。
+     同一条轨道上两篇文章最少隔半个月，挤不到一起。 */
+const DAY_MS = 86400000;
+const dateDay = (value) => {
+  const m = /^(\d{4})\.(\d{2})\.(\d{2})$/.exec(String(value || ''));
+  return m ? Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : NaN;
+};
+const clamp01 = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+/* dates：一串 YYYY.MM.DD。没有一天能认出来就返回 null，调用方退回节奏槽 */
+export function timelineScale(dates) {
+  const days = (dates || []).map(dateDay).filter((n) => Number.isFinite(n));
+  if (!days.length) return null;
+  const t0 = Math.min.apply(null, days) - 2 * DAY_MS;
+  const t1 = Math.max.apply(null, days) + 18 * DAY_MS;
+  return { t0, span: t1 - t0 };
+}
+
+/* 日期 → [x%, w(天)]。x 是画布上的百分比；w 是音符的宽（天），
+   CSS 里按 --roll-day 折成像素——画布变宽，音符也不会跟着虚胖。
+   认不出的日期返回 null，调用方自己退回节奏槽 */
+export function timelinePos(date, min, scale) {
+  if (!scale) return null;
+  const day = dateDay(date);
+  if (!Number.isFinite(day)) return null;
+  const x = ((day - scale.t0) / scale.span) * 100;
+  const w = clamp01((Number(min) || 5) * 1.3, 5, 11);
+  return [Number(x.toFixed(2)), Number(w.toFixed(2))];
+}
+
+/* 比例尺里每个月的第一天 → { x, label }，月份刻度与贯穿的月线都用它。
+   只画到「最后一篇文章」所在的月份为止：再往后是还没写的留白，
+   不挂日历的牌子（挂了也会顶出窗沿）。 */
+export function timelineMonths(scale) {
+  if (!scale) return [];
+  const out = [];
+  const horizon = scale.t0 + scale.span - 16 * DAY_MS;
+  const cursor = new Date(scale.t0);
+  cursor.setUTCDate(1);
+  if (cursor.getTime() < scale.t0) cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+  while (cursor.getTime() <= horizon) {
+    const x = ((cursor.getTime() - scale.t0) / scale.span) * 100;
+    out.push({
+      x: Number(x.toFixed(2)),
+      label: cursor.getUTCFullYear() + '.' + String(cursor.getUTCMonth() + 1).padStart(2, '0'),
+    });
+    cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+  }
+  return out;
+}
+
+/* 读数上那段时间跨度：同年写成 2025.01–03，跨年写成 2025.11–2026.02 */
+export function timelineSpan(minDate, maxDate) {
+  const a = String(minDate || '').slice(0, 7);
+  const b = String(maxDate || '').slice(0, 7);
+  if (!a || !b) return '';
+  return a.slice(0, 4) === b.slice(0, 4) ? a + '–' + b.slice(5) : a + '–' + b;
+}
 
 /* 给字符串套一个 <br> 分隔器（tracks 里的 lede 用 <br> 换行） */
 export const brToSpace = (s) => String(s || '').replace(/<br\s*\/?>/gi, ' ');
@@ -244,10 +311,12 @@ export function readIfExists(path) {
    首页那条大卷帘、以及板块页/文章页顶上的迷你定位条。
    tools/build.mjs 和 server 的动态页面共用这两个函数。 */
 
-export function noteMarkup(post, track, ti, base, { asLink = true } = {}) {
-  const [x, w] = noteWidth(slotOf(track, ti), post.pi);
-  const label = `${post.title}（${track.name}，${post.min} 分钟）`;
-  const attrs = `class="note" style="--x:${x};--w:${w}" data-x="${x}" data-pitch="${track.pitch}" data-title="${escapeHtml(
+export function noteMarkup(post, track, ti, base, { asLink = true, x, w } = {}) {
+  const [px, pw] = x == null ? noteWidth(slotOf(track, ti), post.pi) : [x, w];
+  const label = `${post.date ? post.date + ' · ' : ''}${post.title}（${track.name}，${post.min} 分钟）`;
+  const attrs = `class="note" style="--x:${px};--w:${pw}" data-x="${px}"${
+    post.date ? ` data-date="${post.date}"` : ''
+  } data-pitch="${track.pitch}" data-title="${escapeHtml(
     post.title
   )}" data-min="${post.min}"`;
   if (!asLink) return `        <span ${attrs}></span>`;
@@ -270,21 +339,43 @@ export function rollHero(base, tracks) {
     .map((t) => `        <span class="keycap${t.black ? ' keycap--black' : ''}"></span>`)
     .join('\n');
 
+  /* 横轴 = 日历。所有文章的日子摆上同一把比例尺，月份刻度与贯穿的月线
+     一起从比例尺算出来；认不出日期的文章退回节奏槽（不会发生，挡一手） */
+  const scale = timelineScale(tracks.flatMap((t) => t.posts.map((p) => p.date)));
+  const months = timelineMonths(scale);
+
   const lanes = tracks
     .map((t, ti) => {
-      const notes = t.posts.map((post, pi) => noteMarkup({ ...post, pi }, t, ti, base)).join('\n');
+      const notes = t.posts
+        .slice()
+        .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+        .map((post) => {
+          const pos = timelinePos(post.date, post.min, scale);
+          return noteMarkup(post, t, ti, base, pos ? { x: pos[0], w: pos[1] } : {});
+        })
+        .join('\n');
       return `        <div class="lane${t.black ? ' lane--black' : ''}">\n${notes}\n        </div>`;
     })
     .join('\n');
 
+  const dates = tracks
+    .flatMap((t) => t.posts.map((p) => p.date))
+    .filter(Boolean)
+    .sort();
+  const span = timelineSpan(dates[0], dates[dates.length - 1]);
+  const total = tracks.reduce((n, t) => n + t.posts.length, 0);
   const top = tracks[0];
   const bottom = tracks[tracks.length - 1];
 
-  return `<div class="roll roll--hero roll--bleed" data-roll>
+  /* 画布宽度 = 日子数 × --roll-day（见 roll.css）：文章变多，轴就变长 */
+  const days = scale ? Math.ceil(scale.span / DAY_MS) : 0;
+  const canvas = days ? ` style="--days:${days}"` : '';
+
+  return `<div class="roll roll--hero roll--bleed"${canvas} data-roll>
   <div class="roll__bar">
-    <p class="roll__caption">卷帘 · 本站目录</p>
+    <p class="roll__caption">时间轴 · 本站目录</p>
     <p class="roll__live" data-live data-idle="把指针停在音符上，或者用方向键走一遍">把指针停在音符上，或者用方向键走一遍</p>
-    <p class="roll__readout"><b>${tracks.length}</b> 轨 · <b>${bottom.pitch}–${top.pitch}</b> · <b>${site.tempo}</b> BPM</p>
+    <p class="roll__readout"><b>${tracks.length}</b> 轨 · <b>${total}</b> 篇 · <b>${span}</b> · ${bottom.pitch}–${top.pitch}</p>
   </div>
   <div class="roll__scroller">
     <div class="roll__inner">
@@ -295,18 +386,23 @@ ${heads}
 ${keys}
       </div>
       <div class="roll__field">
-        <div class="roll__ruler" aria-hidden="true"><span>1</span><span>5</span><span>9</span><span>13</span></div>
+        <div class="roll__ruler" aria-hidden="true">
+          ${months.map((m) => `<span class="roll__month" style="--x:${m.x}">${m.label}</span>`).join('\n          ')}
+        </div>
         <div class="roll__body">
           <div class="roll__lanes">
 ${lanes}
           </div>
+        </div>
+        <div class="roll__grid" aria-hidden="true">
+          ${months.map((m) => `<i style="--x:${m.x}"></i>`).join('\n          ')}
         </div>
         <div class="roll__playhead" aria-hidden="true"></div>
       </div>
     </div>
   </div>
 </div>
-<p class="roll__hint">卷帘可以左右滑动；轨道名在左边，也能点。</p>`;
+<p class="roll__hint">时间轴可以左右滑动；轨道名在左边，也能点。</p>`;
 }
 
 /* 迷你定位条：显示「我现在在卷帘的哪一格」 */

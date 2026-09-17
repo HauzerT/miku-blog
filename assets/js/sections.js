@@ -560,6 +560,16 @@
     container.insertBefore(node, rows[at] || null);
   }
 
+  /* 一串 YYYY.MM.DD → 「2025.01–03」（同年）或「2025.11–2026.02」（跨年）。
+     时间轴读数上那段跨度就是它，与生成器（server/lib/shell.mjs）同一套写法 */
+  function spanOf(dates) {
+    if (!dates || !dates.length) return '';
+    var a = String(dates[0]).slice(0, 7);
+    var b = String(dates[dates.length - 1]).slice(0, 7);
+    if (!a || !b) return '';
+    return a.slice(0, 4) === b.slice(0, 4) ? a + '–' + b.slice(5) : a + '–' + b;
+  }
+
   /* --- 首页那条大卷帘：轨道头 / 键帽 / 空轨道三列得一起插 --- */
   function syncRoll(all, hidden) {
     var roll = doc.querySelector('.roll--hero');
@@ -613,17 +623,26 @@
       lanes.insertBefore(lane, lanes.children[at] || null);
     });
 
-    /* 读数：轨数与音域跟着走（BPM 是站点的，不动） */
+    /* 读数：轨数 / 篇数 / 时间跨度跟着走（运行时文章的日子也算进去） */
     var readout = roll.querySelector('.roll__readout');
-    var bs = readout ? readout.querySelectorAll('b') : [];
     var values = all.map(function (s) { return pitchValue(s.pitch); }).filter(function (v) { return v > 0; });
-    if (bs.length >= 2 && values.length) {
-      bs[0].textContent = String(all.length);
-      bs[1].textContent = pitchName(Math.min.apply(null, values)) + '–' + pitchName(Math.max.apply(null, values));
+    if (readout && values.length) {
+      var dates = [];
+      var totalArticles = 0;
+      all.forEach(function (s) {
+        totalArticles += s.articles || 0;
+        (s.posts || []).concat(s.runtime || []).forEach(function (p) {
+          if (p && p.date) dates.push(p.date);
+        });
+      });
+      dates.sort();
+      readout.innerHTML = '<b>' + all.length + '</b> 轨 · <b>' + totalArticles + '</b> 篇 · <b>' +
+        spanOf(dates) + '</b> · ' +
+        pitchName(Math.min.apply(null, values)) + '–' + pitchName(Math.max.apply(null, values));
     }
 
-    /* 运行时文章的音符：服务那份 sections 已经按音高排好，
-       和上面补完轨道之后的卷帘条一一对应，所以下标就能对上 */
+    /* 运行时文章的音符：带上自己的日子。位置先按服务给的占个位，
+       插完马上按日历把整条时间轴重排（见 cv01.site.layoutTimeline） */
     var fresh = [];
     all.forEach(function (s, index) {
       var lane = lanes.children[index];
@@ -633,12 +652,13 @@
         note.className = 'note';
         note.setAttribute('data-live', '');
         note.setAttribute('data-x', String(a.x));
+        if (a.date) note.setAttribute('data-date', a.date);
         note.setAttribute('data-pitch', a.pitch || s.pitch);
         note.setAttribute('data-title', a.title);
         note.setAttribute('data-min', String(a.min || 3));
         note.setAttribute('href', a.url);
         note.setAttribute('style', '--x:' + a.x + ';--w:' + a.w);
-        note.setAttribute('aria-label', a.title + '（' + s.name + '，' + (a.min || 3) + ' 分钟）');
+        note.setAttribute('aria-label', (a.date ? a.date + ' · ' : '') + a.title + '（' + s.name + '，' + (a.min || 3) + ' 分钟）');
         note.innerHTML = '<span class="note__short">' + esc(a.short || a.title.slice(0, 4)) + '</span>';
         lane.appendChild(note);
         fresh.push(note);
@@ -670,10 +690,17 @@
       var p = briefs[slug];
       if (!p) return;
       if (n.getAttribute('data-title') !== p.title) n.setAttribute('data-title', p.title);
-      var label = p.title + '（' + (p.sectionName || '') + '，' + (p.min || 3) + ' 分钟）';
+      if (p.date && n.getAttribute('data-date') !== p.date) n.setAttribute('data-date', p.date);
+      var label = (p.date ? p.date + ' · ' : '') + p.title + '（' + (p.sectionName || '') + '，' + (p.min || 3) + ' 分钟）';
       if (n.getAttribute('aria-label') !== label) n.setAttribute('aria-label', label);
     });
 
+    if (fresh.length) {
+      /* 运行时文章是扫光之后才进来的：直接点亮，然后按日历把整条轴
+         （音符、月份刻度、月线）重排一遍——新文章的日子可能伸到右边 */
+      fresh.forEach(function (n) { n.classList.add('is-lit'); });
+      if (cv01.site && cv01.site.layoutTimeline) cv01.site.layoutTimeline(roll);
+    }
     if (fresh.length && cv01.site && cv01.site.bindNotes) cv01.site.bindNotes(fresh);
   }
 
