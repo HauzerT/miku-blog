@@ -4,7 +4,10 @@
 现场合成一个柔和的电钢琴音色，**任何音高都算得出来**（十二平均律，A4 = 440Hz），
 不需要下载、不需要联网。
 
-想换成真钢琴、或者你自己的音源，就把文件放进这个目录，按**音高**命名：
+现在原生九个板块的音已经是真钢琴了（VSCO2 社区版实录采样，来源与授权见文末）。
+下面列的仍然是命名规矩本身——想补别的音、或者换成你自己的音源，照着来就行：
+
+想往目录里放文件，按**音高**命名：
 
 ```
 assets/audio/
@@ -30,3 +33,14 @@ assets/audio/
 太长会被截断）。想让它响久一点，改 `assets/js/audio.js` 顶部的 `SWITCH_DELAY`。
 
 音效默认是**关闭**的，顶栏的「开启音效」按钮打开后才会发声，选择记在 localStorage 里。
+
+## 现在放着的：VSCO2 真钢琴（九个原生音）
+
+`a3` / `c4` / `e4` / `g4` / `b4` / `d5` / `fs5` / `a5` / `fs3` 共九个 mp3，来自
+[VSCO 2: Community Edition](https://versilian-studios.com/vsco-community/)
+（Versilian Studios 录制的真实立式钢琴，**CC0** 授权——任意使用、无需署名），
+取自 [tonejs-instruments](https://github.com/nbrosowsky/tonejs-instruments)
+固定在 `622c2f1` 提交的切分版，已做过掐头去尾、响度匹配与归一化，拿来即用。
+
+单文件 110–240 KB、合计约 1.5 MB。新建板块挑的其他音高目前仍由合成音色顶替，
+想补哪个就按上面的规矩把文件丢进来。
