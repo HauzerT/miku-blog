@@ -205,6 +205,9 @@ deploy\start-blog-background.cmd -PublicDeploy
    它的 3170 端口旁边就是 `.ncm-session.json`——你的网易云登录态。
    公网部署时它没有任何理由在跑，最省事的保证就是根本不起来。
    （不带这个开关时，它跟 `start.cmd` 一样会把云村也拉起来。）
+   不影响访客看云村：他们读的是发布过的快照（`GET /api/kumura`），静态文件，
+   跟这个小服务一点关系都没有。要更新快照就在本机按一次「发布到公网」，
+   或者排一条 `tools/kumura-publish.mjs` 的计划任务（那一条要小服务在跑）。
 3. `-PublicDeploy` 时给服务设 `CV01_TRUST_PROXY=1`：`/api/auth` 的试错限速
    按**真实来客**（`CF-Connecting-IP`）计数，而不是全站共用一个 127.0.0.1 的桶。
    这条只在你确实只让 cloudflared 连这台服务时成立，而它只听 127.0.0.1
@@ -309,7 +312,8 @@ node tools/preflight-check.mjs http://127.0.0.1:4399
 | 门厅 cookie `cv01-enter` | 访客可自取（设计如此）。伪造它拿不到额外权限，**真正的权限仍是口令**。 |
 | 写接口 | 每个都过 `requireAuth`，预检逐个确认过是 401。口令一泄 = 整站可写。 |
 | 后台编辑（`/editor`、全局编辑） | 要口令。 |
-| **`tools/ncm-server.mjs`（3170）** | **绝对不要给它开 tunnel 或 Public Hostname**——它旁边就是 `.ncm-session.json`。`/kumura` 那一页同理（[HANDBOOK.md](../HANDBOOK.md#云村扫码登录网易云可选)里也是这么说的）。 |
+| **`tools/ncm-server.mjs`（3170）** | **绝对不要给它开 tunnel 或 Public Hostname**——它旁边就是 `.ncm-session.json`。公网部署期间也不该让它起来（`-PublicDeploy` 已经保证）。 |
+| `/api/kumura` + `/kumura` | **公开可读，设计如此。** 回体只有站长按过「发布到公网」之后的那一份**脱敏快照**（`data/kumura.json`）：昵称、歌单、红心歌名，**没有播放地址、没有 uid、没有 cookie**（白名单见 `server/lib/kumura-snapshot.mjs`）。没发布过就回 `published: false`，页面上什么也没有。发布过之后这一页**不必过门厅**——本站只有一个口令、而它同时就是写权限，不能发给访客；其余页面没有这个例外。访客读快照**不需要小服务在跑**。 |
 
 ### 9.1 门厅留着，当「开屏过场」
 
@@ -320,6 +324,11 @@ node tools/preflight-check.mjs http://127.0.0.1:4399
 ```
 访客 → Cloudflare 边缘（Access 先问：你是谁？）→ cloudflared → 门厅（再问：访客还是站长？）→ 站点
 ```
+
+门里只留了**一个**例外：`/kumura`（云村）。发布过快照之后这一页不必过门厅——
+本站只有一个口令、而它同时就是写权限，把口令发给访客等于把编辑 / 上传 / 发布
+一起给出去，所以「访客能看」只能靠这一页自己不设门。它敢开门，是因为页面上没有
+实时数据：访客读的是站长发布过的脱敏快照，小服务他碰不到。其余页面没有这个例外。
 
 ### 9.2 在 Cloudflare 上加 Access（把「谁都能到门厅」变成「只有你能到门厅」）
 
@@ -336,6 +345,16 @@ node tools/preflight-check.mjs http://127.0.0.1:4399
 
 > 想连自己都挡在外面（只当内网用）：Access 那边策略设成只放行你，Tunnel 这边不开 Public Hostname，
 > 走 `cloudflared access` 或 WARP 客户端。那是另一套用法，本文不展开。
+
+> **要让访客看云村那一页，就别整站上 Access。** Access 挡在门厅前面，访客连
+> `/login` 都到不了，自然也到不了 `/kumura`。两条路选一条：
+>
+> - 整站不挂 Access，只留门厅（门厅对访客是通的，`/kumura` 还多一道豁免）；
+> - 或者给云村单开一个 Bypass：再加一个 Access application，Public hostname 填
+>   同一个域名、Path 填 `kumura*`，再加 `api/kumura`、`media/kumura/*`，
+>   策略设成 **Bypass + Everyone**。其余页面照旧只有你进得来。
+>
+> 后者更紧，推荐。注意 Bypass 那几条只放行快照那点东西——**3170 仍然不要开**。
 
 ## 10. 一页速查
 
