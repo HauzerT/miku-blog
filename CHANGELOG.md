@@ -3,6 +3,56 @@
 本站的版本线。次位加一是有新功能进场，末位加一是修修补补。
 （1.1 及之前的历史按提交归纳，细节见对应的提交与 README。）
 
+## 2.4.0 - 2026-09-18
+
+### 新功能
+
+- **正文里能写 LaTeX 了：整篇 `.tex` 直接贴进来也排。** 以前只认数学公式（`$…$` 那一套），
+  `\section`、`\textbf`、`\begin{itemize}`、`figure` 这些**文字层**的命令贴进去，出来的
+  是一堆带反斜杠的正文。现在两条路都通：**整篇文档**（写了 `\documentclass` 或
+  `\begin{document}`，或者整段用 ` ```latex ` 包起来）走一条；**Markdown 里混着写**
+  走另一条——`\textbf{粗体}`、`\begin{itemize}…\item…` 与 Markdown 的 `**粗体**`、
+  表格、列表互不打扰。
+- **认的东西**（都排成站里现有的样子，不另开一套样式）：章节与自动编号（`\section` 到
+  `\subparagraph`，`\appendix` 之后换成字母）、`\tableofcontents` 目录、`abstract` 摘要、
+  `\maketitle` 标题块；`\textbf \emph \texttt \underline \textsc` 这一批与 `{\small …}`
+  这类组内字号；`itemize` / `enumerate` / `description`（含嵌套与自定义标签）；
+  定理类环境与 `\newtheorem`；`figure` / `table` + `\caption`（自动编号成「图 1」「表 1」）；
+  `tabular` 表格（列对齐、竖线、`\hline` 与 booktabs 那几条横线、`\multicolumn`）；
+  `\includegraphics`（宽度按 `\textwidth` 折算，裸文件名自动补成 `/media/images/`）；
+  `\label` / `\ref` / `\eqref` / `\autoref` 交叉引用（**往前指也能解析**）；
+  `\footnote` 脚注（末尾收成一张脚注表）；`\cite` + `thebibliography` 文献表。
+- **公式编号会自己排**：`equation` / `align` / `gather` 这些自动编号，号排在右边，
+  带星号或整块 `\notag` 的不编号，`\eqref` 点得回那一行公式。
+- **引言区里的宏能用**：`\newcommand` / `\renewcommand` / `\def` / `\DeclareMathOperator`
+  定义过的东西，数学里生效、文字里也展开；siunitx 与 physics 里常用的那几个
+  （`\SI \qty \abs \norm \dv \pdv \qed`…）补上了等价写法，你自己定义的优先。
+
+### 变更
+
+- **单个换行就是换行**：正文框里敲一下回车，右栏预览与页面都断行，不用在行尾补两个空格；
+  空一行才是新段落。（CommonMark 那两种硬换行照旧认；代码块、缩进代码与表格里的换行
+  是结构，不受影响。）
+- **行内公式的规矩收严了一点**：`$…$` 的美元号**内侧不留空格**才算公式（`$a+b$` 算、
+  `$ x $` 不算）——这是 pandoc 与 KaTeX auto-render 的通行规矩，为的是让
+  「花了 $5 到 $10」这类句子留在正文里。`$$…$$` 与 `\[…\]` 不受这条限制。
+- 编辑页底下的写法提示补了 LaTeX 一行（`\section{…}`、`\textbf{…}`、`\begin{itemize}…`、
+  `\begin{document}` 那套都能写）。
+
+### 文档
+
+- 操作手册新增「LaTeX：文字层也认」一节：认什么、两条入口怎么判断、有意留着的边界
+  （没装的宏包、TikZ、`\input` 外部文件、中文之间的换行不补空格），以及自检怎么跑。
+
+### 测试
+
+- 新增 `tools/latex-check.mjs`（81 项，纯字符串、不用起服务）：整篇 `.tex` 的骨架、
+  章节编号、列表与定理、图表与表格线、公式编号与引用、脚注与文献、引言区宏，以及
+  Markdown 混排两边互不打扰（代码块里的 `\begin{document}` 不会把整篇误判成 `.tex`）。
+- 新增 `tools/markdown-check.mjs`（25 项）：把换行规矩、公式与 emoji 这些老规矩钉住。
+- `tools/nuxt-edit-check.mjs`：工具条那颗键改成先等出现再点（抢在前面抛会把探针带崩、
+  把临时板块留在盘上），临时建的板块与文章挪到崩溃时也收得掉的位置，另加一条量预览换行的断言。
+
 ## 2.3.0 - 2026-09-18
 
 ### 新功能
