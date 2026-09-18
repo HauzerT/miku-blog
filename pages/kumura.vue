@@ -83,8 +83,10 @@ useHead(() => ({
         <p class="km-profile__sign" data-signature></p>
         <ul class="km-facts" data-facts></ul>
         <div class="km-profile__act">
+          <button class="km-btn km-btn--main" type="button" data-publish>发布到公网</button>
           <button class="km-btn" type="button" data-logout>退出登录</button>
         </div>
+        <p class="km-sec__note" data-publish-note></p>
       </div>
     </section>
 
@@ -114,6 +116,58 @@ useHead(() => ({
       </div>
       <ol class="km-tracks" data-list></ol>
       <p class="km-more"><button class="km-btn km-btn--main" type="button" data-more hidden>再读 50 首</button></p>
+    </section>
+
+    <!-- 访客那一版：站长按「发布到公网」时脱敏落盘的那份快照（data/kumura.json）。
+         快照里**没有播放地址**，所以这一版只「看」；「听」交给下面那个音乐盒——
+         站上自己的曲子本来就对访客公开，与网易账号无关。 -->
+    <section class="km-pub" data-pane="public">
+      <div class="km-pub__head">
+        <b class="km-pub__tag">公开快照</b>
+        <span class="km-pub__at" data-pub-at></span>
+        <span class="km-pub__hint" data-pub-hint hidden></span>
+      </div>
+
+      <div class="km-profile">
+        <div class="km-profile__avatar" data-pub-avatar></div>
+        <div class="km-profile__body">
+          <div class="km-profile__top">
+            <h2 class="km-profile__name" data-pub-name></h2>
+            <span class="km-profile__vip" data-pub-vip hidden></span>
+          </div>
+          <p class="km-profile__sign" data-pub-sign></p>
+          <ul class="km-facts" data-pub-facts></ul>
+        </div>
+      </div>
+
+      <section class="km-sec km-shelf">
+        <div class="km-sec__head">
+          <h3 class="km-sec__title">我创建的歌单</h3>
+          <p class="km-sec__note" data-pub-playlists-note></p>
+        </div>
+        <ul class="km-shelf__grid" data-pub-playlists></ul>
+      </section>
+
+      <section class="km-liked">
+        <div class="km-liked__head">
+          <div class="km-liked__cover" data-pub-liked-cover hidden></div>
+          <div>
+            <div class="km-liked__meta" data-pub-liked-meta></div>
+            <p class="km-liked__note" data-pub-liked-note></p>
+          </div>
+        </div>
+        <ol class="km-tracks" data-pub-tracks></ol>
+      </section>
+
+      <section class="km-sec">
+        <div class="km-sec__head">
+          <h3 class="km-sec__title">在这里听</h3>
+          <p class="km-sec__note">站上自己的曲子 —— 不经过网易云，也不动站长的账号。</p>
+        </div>
+        <ol class="km-tracks" data-pub-box></ol>
+        <p class="km-sec__note" data-pub-box-note></p>
+        <audio data-pub-audio preload="none"></audio>
+      </section>
     </section>
 
     <!-- 播放条：平时藏着，点任意一首歌才升起来。

@@ -134,6 +134,10 @@ export const useKumura = (root: Ref<HTMLElement | null>) => {
     expired: false,
   };
 
+  /* 站长那两下（口令 + 带口令的写请求）在 setup 里取一次。
+     useStudio 里用了 useState，事件回调里现取会碰「没有 Nuxt 实例」那颗雷。 */
+  const studio = useStudio();
+
   /* ------------------------------------------------------------ 取节点 */
 
   const q = (sel: string) => (panel ? (panel.querySelector(sel) as HTMLElement | null) : null);
@@ -172,6 +176,25 @@ export const useKumura = (root: Ref<HTMLElement | null>) => {
       playerClock: q('[data-player-clock]'),
       playerVol: q('[data-player-vol]'),
       playerClose: q('[data-player-close]'),
+      /* 公开快照那一版（访客看的） */
+      pubAt: q('[data-pub-at]'),
+      pubHint: q('[data-pub-hint]'),
+      pubAvatar: q('[data-pub-avatar]'),
+      pubName: q('[data-pub-name]'),
+      pubVip: q('[data-pub-vip]'),
+      pubSign: q('[data-pub-sign]'),
+      pubFacts: q('[data-pub-facts]'),
+      pubPlaylists: q('[data-pub-playlists]'),
+      pubPlaylistsNote: q('[data-pub-playlists-note]'),
+      pubLikedCover: q('[data-pub-liked-cover]'),
+      pubLikedMeta: q('[data-pub-liked-meta]'),
+      pubLikedNote: q('[data-pub-liked-note]'),
+      pubTracks: q('[data-pub-tracks]'),
+      pubBox: q('[data-pub-box]'),
+      pubBoxNote: q('[data-pub-box-note]'),
+      pubAudio: q('[data-pub-audio]'),
+      publish: q('[data-publish]'),
+      publishNote: q('[data-publish-note]'),
     };
   };
 
@@ -772,6 +795,271 @@ export const useKumura = (root: Ref<HTMLElement | null>) => {
       });
   };
 
+  /* ------------------------------------------------ 公开快照（访客那一版）
+     访客的浏览器连不上本机的 127.0.0.1:3170 —— 那个地址指的是**他自己那台电脑**，
+     所以小服务探不到的时候，不该只丢一句「没在跑」就完事。这一版读站点自己的
+     GET /api/kumura：站长按「发布到公网」时脱敏并落盘的那一份快照
+     （白名单见 server/lib/kumura-snapshot.mjs）。
+
+     快照里**没有播放地址**——那是唯一会碰到「账号签名直链」的地方，故意不给。
+     所以这一版只「看」；想听就往下走音乐盒：站上自己的曲子本来对访客就是公开的，
+     与网易账号一点关系都没有。 */
+
+  const pubFact = (key: string, value: string) => {
+    const li = make('li', 'km-facts__row');
+    li.appendChild(make('span', 'km-facts__key', key));
+    li.appendChild(make('span', 'km-facts__val', value));
+    return li;
+  };
+
+  const renderPublicProfile = (profile: any) => {
+    if (el.pubAvatar) {
+      clear(el.pubAvatar);
+      if (profile.avatar) {
+        const im = make('img', 'km-profile__avatar-img') as HTMLImageElement;
+        /* 快照里的封面在发布时就下到 media/kumura/ 了，站内地址直接用，不走代理 */
+        im.src = profile.avatar;
+        im.alt = '';
+        el.pubAvatar.appendChild(im);
+      }
+    }
+    text(el.pubName, profile.nickname || '（没写昵称）');
+    if (el.pubVip) {
+      el.pubVip.hidden = !profile.vip;
+      text(el.pubVip, profile.vip || '');
+    }
+    text(el.pubSign, profile.signature || '');
+    if (el.pubFacts) {
+      clear(el.pubFacts);
+      const rows: Array<[string, string]> = [];
+      if (profile.level != null) rows.push(['等级', 'Lv.' + profile.level]);
+      if (profile.listenSongs != null) rows.push(['听歌', compact(profile.listenSongs) + ' 首']);
+      if (profile.follows != null) rows.push(['关注', compact(profile.follows)]);
+      if (profile.followers != null) rows.push(['粉丝', compact(profile.followers)]);
+      if (profile.createDays != null) rows.push(['村龄', Math.floor(profile.createDays / 365) + ' 年']);
+      for (const row of rows) el.pubFacts.appendChild(pubFact(row[0], row[1]));
+      el.pubFacts.hidden = rows.length === 0;
+    }
+  };
+
+  const renderPublicPlaylists = (list: any[]) => {
+    if (!el.pubPlaylists) return;
+    clear(el.pubPlaylists);
+    for (const p of list) {
+      const li = make('li', 'km-shelf__item');
+      const card = make('a', 'km-shelf__card') as HTMLAnchorElement;
+      card.href = p.url || 'https://music.163.com/playlist?id=' + p.id;
+      card.target = '_blank';
+      card.rel = 'noopener noreferrer';
+      card.setAttribute('aria-label', (p.name || '歌单') + '（在网易云音乐打开）');
+      const cover = make('span', 'km-shelf__cover');
+      if (p.cover) {
+        const im = make('img', 'km-shelf__cover-img') as HTMLImageElement;
+        im.src = p.cover;
+        im.alt = '';
+        im.loading = 'lazy';
+        cover.appendChild(im);
+      }
+      card.appendChild(cover);
+      card.appendChild(make('span', 'km-shelf__name', p.name || '未命名歌单'));
+      card.appendChild(make('span', 'km-shelf__count', (p.trackCount || 0) + ' 首'));
+      li.appendChild(card);
+      el.pubPlaylists.appendChild(li);
+    }
+    text(el.pubPlaylistsNote, list.length ? '' : '快照里没有歌单。');
+  };
+
+  /* 快照里的曲目行：序号 / 曲名歌手 / 外链。
+     与站长那一版共用 .km-track 那套格子（7 列），所以空位照样占着——
+     少一个 span 后面的格子会集体左移（见 km-track 的注释）。 */
+  const publicTrackRow = (song: any, index: number) => {
+    const li = make('li', 'km-track');
+    li.appendChild(make('span', 'km-track__no', String(index + 1).padStart(2, '0')));
+    li.appendChild(make('span', 'km-track__art'));
+    const main = make('span', 'km-track__main');
+    main.appendChild(make('span', 'km-track__name', song.name || '（这首查不到了）'));
+    main.appendChild(
+      make('span', 'km-track__artist', (song.artist || '') + (song.album ? ' · ' + song.album : ''))
+    );
+    li.appendChild(main);
+    li.appendChild(make('span', 'km-track__at', ''));
+    li.appendChild(make('span', 'km-track__time', ''));
+    const link = make('a', 'km-track__link', '网易云') as HTMLAnchorElement;
+    link.href = song.url || 'https://music.163.com/song?id=' + song.id;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.setAttribute('aria-label', (song.name || '这首') + ' —— 在网易云音乐打开');
+    li.appendChild(link);
+    return li;
+  };
+
+  const renderPublicLiked = (liked: any) => {
+    if (el.pubLikedCover) {
+      clear(el.pubLikedCover);
+      if (liked.cover) {
+        const im = make('img', 'km-liked__cover-img') as HTMLImageElement;
+        im.src = liked.cover;
+        im.alt = '';
+        im.loading = 'lazy';
+        el.pubLikedCover.appendChild(im);
+        el.pubLikedCover.hidden = false;
+      } else {
+        el.pubLikedCover.hidden = true;
+      }
+    }
+    if (el.pubLikedMeta) {
+      clear(el.pubLikedMeta);
+      el.pubLikedMeta.appendChild(make('span', 'km-liked__name', liked.name || '我喜欢的音乐'));
+      el.pubLikedMeta.appendChild(make('span', 'km-liked__dot', '·'));
+      el.pubLikedMeta.appendChild(
+        make('span', 'km-liked__count', (liked.trackCount || 0) + ' 首')
+      );
+    }
+    const tracks = Array.isArray(liked.tracks) ? liked.tracks : [];
+    text(
+      el.pubLikedNote,
+      liked.capped
+        ? '快照只收最近加入的前 ' + tracks.length + ' 首（共 ' + liked.trackCount + ' 首），完整的在网易云那边。'
+        : ''
+    );
+    if (!el.pubTracks) return;
+    clear(el.pubTracks);
+    tracks.forEach((song: any, i: number) => {
+      if (el.pubTracks) el.pubTracks.appendChild(publicTrackRow(song, i));
+    });
+  };
+
+  /* ------------------------------------------------------------ 音乐盒
+     访客能「听」的就是这一份：站上自己的 mp3（/media/music/，本来就公开）。
+     与网易账号无关，所以没有风控这回事，也不用站点服务端中转字节。 */
+  const box = { audio: null as HTMLAudioElement | null, current: '', bound: false };
+
+  const paintBox = () => {
+    if (!el.pubBox) return;
+    for (const node of Array.from(el.pubBox.querySelectorAll('[data-pub-play]'))) {
+      const btn = node as HTMLButtonElement;
+      const playing = Boolean(box.audio && !box.audio.paused && box.current === btn.getAttribute('data-pub-play'));
+      btn.setAttribute('aria-pressed', playing ? 'true' : 'false');
+      const icon = btn.querySelector('.km-track__play-icon');
+      if (icon) icon.textContent = playing ? '❚❚' : '▶';
+    }
+  };
+
+  const playBox = (track: any) => {
+    const a = box.audio;
+    if (!a || !track || !track.url) return;
+    if (box.current === track.url) {
+      if (a.paused) a.play().catch(() => {});
+      else a.pause();
+      paintBox();
+      return;
+    }
+    box.current = track.url;
+    a.src = track.url;
+    a.play().catch(() => {
+      /* 与音乐盒同一条：浏览器不许没交互就出声，再点一下就好 */
+      text(el.pubBoxNote, '浏览器不许没交互就出声——再点一下那颗键。');
+    });
+    paintBox();
+  };
+
+  const renderMusicBox = (data: any) => {
+    const tracks = (data && Array.isArray(data.tracks) ? data.tracks : []).filter(
+      (t: any) => t && t.url
+    );
+    if (!el.pubBox) return;
+    clear(el.pubBox);
+    if (!tracks.length) {
+      text(el.pubBoxNote, '站上还没有自己的曲子（站长在音乐盒里上传）。');
+      return;
+    }
+    tracks.forEach((t: any, i: number) => {
+      const li = make('li', 'km-track');
+      li.appendChild(make('span', 'km-track__no', String(i + 1).padStart(2, '0')));
+      li.appendChild(make('span', 'km-track__art'));
+      const main = make('span', 'km-track__main');
+      main.appendChild(make('span', 'km-track__name', t.title || '未命名'));
+      main.appendChild(make('span', 'km-track__artist', t.artist || '本站曲库'));
+      li.appendChild(main);
+      li.appendChild(make('span', 'km-track__at', ''));
+      li.appendChild(make('span', 'km-track__time', ''));
+      const play = make('button', 'km-track__play') as HTMLButtonElement;
+      play.type = 'button';
+      play.setAttribute('data-pub-play', t.url);
+      play.setAttribute('aria-pressed', 'false');
+      play.setAttribute('aria-label', '播放《' + (t.title || '这首') + '》');
+      play.appendChild(make('span', 'km-track__play-icon', '▶'));
+      play.addEventListener('click', () => playBox(t));
+      li.appendChild(play);
+      if (el.pubBox) el.pubBox.appendChild(li);
+    });
+  };
+
+  const loadMusicBox = () => {
+    if (!el.pubBox || !el.pubAudio) return;
+    if (!box.bound) {
+      const a = el.pubAudio as HTMLAudioElement;
+      a.addEventListener('play', paintBox);
+      a.addEventListener('pause', paintBox);
+      a.addEventListener('ended', paintBox);
+      box.audio = a;
+      box.bound = true;
+    }
+    $fetch('/api/music')
+      .then((data: any) => renderMusicBox(data))
+      .catch(() => text(el.pubBoxNote, '站上曲库没读出来。'));
+  };
+
+  const renderPublic = (snapshot: any) => {
+    const at = snapshot.at ? dateOnly(new Date(snapshot.at).getTime()) : '';
+    text(el.pubAt, at ? '发布于 ' + at : '');
+    /* 站长本人在这台机器上、只是小服务没跑：说清他看到的是快照，不是实时 */
+    if (studio.keyValue.value && el.pubHint) {
+      text(el.pubHint, '这台浏览器里有口令，但本机小服务没在跑——看到的是已发布的快照。');
+      el.pubHint.hidden = false;
+    }
+    renderPublicProfile(snapshot.profile || {});
+    renderPublicPlaylists(Array.isArray(snapshot.playlists) ? snapshot.playlists : []);
+    renderPublicLiked(snapshot.liked || {});
+  };
+
+  /* 读站点自己的快照。回 true 表示「摆出来了」，false 表示「没得摆」 */
+  const loadPublic = () =>
+    $fetch('/api/kumura')
+      .then((data: any) => {
+        if (!data || !data.ok || !data.published || !data.snapshot) return false;
+        renderPublic(data.snapshot);
+        setState('public');
+        loadMusicBox();
+        return true;
+      })
+      .catch(() => false);
+
+  /* ------------------------------------------------------ 发布到公网（站长）
+     采集与脱敏都在服务端做（server/api/kumura/publish.post.ts），浏览器这边
+     只是按一下、然后把回话念出来。口令从 useStudio 走：没有就问一次再重放。 */
+  const publishNow = () => {
+    const btn = el.publish as HTMLButtonElement | null;
+    if (btn) btn.disabled = true;
+    text(el.publishNote, '正在发布…（要向本机小服务取一次歌单，几秒钟）');
+    studio
+      .withKey(() => studio.authed('/api/kumura/publish', { method: 'POST', json: {} }))
+      .then((r: any) => {
+        const at = r && r.at ? dateOnly(new Date(r.at).getTime()) : '';
+        text(
+          el.publishNote,
+          '已发布：歌单 ' + (r.playlists || 0) + ' 张 · 红心 ' + (r.tracks || 0) + '/' + (r.trackCount || 0) + ' 首' + (at ? ' · ' + at : '')
+        );
+      })
+      .catch((err: any) => {
+        const why = (err && err.data && err.data.error) || (err && err.message) || '未知错误';
+        text(el.publishNote, '发布失败：' + why);
+      })
+      .finally(() => {
+        if (btn) btn.disabled = false;
+      });
+  };
+
   /* ---------------------------------------------------------------- 播放
      地址由小服务现取（网易的直链约 20 分钟过期，服务端有 12 分钟缓存）。
      音频本身直连网易 CDN —— 那边发 CORS 头，所以不用我们中转字节，
@@ -1054,6 +1342,7 @@ export const useKumura = (root: Ref<HTMLElement | null>) => {
   /* 三个「换一张 / 再读 50 首 / 退出登录」 */
   const bindActions = () => {
     if (el.qrRefresh) el.qrRefresh.addEventListener('click', beginQrLogin);
+    if (el.publish) el.publish.addEventListener('click', publishNow);
     if (el.more) {
       el.more.addEventListener('click', () => {
         loadLiked(false);
@@ -1111,12 +1400,17 @@ export const useKumura = (root: Ref<HTMLElement | null>) => {
         }
       })
       .catch(() => {
-        setState('offline');
-        text(
-          el.serviceHint,
-          '连不上本机的云村小服务（' + SERVICE + '）。先运行：node tools/ncm-server.mjs'
-        );
-        if (el.serviceHint) el.serviceHint.hidden = false;
+        /* 小服务连不上：先看站长有没有发布过快照。发布过就摆访客那一版；
+           没发布过才退回「小服务没在跑」——那句话是说给站长自己听的。 */
+        loadPublic().then((shown) => {
+          if (shown) return;
+          setState('offline');
+          text(
+            el.serviceHint,
+            '连不上本机的云村小服务（' + SERVICE + '）。先运行：node tools/ncm-server.mjs'
+          );
+          if (el.serviceHint) el.serviceHint.hidden = false;
+        });
       });
   };
 

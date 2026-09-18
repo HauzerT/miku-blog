@@ -23,6 +23,7 @@
 [data-music-state="login-loading"] [data-pane]:not([data-pane="login"]),
 [data-music-state="login-error"] [data-pane]:not([data-pane="login"]),
 [data-music-state="login-expired"] [data-pane]:not([data-pane="login"]),
+[data-music-state="public"] [data-pane]:not([data-pane="public"]),
 [data-music-state="ready"] [data-pane]:not([data-pane="ready"]) {
   display: none;
 }
@@ -739,4 +740,40 @@ body.has-km-player { padding-bottom: 5.5rem; }
 @media (pointer: coarse) {
   .km-track { padding-block: 0.6rem; }
   .km-btn { min-height: 2.75rem; }
+}
+
+/* ------------------------------------------------- 公开快照（访客那一版）
+   站长按「发布到公网」落盘的那一份快照（data/kumura.json）渲染出来的样子。
+   数据是脱敏过的（白名单见 server/lib/kumura-snapshot.mjs），这里只管把它摆得
+   与站内那一套一致：账号卡、歌单架、红心列表全部复用上面的类，只有
+   「这是快照」那一行说明是新的。 */
+
+.km-pub {
+  display: grid;
+  gap: var(--s-4);
+}
+
+.km-pub__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-1) var(--s-3);
+  font-family: var(--f-read);
+  font-size: 0.9rem;
+  color: var(--miku-deep);
+}
+
+.km-pub__tag {
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.km-pub__at {
+  opacity: 0.75;
+}
+
+/* 站长本人在这台机器上、只是小服务没跑时那一句：占一整行，说清他看到的是快照 */
+.km-pub__hint {
+  flex-basis: 100%;
+  opacity: 0.75;
 }
