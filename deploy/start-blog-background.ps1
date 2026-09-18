@@ -1,4 +1,4 @@
-﻿# ============================================================================
+# ============================================================================
 #  CV01 · 后台启动源站（给任务计划程序用）
 #  ---------------------------------------------------------------------------
 #  只做一件事：确认 127.0.0.1:4321 没人听，就把 start.ps1 在后台拉起来。
@@ -75,7 +75,9 @@ if (-not (Test-Path -LiteralPath $startPs1)) {
 
 # 走 start.ps1，但**不用 cmd.exe /c 包一层**：那样收进程得靠 taskkill /T，
 # 直接 powershell -File 更干净。
-$psArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $startPs1, "$Port")
+# -NoBuild：开机自启 / 守候进程只负责「把已有的产物跑起来」，缺产物要立刻失败
+# 并留一行日志，而不是在后台悄悄跑一次一分钟的构建（那会把日志搅乱、把开机拖长）。
+$psArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $startPs1, "$Port", '-NoBuild')
 if ($PublicDeploy) { $psArgs += '-NoKumura' }
 
 $env:CV01_TRUST_PROXY = if ($PublicDeploy) { '1' } else { '0' }

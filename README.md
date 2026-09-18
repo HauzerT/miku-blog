@@ -119,7 +119,7 @@ F#3 做题区doge      EE学生的自我迭代
 
 | 文件 | 说明 |
 |---|---|
-| `start.cmd` / `start.ps1` | 双击启动 Nuxt 应用 + 云村小服务（Windows）；PowerShell 版 `.\start.ps1 8080` 换端口，`-NoKumura` 只要应用。跑的是构建产物，没构建过会明确报错并退出非零 |
+| `start.cmd` / `start.ps1` | 双击启动 Nuxt 应用 + 云村小服务（Windows），并打印**入口 / 门厅状态 / 口令**横幅；`.\start.ps1 8080` 换端口，`-NoKumura` 只要应用，`-NoBuild` 缺产物时不自动构建，`-Open` 顺手打开入口。跑的是构建产物，缺了会自己 `pnpm install` + `pnpm build`（`-NoBuild` 时改为报错退出） |
 | `stop.cmd` / `stop.ps1` | 双击停掉这两个服务；`-List` 只看在跑什么，`-Port 8080` 只停那一个 |
 | `server/api/**` | Nitro 接口，一个方法一个文件：鉴权、内容、上传、渲染、音乐、状态 |
 | `server/utils/**` | 数据层与内容装配：`store`（五个 JSON）/ `paths` / `briefs` / `auth` / `content` / `media-store` / `http` / `text` |
@@ -178,12 +178,40 @@ F#3 做题区doge      EE学生的自我迭代
 > `/api/articles`、`/api/render`、`/api/music`、`/api/media`、`/api/state`），
 > 所以浏览器里那把口令（`localStorage` 的 `cv01-key`）换了线路也不用重输。
 
-**启动**：双击 `start.cmd`，开 `http://127.0.0.1:4321/`。
-它跑的是构建产物 `node .output/server/index.mjs`——**先 `pnpm install && pnpm build` 一次**，
-没构建过 `start.cmd` 会明确报错并退出非零。端口可以跟在后面换（`start.cmd 8080`，
-等于 `$env:PORT=8080` 再起那台服务）。
-第一次会先落在**门厅**（`/login`）：访客按一下就进，站长要输口令——
-不想让站点先过门厅，见下面「门厅」一节里的 `"gate": false`。
+**启动**：双击 `start.cmd`（它只是把 `start.ps1` 拉起来；所有文案都在 `.ps1` 里）。
+
+它先给你一张**入口横幅**——入口地址、门厅是开是关、口令、云村页在哪——然后才起服务：
+
+```
+  ─────────────────────────────────────────────
+   入口
+     http://127.0.0.1:4321/
+   门厅
+     开着 —— 打开入口会先落在门厅：访客按一下就进，站长要口令
+   口令
+     （32 位，照 data/settings.json 打出来）
+   云村
+     http://127.0.0.1:4321/kumura   （小服务 127.0.0.1:3170）
+  ─────────────────────────────────────────────
+```
+
+打开那个入口**一定先落在门厅**（`/login`）：这是服务端在拦，不是页面上的装饰——
+不带那枚三十天的章，任何一页（包括 `index.html` 这类老地址）都会 302 到门厅去。
+横幅里的门厅状态是照着 `data/settings.json` 说的实话，若那里写着 `"gate": false`
+它会当场把话说明白。详见下面「门厅」一节。
+
+跑的是构建产物 `node .output/server/index.mjs`，**缺构建就自己装依赖 + 构建一次**
+（大概一两分钟），不用你记两条命令；只在部署/开机自启那种场合才该跳过它，
+那里传的是 `-NoBuild`。开关：
+
+| 命令 | 作用 |
+|---|---|
+| `start.cmd` | 起应用（默认 4321）+ 云村小服务，打印入口 / 门厅 / 口令横幅 |
+| `start.cmd 3000` | 换端口（等于 `$env:PORT=3000`；注意隧道 origin 也要跟着改） |
+| `start.cmd -NoKumura` | 只要应用，不碰云村 |
+| `start.cmd -NoBuild` | 缺产物时不要自动构建，直接报错退出（部署脚本用这个） |
+| `start.cmd -Open` | 起好之后顺手用默认浏览器打开入口（会先落在门厅） |
+
 **口令由 `start.ps1` 打在横幅上**（Nuxt 那台服务自己不打印）：第一次上传时输一次，
 之后这个浏览器就记住了。
 
