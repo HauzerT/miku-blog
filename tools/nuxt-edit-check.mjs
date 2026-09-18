@@ -1,9 +1,9 @@
-﻿/* ==========================================================================
+/* ==========================================================================
    tools/nuxt-edit-check.mjs · Nuxt 应用的「站长那两只手」浏览器验收
    ---------------------------------------------------------------------------
    旧站那批自检（edit-check / globaledit-check / md-check / login-check）盯的是
    「生成出来的 HTML + 挂在上面的一堆 IIFE」，那套页面已经随 1.x 静态线一起删掉了。
-   这一份是它们的接任者：对着**真浏览器 + 真服务 + 真文件**量编辑这条工作流（83 项断言）。
+   这一份是它们的接任者：对着**真浏览器 + 真服务 + 真文件**量编辑这条工作流（94 项断言）。
 
    它覆盖什么（全部对着真服务，全程控制台 0 报错）：
      1) 访客：没有 [data-edit-toggle]，右键轨道栏一个菜单都不冒出来
@@ -12,11 +12,13 @@
         发出的请求与 rail / 首页索引 / 文章行看到的新字都对得上 → 改回来
      3) 右键菜单：轨道栏板块两条（重命名 / 撤下）→ 撤下原生板块 →
         data/overrides.json 里落一笔 → 那一页 410 → 提示条上的「撤销」放回来
-     4) 原生文章正文的富文本：改一段、加粗、下划线（青）→ 保存 →
+     4) 发布过的文章：三条（整篇重编辑 / 重命名 / 删除）→ 点「整篇重编辑…」整页进
+        /editor?id=…、稿子回填、「去看这一篇」指着刚发出去的那一页；原生文章不摆这一条
+     5) 原生文章正文的富文本：改一段、加粗、下划线（青）→ 保存 →
         data/overrides.json 里 posts.<slug>.body → 页面上看得到 →
         「恢复成源文件里的正文」把覆盖层那一条拿掉（源文件不动）
-     5) Esc 语义与「一段一次」：改着的时候 Esc 先问一句；点别处的链接不跳、先问一句
-     6) 全程控制台 0 报错
+     6) Esc 语义与「一段一次」：改着的时候 Esc 先问一句；点别处的链接不跳、先问一句
+     7) 全程控制台 0 报错
 
    怎么跑（先构建再起成品服务）：
      pnpm install && pnpm build
@@ -586,7 +588,7 @@ async function main() {
       (await evaluate(`!document.documentElement.hasAttribute('data-editmode') && document.querySelector('[data-gm]') === null && document.querySelector('[data-edit-toggle]').textContent === '全局编辑'`)));
 
     /* ================================================================ 3. 右键菜单 */
-    console.log('\n— 3. 右键菜单：重命名 / 撤下 / 撤销 —');
+    console.log('\n— 3. 右键菜单：重编辑 / 重命名 / 撤下 / 撤销 —');
     const overridesPre = JSON.stringify(readOverrides());
     const srcPre = sha(POSTS_SRC);
     const railAt = await railIndexById('suiyu');
@@ -677,6 +679,58 @@ async function main() {
         (await waitFor(`document.querySelector('.post-row__link[href$="/posts/${HIDE_SLUG}"]') !== null`)));
     check('这一路也没碰源文件', sha(POSTS_SRC) === srcPre, sha(POSTS_SRC));
     check('覆盖层还是自检开跑之前那一份', JSON.stringify(readOverrides()) === overridesPre, JSON.stringify(readOverrides()).slice(0, 100));
+
+    /* --- 3d. 发布过的文章：右键第一条「整篇重编辑…」→ 独立编辑页 ---
+       原生文章不摆这一条（它住在 content/posts.mjs 里，整篇重编辑没有落点），
+       所以拿一篇真用编辑页写的文章来量：临时建一篇、量完就删。 */
+    const made = await api('/api/articles', 'POST', {
+      title: '自检：待重编辑的一篇',
+      section: 'tongxue',
+      date: '2099.01.01',
+      blurb: '自检临时建的，量完就删。',
+      source: '## 自检正文\n这一篇是临时建的，用来量「整篇重编辑」。\n',
+    });
+    const TMP_POST = made.data?.article?.id || '';
+    const TMP_SLUG = made.data?.article?.slug || '';
+    check('临时文章建出来了（编辑页写的那种）', made.status === 201 && Boolean(TMP_POST) && Boolean(TMP_SLUG), JSON.stringify(made.data).slice(0, 90));
+
+    await goto(url('/archive'));
+    await rightClick(`.post-row__link[href$="/posts/${TMP_SLUG}"] .post-row__title`);
+    const runtimeMenu = await menuLabels();
+    check('发布过的文章：三条（重编辑 / 重命名 / 删除）', runtimeMenu.length === 3, runtimeMenu.join(' / '));
+    check('第一条是「整篇重编辑…」', /^整篇重编辑/.test(runtimeMenu[0] || ''), runtimeMenu[0] || '');
+    check('破坏性的那一条仍然在最后', /^删除这篇文章/.test(runtimeMenu[2] || ''), runtimeMenu[2] || '');
+    await shot('probe-7b-ctx-reedit');
+
+    await rightClick(`.post-row__link[href$="/posts/${HIDE_SLUG}"] .post-row__title`);
+    const nativeMenu = await menuLabels();
+    check('原生文章：还是两条（重命名 / 撤下），没有「整篇重编辑…」',
+      nativeMenu.length === 2 && nativeMenu.join(' / ').indexOf('重编辑') === -1, nativeMenu.join(' / '));
+
+    await rightClick(`.post-row__link[href$="/posts/${TMP_SLUG}"] .post-row__title`);
+    await clickMenu('/^整篇重编辑/');
+    check('点下去进了独立编辑页（/editor?id=…）',
+      await waitFor(`location.pathname === '/editor' && location.search.indexOf(${JSON.stringify(TMP_SLUG)}) > -1`, 8000),
+      await evaluate('location.href'));
+    check('稿子整份回填了（标题 / 正文都在）',
+      await waitFor(`(function () {
+        var t = document.querySelector('[data-title]');
+        var s = document.querySelector('[data-source]');
+        return Boolean(t && s) && t.value === '自检：待重编辑的一篇' && s.value.indexOf('自检正文') > -1;
+      })()`, 8000));
+    check('编辑页认得出「正在改这一篇」，也摆着「写新的一篇」',
+      (await evaluate(`!!document.querySelector('[data-new]')`)) &&
+        /正在改这一篇/.test(await evaluate(`document.querySelector('[data-state]').textContent`)));
+    check('「去看这一篇」的链接指着刚发出去的那一页',
+      (await evaluate(`(function () { var a = document.querySelector('[data-state] a'); return a ? a.getAttribute('href') : ''; })()`)) === `/posts/${TMP_SLUG}`);
+    await shot('probe-7c-editor-from-menu');
+    await evaluate(`document.querySelector('[data-new]').click()`);
+    check('「写新的一篇」把地址里的 ?id= 摘掉了（不然刷新又回到那一篇）',
+      await waitFor(`location.pathname === '/editor' && location.search.indexOf('id=') === -1`, 4000),
+      await evaluate('location.search'));
+
+    const delTmp = await api(`/api/articles/${TMP_POST}`, 'DELETE');
+    check('临时文章删掉了（收尾）', delTmp.status === 200 && (await api(`/api/articles/${TMP_SLUG}`)).status === 404, String(delTmp.status));
 
     /* ================================================================ 4. 原生文章正文的富文本 */
     console.log('\n— 4. 正文：富文本 / 覆盖层 / 恢复成源文件 —');
