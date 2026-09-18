@@ -188,7 +188,7 @@ C:\Program Files (x86)\cloudflared\cloudflared.EXE --config=C:\Users\<你的用�
 ### 4.2 源站（本站的 Nuxt 服务）
 
 用仓库里带的 `deploy\start-blog-background.cmd`（纯 ASCII 的 .cmd，中文在 .ps1 里——
-理由见 README「为什么 .cmd 里一个中文都没有」）。**公网部署要加 `-PublicDeploy`**：
+理由见 [HANDBOOK.md](../HANDBOOK.md#上传系统本机跑数据落在自己硬盘上)「为什么 .cmd 里一个中文都没有」）。**公网部署要加 `-PublicDeploy`**：
 
 ```
 deploy\start-blog-background.cmd -PublicDeploy
@@ -309,7 +309,7 @@ node tools/preflight-check.mjs http://127.0.0.1:4399
 | 门厅 cookie `cv01-enter` | 访客可自取（设计如此）。伪造它拿不到额外权限，**真正的权限仍是口令**。 |
 | 写接口 | 每个都过 `requireAuth`，预检逐个确认过是 401。口令一泄 = 整站可写。 |
 | 后台编辑（`/editor`、全局编辑） | 要口令。 |
-| **`tools/ncm-server.mjs`（3170）** | **绝对不要给它开 tunnel 或 Public Hostname**——它旁边就是 `.ncm-session.json`。`/kumura` 那一页同理（README 里也是这么说的）。 |
+| **`tools/ncm-server.mjs`（3170）** | **绝对不要给它开 tunnel 或 Public Hostname**——它旁边就是 `.ncm-session.json`。`/kumura` 那一页同理（[HANDBOOK.md](../HANDBOOK.md#云村扫码登录网易云可选)里也是这么说的）。 |
 
 ### 9.1 门厅留着，当「开屏过场」
 

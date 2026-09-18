@@ -38,7 +38,7 @@ npm view marked version && npm view katex version
 node tools/nuxt-edit-check.mjs http://127.0.0.1:3987   # 它会把富文本正文存下来再看页面，公式与 emoji 都过一遍
 ```
 
-升级完记得把这两个数字（版本号）在本文件与根 `README.md` 里一起改掉。
+升级完记得把这两个数字（版本号）在本文件与根 `HANDBOOK.md` 里一起改掉。
 
 ## 许可证
 
