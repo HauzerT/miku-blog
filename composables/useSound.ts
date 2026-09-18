@@ -1,132 +1,46 @@
 /* ==========================================================================
    composables/useSound.ts · 调声
    ---------------------------------------------------------------------------
-   把卷帘上的音变成听得见的东西——原生九个音，以及界面上新建板块时挑的任何一个音。
-   只有两处会出声：
+   事件的接法在这里，出声那台琴在 composables/sound-engine.mjs（WebAudio，
+   采样 + 合成音色，起音与收尾都有斜坡）。只有两处会出声：
 
-     · 点轨道名 / 点卷帘的轨道头 —— 先响一声，再切模块
-     · 指针掠过音符块，或用方向键在卷帘上走 —— 试听那个音
+     · 点轨道名 / 点轨道头 / 点音符块 —— 先响一声，再切模块
+     · 指针掠过音符块，或用方向键走上去 —— 试听那个音
 
-   两种声源自动选择：assets/audio/<音高>.mp3 这类真采样（缺哪个补哪个），
-   没有采样就用 WebAudio 现场合成一个柔和的电钢琴音色。
+   三条与手机有关的规矩：
+
+     1. **pointerover 只认鼠标**。触屏一次点按会先发 pointerover 再发 click，
+        两个声音差几十毫秒叠在一起就是梳状滤波（金属味）。鼠标才是「掠过」，
+        触摸不是——触摸交给 click 那一路。
+     2. **同一个音 320ms 内不再叠一层**（引擎里那道闸）：鼠标悬停过再点下去，
+        不再出现两份同样的采样。
+     3. **开启音效时先把这一页看得到的音拉下来**（最多 12 个，3 个并发）。
+        手机上第一次点击往往就是切模块那一下，等它现下现解就晚了；先拉好，
+        点下去就是真钢琴。存了「省流量」偏好的浏览器（Save-Data）跳过这一步。
 
    默认关闭——没人喜欢的网站不该自己出声。
    ========================================================================== */
+import { SOUND, engine, pitchHz } from './sound-engine.mjs';
+
 const STORE = 'cv01-sound';
 const SWITCH_DELAY = 190; /* 切模块前让音符响多久（毫秒） */
-const EXTS = ['.mp3', '.wav', '.ogg'];
-const MASTER = 0.15; /* 总音量。想更响改这里，别改单个音符 */
 
-/* 音高 → 频率：十二平均律，A4 = 440Hz。
-   算出来的话 C2 到 B6 任何音都认，采样文件也才有机会被找出来。 */
-const SEMITONE = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
-export const pitchHz = (pitch) => {
-  const m = /^([A-G])(#?)(-?\d)$/.exec(String(pitch || ''));
-  if (!m) return 0;
-  const midi = (Number(m[3]) + 1) * 12 + SEMITONE[m[1]] + (m[2] ? 1 : 0);
-  return 440 * Math.pow(2, (midi - 69) / 12);
-};
-
-const slugOf = (pitch) => String(pitch).toLowerCase().replace('#', 's');
-
-/* 引擎状态：只在浏览器里有，且整个会话共用一份（与旧站那一个 IIFE 闭包等价） */
-let ctx = null;
-let extOf = {};
-let lastPitch = '';
-let lastAt = 0;
-
-const ensure = () => {
-  if (ctx) return ctx;
-  const AC = window.AudioContext || window.webkitAudioContext;
-  if (!AC) return null;
-  ctx = new AC();
-  const gain = ctx.createGain();
-  gain.gain.value = MASTER;
-  gain.connect(ctx.destination);
-  ctx.__master = gain;
-  return ctx;
-};
-
-/* 加法合成的柔和小钟琴：基频 + 三个泛音，快起音、长衰减 */
-const synth = (pitch, short) => {
-  if (!ensure()) return;
-  const t = ctx.currentTime + 0.001;
-  const partials = [
-    [1, 1],
-    [2, 0.3],
-    [3, 0.12],
-    [4, 0.05],
-  ];
-
-  const env = ctx.createGain();
-  env.gain.setValueAtTime(0.0001, t);
-  if (short) {
-    env.gain.linearRampToValueAtTime(0.9, t + 0.006);
-    env.gain.exponentialRampToValueAtTime(0.26, t + 0.12);
-    env.gain.exponentialRampToValueAtTime(0.0001, t + 0.42);
-  } else {
-    env.gain.linearRampToValueAtTime(0.9, t + 0.008);
-    env.gain.exponentialRampToValueAtTime(0.3, t + 0.22);
-    env.gain.exponentialRampToValueAtTime(0.0001, t + 1.1);
+/* 这一页看得到的音（轨道栏、卷帘轨道头、音符块、下拉里挑过的音） */
+const pagePitches = () => {
+  const seen = new Set();
+  for (const el of document.querySelectorAll('[data-pitch]')) {
+    const value = el.getAttribute('data-pitch') || '';
+    if (pitchHz(value)) seen.add(value);
   }
-
-  const lp = ctx.createBiquadFilter();
-  lp.type = 'lowpass';
-  lp.frequency.value = 4200;
-  lp.Q.value = 0.6;
-  env.connect(lp);
-  lp.connect(ctx.__master);
-
-  for (const [mult, level] of partials) {
-    const osc = ctx.createOscillator();
-    osc.type = 'sine';
-    osc.frequency.value = pitchHz(pitch) * mult;
-    const g = ctx.createGain();
-    g.gain.value = level;
-    osc.connect(g);
-    g.connect(env);
-    osc.start(t);
-    osc.stop(t + (short ? 0.5 : 1.25));
-  }
+  return [...seen];
 };
 
-const playFile = (pitch, ext, short) => {
-  const audio = new Audio(`/assets/audio/${slugOf(pitch)}${ext}`);
-  audio.volume = 0.55;
-  const playing = audio.play();
-  if (playing && playing.catch) playing.catch(() => synth(pitch, short));
-};
-
-const trySample = (pitch, i, short) => {
-  if (i >= EXTS.length) {
-    extOf[pitch] = false;
-    synth(pitch, short);
-    return;
+const saveData = () => {
+  try {
+    return Boolean(navigator.connection && navigator.connection.saveData);
+  } catch {
+    return false;
   }
-  const audio = new Audio(`/assets/audio/${slugOf(pitch)}${EXTS[i]}`);
-  audio.volume = 0.55;
-  const playing = audio.play();
-  if (!playing || !playing.then) {
-    extOf[pitch] = EXTS[i];
-    return;
-  }
-  playing
-    .then(() => {
-      extOf[pitch] = EXTS[i];
-    })
-    .catch(() => trySample(pitch, i + 1, short));
-};
-
-const play = (pitch, short, force, enabled) => {
-  if (!enabled || !pitchHz(pitch)) return;
-  const now = Date.now();
-  if (!force && pitch === lastPitch && now - lastAt < 260) return; /* 掠过时不连响 */
-  lastPitch = pitch;
-  lastAt = now;
-
-  if (extOf[pitch] === false) return void synth(pitch, short);
-  if (extOf[pitch]) return void playFile(pitch, extOf[pitch], short);
-  trySample(pitch, 0, short);
 };
 
 export const useSound = () => {
@@ -144,10 +58,12 @@ export const useSound = () => {
 
   const toggle = () => {
     enabled.value = !enabled.value;
+    engine.setEnabled(enabled.value);
     if (enabled.value) {
-      ensure();
-      if (ctx && ctx.state === 'suspended') ctx.resume();
-      play('A5', true, true, enabled.value); /* 开启时用最高那个音应一声 */
+      /* resume 必须在这一次点击里发生，手机上才给声音 */
+      void engine.resume();
+      engine.play('A5', { short: true }); /* 开启时用最高那个音应一声 */
+      if (!saveData()) void engine.preload(pagePitches());
     }
     try {
       localStorage.setItem(STORE, enabled.value ? 'on' : 'off');
@@ -163,6 +79,9 @@ export const useSound = () => {
     } catch {
       /* 同上 */
     }
+    engine.setEnabled(enabled.value);
+    if (enabled.value && !saveData()) void engine.preload(pagePitches());
+
     if (!window.matchMedia) return;
     const mq = window.matchMedia('(max-width: 720px)');
     narrow.value = mq.matches;
@@ -186,7 +105,7 @@ export const useSound = () => {
 
       event.preventDefault();
       event.stopPropagation();
-      play(pitch, true, true, enabled.value);
+      engine.play(pitch, { short: true });
       const href = link.getAttribute('href');
       if (!href) return;
       setTimeout(() => {
@@ -194,18 +113,26 @@ export const useSound = () => {
       }, SWITCH_DELAY);
     };
 
-    /* 掠过音符块：试听 */
+    /* 掠过音符块：试听。**只认鼠标**——触屏的 pointerover 紧接着就是 click，
+       两次触发叠在一起会响成金属声（见文件头第 1 条）。 */
     const onOver = (event) => {
       if (!enabled.value) return;
+      if (event.pointerType && event.pointerType !== 'mouse') return;
       const note = event.target.closest ? event.target.closest('.note[data-pitch]') : null;
-      if (note) play(note.getAttribute('data-pitch'), false, false, enabled.value);
+      if (!note) return;
+      const pitch = note.getAttribute('data-pitch');
+      engine.play(pitch, { short: false });
+      void engine.load(pitch);   /* 顺手把它拉下来：下一次点击就是真钢琴 */
     };
 
     /* 键盘走到音符块 / 轨道键：试听 */
     const onFocus = (event) => {
       if (!enabled.value) return;
       const el = event.target.closest ? event.target.closest('[data-pitch]') : null;
-      if (el) play(el.getAttribute('data-pitch'), false, true, enabled.value);
+      if (!el) return;
+      const pitch = el.getAttribute('data-pitch');
+      void engine.load(pitch);
+      engine.play(pitch, { short: false });
     };
 
     document.addEventListener('click', onClick, true);
@@ -218,5 +145,5 @@ export const useSound = () => {
     });
   });
 
-  return { enabled, ready, label, ariaLabel, toggle };
+  return { enabled, ready, label, ariaLabel, toggle, SOUND };
 };

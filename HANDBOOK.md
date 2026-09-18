@@ -27,7 +27,7 @@
 
 **可选的体验**
 
-- [钢琴声](#钢琴声可选默认关闭) —— WebAudio 现场合成，默认关闭
+- [钢琴声](#钢琴声可选默认关闭) —— WebAudio 采样 + 合成音色，默认关闭
 - [云村](#云村扫码登录网易云可选) —— 扫码登录网易云、红心歌单
 
 **上线**
@@ -113,6 +113,7 @@
 | `node tools/nuxt-studio-check.mjs http://127.0.0.1:3987` | 悬浮球工作流自检（42 项）：两颗球、自动播放被拦与解禁、口令框、站长工具箱、建板块、传 / 换 / 改名 / 删歌，全程对着真文件 |
 | `node tools/nuxt-edit-check.mjs http://127.0.0.1:3987` | 编辑与右键自检（96 项）：访客看不到按钮、点字即改、改名 / 撤下 / 恢复 / 410、整篇重编辑回编辑页、富文本正文覆盖层、Esc 语义 |
 | `node tools/markdown-check.mjs` | 正文管线自检（25 项）：换行（`breaks`）、代码块与表格里的换行是结构、公式不被 `breaks` 动、emoji 与裸链接的老规矩 |
+| `node tools/sound-check.mjs http://localhost:3987` | 音效自检（21 项）：真浏览器里点开音效，离线渲染量峰值 / 起音 / 时长 / 尾巴，再用触摸事件数一次点按响了几层（见[钢琴声](#钢琴声可选默认关闭)） |
 | `node tools/latex-check.mjs` | LaTeX 文字层自检（81 项）：整篇 `.tex` 的骨架、章节编号、列表与定理、图表与表格线、公式编号与 `\ref`、脚注与文献、引言区宏、Markdown 混排互不打扰（见 [LaTeX 一节](#latex文字层也认)） |
 | `node tools/authlimit-check.mjs` | 试错限速自检：19 项纯逻辑；接上服务再多 5 项真接口（共 24 项） |
 | `node tools/preflight-check.mjs` | 公网部署前自检：口令强度、门厅、哪些文件真的能被人读到、写接口有没有漏（见[发布](#发布)） |
@@ -694,8 +695,35 @@ assets/audio/a5.mp3    fs5.mp3    d5.mp3    b4.mp3    g4.mp3
 `#` 写成 `s`（F#3 → `fs3`），支持 mp3 / wav / ogg。**可以只放一部分**——缺哪个音，
 哪个音就用合成音色顶替，混着用没问题。详细规则见 `assets/audio/README.md`。
 
-音量、切换前的停留时长都在 `composables/useSound.ts` 顶部（`MASTER` / `SWITCH_DELAY`）。
+### 声音是怎么出来的（手机上也顺耳的那一版）
+
+出声那台琴在 `composables/sound-engine.mjs`（纯 WebAudio，没有 Vue），
+事件的接法在 `composables/useSound.ts`。四条与手机有关的规矩，都是踩过的坑：
+
+| 规矩 | 为什么 |
+|---|---|
+| 采样**一次 fetch + decodeAudioData 成 AudioBuffer** 缓存起来，播放只做一次 AudioBufferSourceNode | 旧写法每个音 `new Audio()`，等于每次现下现解 100–240KB 的 mp3；手机上要几百毫秒，而切模块只等 190ms——听到的是被截断的半声，或者干脆掉回合成音色 |
+| 音量一律走 **GainNode**，没有 `<audio>` | `<audio>` 的 `volume` 在 iOS 上是只读的：写 0.55 也不生效，采样那一路绕过总音量满幅输出，小喇叭上就是破音 |
+| 起音 8ms、收尾 0.48s 淡出；每个采样先归一化到同一个峰值 | 零起音与硬切都是「啪」的一声；九个采样录得响轻不一，不归一化就是「这个音炸、那个音轻」 |
+| `pointerover` **只认鼠标**；同一个音 320ms 内不再叠一层 | 触屏一次点按先发 pointerover 再发 click，同一个采样差几十毫秒叠两份就是梳状滤波——金属味 |
+
+**开启音效时先把这一页看得到的音拉下来**（最多 12 个、3 个并发）：手机上第一次点击
+往往就是切模块那一下，等它现下现解就晚了。浏览器存了「省流量」偏好（Save-Data）时跳过。
+
+音量与时长都在 `composables/sound-engine.mjs` 顶上的 `SOUND` 里：
+`master`（总闸，采样峰值落在 0.38 上下）、`hold` + `release`（切模块那一声响多久、淡多久）、
+`previewMax`（试听最长多久）、`synth.*`（没有采样时那台合成音色）。
+切换前的停留时长仍在 `composables/useSound.ts` 的 `SWITCH_DELAY`（190ms）。
 音效开关记在 localStorage 里，不会每次访问都重开。
+
+自检：`node tools/sound-check.mjs http://localhost:3987`（21 项）——真的开一个无头 Chrome，
+真的点「开启音效」，然后用页面里那台琴离线渲染出波形，量峰值、起音跳变、响到几时、
+尾巴有没有淡到零，再用触摸事件点一下音符块，数这一下触发了几层声音。
+
+```powershell
+$env:PORT=3987; node node_modules/nuxt/bin/nuxt.mjs dev
+node tools/sound-check.mjs http://localhost:3987    # 本机代理会拦 127.0.0.1，用 localhost
+```
 
 ## 云村（扫码登录网易云，可选）
 
