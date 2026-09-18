@@ -11,13 +11,15 @@
 2. **版本迭代**：调用 `release-skills` 技能流程，以 `git log v..HEAD`（或工作区变更）为据：
    feat → 次位 +1；fix / docs / refactor / perf → 末位 +1；含 `BREAKING CHANGE` → 主位 +1。
    结果写入根目录 `VERSION`（以该文件当前内容为唯一版本真源）。
+   版本号严格按上述规则计算后落笔，不做临场裁量、无需用户确认。
 3. **更新日志**：在 `CHANGELOG.md`（中文，单文件）头部导语之后、最新版本条目之上
    插入新版本段，按功能/模块分组，沿用现有小节风格（新功能 / 变更 / 修复…）；
    条目写「对访客可见的变化」，不复述提交流水；空小节省略。
 4. **发布提交与标签**：`chore: release v{version}` 提交 VERSION 与 CHANGELOG.md，
-   打 `v{version}` 标签。**未经用户确认不得 push。**
+   打 `v{version}` 标签。**默认不 push 到远端，推送由用户自己完成。**
 
-发布前先用 `release-skills --dry-run` 预览分组与版本号；版本号与是否发布需用户确认后落笔。
+发布前可用 `release-skills --dry-run` 自查分组与版本号；版本号与是否发布都按上述
+默认规则直接执行，不再向用户求确认。
 
 ### 提交前（密钥钩子）
 
