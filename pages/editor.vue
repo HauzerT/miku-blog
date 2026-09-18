@@ -9,12 +9,15 @@
 
    文章存在 data/articles.json，由 server/utils/content.ts 并进板块页 / 归档 /
    首页索引与卷帘——建完立刻看得见。
+   带 `?id=` 进来就是「改一篇已经发出去的」：站长右键菜单里的「整篇重编辑…」
+   走的就是这条路（同一个界面，不另开一张）。
    这里的取数、带口令重放与上传分别住在 composables/useApi.ts 与
    composables/useOwnerKey.ts 里。
    ========================================================================== */
 definePageMeta({ layout: 'editor' })
 
 const route = useRoute()
+const router = useRouter()
 const { toast } = useToast()
 const { key } = useOwnerKey()
 
@@ -262,6 +265,8 @@ const loadList = async () => {
   articles.value = data.articles || []
 }
 
+/* 右键菜单的「整篇重编辑…」就是带着 ?id= 跳到这一页来的：
+   稿子整份回填，连「去看这一篇」的链接一起摆好，改完再按一次保存。 */
 const openArticle = async (id) => {
   try {
     const data = await fetchJson(`articles/${id}`)
@@ -280,7 +285,7 @@ const openArticle = async (id) => {
     heading.value = `在写：${article.title}`
     dirty.value = false
     renderPreview()
-    setState('正在改这一篇。改完再点一次「保存并发布」。')
+    setState('正在改这一篇。改完再点一次「保存并发布」。', false, `/posts/${article.slug}`)
     window.scrollTo(0, 0)
   } catch (err) {
     setState(apiError(err), true)
@@ -313,6 +318,9 @@ const resetForm = () => {
   heading.value = '写一篇博客'
   renderPreview()
   keyState()
+  /* 从右键菜单带着 ?id= 进来过的：把它从地址里摘掉，
+     不然「写新的一篇」写一半刷新一下又回到刚才那一篇 */
+  if (route.query.id) router.replace('/editor')
 }
 
 const markDirty = () => {

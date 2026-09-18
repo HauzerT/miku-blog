@@ -1,12 +1,14 @@
 /* ==========================================================================
-   composables/useContextMenu.ts · 右键菜单（改名 / 撤下）
+   composables/useContextMenu.ts · 右键菜单（重编辑 / 改名 / 撤下）
    ---------------------------------------------------------------------------
    只有站长看得到这个菜单：浏览器里存着口令（门厅存的，或第一次上传时输入的），
    而且服务认这把口令。访客右键 = 浏览器自己那一套，这里一个字都不拦。
 
-   菜单挂在三种地方，做的事其实只有两件：
+   菜单挂在三种地方，做的事其实只有三件：
      板块（轨道栏 / 首页索引 / 卷帘的轨道头）→ 重命名 · 删除
      文章（板块页与归档的文章行 / 卷帘上的音符 / 文章页的标题正文）→ 重命名 · 删除
+     发布过的文章（编辑页写的那批）多一条「整篇重编辑…」：整页跳到 /editor?id=，
+     稿子原样回到写它的那张桌子上（见下面的 openInEditor）。
    站点里有两层东西，菜单对它们说的话不一样：
      界面建的（data/*.json）——真的删，连它带的图片视频音乐一起删；
      content/posts.mjs 里原生的那批——只「撤下」：服务在 data/overrides.json
@@ -162,6 +164,15 @@ let runs: (() => void)[] = [];
 
 const dropLabel = (native: boolean) => (native ? '撤下' : '删除');
 
+/* 发布过的文章（编辑页写的那批）拿回编辑页整篇重编辑。
+   原生文章不摆这一条：它住在 content/posts.mjs 里，那边只有「改一段」与覆盖层，
+   整篇重编辑没有落点（源文件一个字节不动是那条线的规矩）。
+   跳转走整页导航——编辑页是另一套布局，重新载入最干净；它自己会按 ?id= 把这一篇
+   取回来（id 与 slug 两个都认）。 */
+const openInEditor = (key: unknown) => {
+  window.location.href = `/editor?id=${encodeURIComponent(String(key || ''))}`;
+};
+
 const itemsFor = (target: MenuTarget, map: any): MenuItem[] => {
   runs = [];
 
@@ -183,6 +194,7 @@ const itemsFor = (target: MenuTarget, map: any): MenuItem[] => {
         },
       });
     }
+    if (post.runtime) out.push({ label: '整篇重编辑…', run: () => openInEditor(target.slug) });
     out.push({
       label: `${dropLabel(!post.runtime)}这篇文章…`,
       danger: true,
@@ -213,10 +225,12 @@ const itemsFor = (target: MenuTarget, map: any): MenuItem[] => {
 
   const post = map.posts[target.slug as string];
   if (!post) return [];
-  return [
-    { label: '重命名文章…', run: () => renamePost(target, post) },
-    { label: `${dropLabel(!post.runtime)}这篇文章…`, danger: true, run: () => dropPost(target, post) },
-  ];
+  const out: MenuItem[] = [];
+  /* 发布过的（编辑页写的）那一篇：第一条就是「拿回编辑页整篇重编辑」 */
+  if (post.runtime) out.push({ label: '整篇重编辑…', run: () => openInEditor(target.slug) });
+  out.push({ label: '重命名文章…', run: () => renamePost(target, post) });
+  out.push({ label: `${dropLabel(!post.runtime)}这篇文章…`, danger: true, run: () => dropPost(target, post) });
+  return out;
 };
 
 /* 菜单项被点：先收菜单，再做事 */
