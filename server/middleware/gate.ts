@@ -9,6 +9,10 @@
    所以「访客」档里拿不到任何写操作。这道门管的是「你从门口进来」，不是「你进不来」。
    不想要它就往 data/settings.json 里加一行 "gate": false。
 
+   门里只留了**一个**例外：/kumura（云村）。站长发布过快照之后它自己开门——
+   因为本站只有一个口令、而它同时就是写权限，不能发给访客（理由见下面那一段）。
+   别的页面没有例外，要开就是整站开。
+
    与旧 server.mjs 的差别只有两处，都是网址换了：
 
      · 旧的 HIDDEN 目录黑名单不再需要——那些目录已经不在文档根里，Nitro 根本不服务
@@ -22,6 +26,7 @@
 import { getCookie, getRequestURL, sendRedirect, setCookie, setResponseHeader, setResponseStatus } from 'h3';
 import { ENTER_COOKIE, ENTER_MAX_AGE, enterCookieOptions } from '../utils/auth';
 import { hiddenList } from '../utils/briefs';
+import { hasKumuraSnapshot } from '../utils/kumura';
 import { hasDotSegment } from '../utils/paths';
 import { hidePrerenderedPagesFromStatic } from '../utils/static-assets';
 import { getOverrides, getSettings, hiddenIn } from '../utils/store';
@@ -156,6 +161,17 @@ export default defineEventHandler((event) => {
     setCookie(event, ENTER_COOKIE, '1', enterCookieOptions(ENTER_MAX_AGE));
     return sendRedirect(event, to, 302);
   }
+
+  /* 云村那一页：站长发布过快照之后，这一页对访客开门。
+     为什么非开不可：本站只有**一个**口令，而它同时就是写权限（见 utils/auth.ts）。
+     让访客拿着口令进门厅，等于把编辑模式、上传、发布一起交出去——所以
+     「访客能看」这件事不能靠口令，只能靠这一页自己不设门。
+     而它敢开门，是因为页面上没有任何实时数据：访客的浏览器连不上站长那台机器的
+     127.0.0.1:3170，只能读 /api/kumura 那一份脱敏快照（白名单见
+     server/lib/kumura-snapshot.mjs，里面连播放地址都没有）。
+     没发布过就不开——没东西可看的时候，它和别的页面一样待在门里。
+     要整站都公开（连门厅也不要），那是另一件事：data/settings.json 里 "gate": false。 */
+  if (pathname === '/kumura' && hasKumuraSnapshot()) return;
 
   if (!getCookie(event, ENTER_COOKIE)) {
     const next = pathname + (url.search || '');
