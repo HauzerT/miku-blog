@@ -385,12 +385,21 @@ async function main() {
       if (!items.length) throw new Error('菜单里没有匹配 ${re}');
       items[0].click();
     })()`);
-  const clickBtn = (text) =>
-    evaluate(`(function () {
+  /* 点工具条上那颗键。**先等它出现**，别一找不到就抛：
+     工具条是异步挂上来的（有时还要等上一句提示先收走），抢在前面就会抛，
+     而这一抛会把整个探针带崩——崩在中途还会把临时板块留在盘上，
+     下一次跑就被多出来的那一格绊倒。这里等不到才抛，抛出去的话就是真的没有。 */
+  const clickBtn = async (text) => {
+    const there = await waitFor(
+      `Array.prototype.some.call(document.querySelectorAll('.rte__btn'), function (x) { return x.textContent === ${JSON.stringify(text)}; })`,
+      8000
+    );
+    if (!there) throw new Error('工具条上没有「' + text + '」');
+    await evaluate(`(function () {
       var b = Array.prototype.filter.call(document.querySelectorAll('.rte__btn'), function (x) { return x.textContent === ${JSON.stringify(text)}; })[0];
-      if (!b) throw new Error('工具条上没有「' + ${JSON.stringify(text)} + '」');
       b.click();
     })()`);
+  };
   const typeInto = async (selector, html, nth = 0) => {
     await evaluate(`(function () {
       var el = document.querySelectorAll(${JSON.stringify(selector)})[${nth}];
@@ -415,6 +424,11 @@ async function main() {
   };
   const setKey = () => evaluate(`localStorage.setItem('cv01-key', ${JSON.stringify(KEY)})`);
   const dropKey = () => evaluate(`localStorage.removeItem('cv01-key')`);
+
+  /* 自检自己建的那一支板块与那一篇文章。放在 try 外面是为了崩溃时还够得着：
+     崩在中途会把它们留在盘上，下一次跑就被绊倒（轨道栏多一格、列表多一条）。 */
+  let tmpSection = '';
+  let tmpArticle = '';
 
   try {
     /* ================================================================ 1. 访客 */
@@ -459,7 +473,7 @@ async function main() {
         return f;
       })(),
     })).json();
-    const TMP = created?.section?.id || '';
+    const TMP = (tmpSection = created?.section?.id || '');
     check('临时空板块建出来了（def / lede 都是空）', Boolean(TMP) && created.section.def === '' && created.section.lede === '', JSON.stringify(created.section || {}).slice(0, 90));
     /* 建完之后要重取一次页面：首页那份内容在 SSR 时就装配好了 */
     await goto(url('/'));
@@ -688,9 +702,11 @@ async function main() {
       section: 'tongxue',
       date: '2099.01.01',
       blurb: '自检临时建的，量完就删。',
-      source: '## 自检正文\n这一篇是临时建的，用来量「整篇重编辑」。\n',
+      /* 第二、三行之间只有一个换行，是**软换行**——编辑页预览里它必须变成
+         真的断行（breaks: true，见 server/lib/markdown.mjs）。这一篇顺带量这件事。 */
+      source: '## 自检正文\n这一篇是临时建的，用来量「整篇重编辑」。\n第二行紧挨着上一行，量的是预览里的换行。\n',
     });
-    const TMP_POST = made.data?.article?.id || '';
+    const TMP_POST = (tmpArticle = made.data?.article?.id || '');
     const TMP_SLUG = made.data?.article?.slug || '';
     check('临时文章建出来了（编辑页写的那种）', made.status === 201 && Boolean(TMP_POST) && Boolean(TMP_SLUG), JSON.stringify(made.data).slice(0, 90));
 
@@ -723,6 +739,20 @@ async function main() {
         /正在改这一篇/.test(await evaluate(`document.querySelector('[data-state]').textContent`)));
     check('「去看这一篇」的链接指着刚发出去的那一页',
       (await evaluate(`(function () { var a = document.querySelector('[data-state] a'); return a ? a.getAttribute('href') : ''; })()`)) === `/posts/${TMP_SLUG}`);
+
+    /* 右栏预览：正文里的单个换行要在预览里断行。
+       预览走 POST /api/render，与文章页是同一个渲染器——所以预览里看得见的换行，
+       发出去之后页面上也一定看得见；反过来，折成空格的话站长写下的与看到的就对不上了。 */
+    const previewBreak = await waitFor(`(function () {
+      var box = document.querySelector('[data-previewbox]');
+      return !!box && box.innerHTML.indexOf('量「整篇重编辑」。<br>第二行紧挨着上一行') > -1;
+    })()`, 8000);
+    check('编辑页预览里换行看得见（单个回车就断行）', previewBreak,
+      (await evaluate(`(document.querySelector('[data-previewbox]') || {}).innerHTML || ''`)).replace(/\n/g, '\\n').slice(0, 130));
+    check('预览里的段落还是段落（没有把两段并成一段）',
+      await evaluate(`document.querySelectorAll('[data-previewbox] p').length === 1 &&
+        document.querySelectorAll('[data-previewbox] h2').length === 1`));
+    await shot('probe-7c2-editor-preview-breaks');
     await shot('probe-7c-editor-from-menu');
     await evaluate(`document.querySelector('[data-new]').click()`);
     check('「写新的一篇」把地址里的 ?id= 摘掉了（不然刷新又回到那一篇）',
@@ -869,6 +899,21 @@ async function main() {
   } catch (err) {
     problems.push(`探针自己挂了：${err.message}`);
     console.error(`\n探针自己挂了：${err.stack || err.message}`);
+    /* 崩在中途时，自检建的那一支板块与那一篇文章还在盘上。尽最大努力删掉——
+       留着的话下一次跑会量到多出来的一格，报出一个与本次改动无关的假失败。
+       删不掉也不该盖住真正的错，所以这里只出声、不抛。 */
+    for (const [what, path] of [
+      ['临时板块', tmpSection && `/api/sections/${tmpSection}`],
+      ['临时文章', tmpArticle && `/api/articles/${tmpArticle}`],
+    ]) {
+      if (!path) continue;
+      try {
+        const res = await api(path, 'DELETE');
+        console.error(`  （收尾）${what}删掉了：HTTP ${res.status}`);
+      } catch {
+        console.error(`  （收尾）${what}没删掉，下次跑之前手动清一下：${path}`);
+      }
+    }
     close();
   }
 

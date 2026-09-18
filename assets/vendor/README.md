@@ -27,6 +27,10 @@ katex/LICENSE                    MIT
   代价：正文里的公式要在「写入时」编译——编辑页保存、页面上直接改字保存这两处都会走到，
   所以照旧不用手工做别的。
 - **不装 `contrib/auto-render`。** 它是给浏览器 DOM 用的，我们是字符串管线，逻辑短得多。
+- **不装 mhchem / siunitx / physics 这些扩展。** KaTeX 的数学命令表是完整的，缺的是
+  那几个宏包自己的命令；常用的由 `server/lib/latex.mjs` 顶上的 `LATEX_MATH_MACROS`
+  补成等价写法（`\SI \qty \abs \dv \pdv \qed`…），不认识的命令仍旧是 KaTeX 的红字。
+  文字层（`\section`、`\begin{itemize}`、`figure` 这些）也在那个文件里，与 KaTeX 无关。
 - **marked 只用 ESM 那一份**（`marked.esm.js`），服务端 `import` 它；
   浏览器不需要 marked（Markdown 只在服务端渲染，预览也走 `/api/render`）。
 

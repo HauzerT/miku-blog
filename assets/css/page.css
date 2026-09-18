@@ -272,6 +272,210 @@
 }
 .prose audio { display: block; width: 100%; }
 
+/* ---------------------------------------------------------------- LaTeX 文字层
+   贴进来的一篇 LaTeX（或 Markdown 里混的那几件）会排成这些东西：
+   标题块、目录、摘要、章节号、定理、公式号、图表、脚注、文献。
+   全挂在 .prose 里——编辑页右栏预览与文章页是同一个容器，改一处两处都对。
+   颜色只用站里那几支：--miku-deep 做记号、--rule 做细线、--ink-soft 做次要字。 */
+
+.prose .ltx-anchor {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+/* 标题块（\maketitle） */
+.prose .ltx-title {
+  margin-bottom: var(--s-7);
+  padding-bottom: var(--s-5);
+  border-bottom: 1px solid var(--rule);
+  text-align: center;
+}
+.prose .ltx-title__name {
+  font-family: var(--f-read);
+  font-size: 1.5rem;
+  line-height: 1.35;
+  font-weight: 700;
+}
+.prose .ltx-title__by,
+.prose .ltx-title__date {
+  margin-top: var(--s-2);
+  font-size: var(--t-data);
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+}
+.prose .ltx-title__date { font-family: var(--f-measure); letter-spacing: 0.12em; }
+
+/* 目录（\tableofcontents） */
+.prose .ltx-toc {
+  padding: var(--s-4) var(--s-5);
+  background: var(--paper-deep);
+  border-left: 3px solid var(--miku-deep);
+  border-radius: 2px;
+}
+.prose .ltx-toc__head {
+  margin-top: 0;
+  padding-left: 0;
+  border-left: 0;
+  font-size: 0.9375rem;
+  letter-spacing: 0.16em;
+}
+.prose .ltx-toc__list {
+  margin-top: var(--s-3);
+  padding-left: 0;
+  list-style: none;
+  font-size: 0.9375rem;
+  line-height: 1.9;
+}
+.prose .ltx-toc__item--l2 { padding-left: 1.2em; }
+.prose .ltx-toc__item--l3 { padding-left: 2.4em; }
+.prose .ltx-toc__item--l4,
+.prose .ltx-toc__item--l5 { padding-left: 3.6em; }
+.prose .ltx-toc__no { font-family: var(--f-measure); color: var(--miku-deep); }
+
+/* 摘要与关键词 */
+.prose .ltx-abstract {
+  padding: var(--s-4) var(--s-5);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  font-size: 0.9375rem;
+  line-height: 1.85;
+}
+.prose .ltx-abstract__head {
+  margin-top: 0;
+  padding-left: 0;
+  border-left: 0;
+  font-size: 0.875rem;
+  letter-spacing: 0.2em;
+  color: var(--ink-soft);
+}
+.prose .ltx-abstract__body { margin-top: var(--s-3); }
+.prose .ltx-keywords { font-size: 0.9375rem; color: var(--ink-soft); }
+
+/* 章节号与深一级的标题 */
+.prose .ltx-heading__no { margin-right: 0.4em; font-family: var(--f-measure); color: var(--miku-deep); }
+.prose h4 { margin-top: 1.7em; font-size: 1rem; line-height: 1.5; font-weight: 700; }
+.prose h5,
+.prose h6 { margin-top: 1.5em; font-size: 0.9375rem; line-height: 1.5; font-weight: 700; color: var(--ink-soft); }
+.prose .ltx-part,
+.prose .ltx-chapter { padding-left: 0; border-left: 0; text-align: center; }
+
+/* 定理、引理、证明 */
+.prose .ltx-thm {
+  padding: var(--s-4) var(--s-5);
+  background: var(--paper-deep);
+  border-left: 3px solid var(--rule);
+  border-radius: 2px;
+}
+.prose .ltx-thm--proof { background: none; border-left-color: var(--miku-deep); }
+.prose .ltx-thm__head { font-size: 0.9375rem; font-weight: 700; letter-spacing: 0.04em; }
+.prose .ltx-thm--theorem .ltx-thm__head { color: var(--miku-deep); }
+.prose .ltx-thm__body { margin-top: var(--s-2); }
+.prose .ltx-thm__body > * + * { margin-top: 1em; }
+.prose .ltx-qed { float: right; color: var(--miku-deep); }
+
+/* 公式：编号由 KaTeX 的 \tag 排在右边，这里只把外框的间距抹平 */
+.prose .ltx-eq { margin-block: var(--s-5); }
+.prose .ltx-eq .katex-display { margin: 0; }
+
+/* 交叉引用、文献引用、认不出来的东西 */
+.prose .ltx-ref,
+.prose .ltx-cite { border-bottom: 0; }
+.prose .ltx-ref { font-family: var(--f-measure); }
+.prose .ltx-ref--missing,
+.prose .ltx-cite--missing { color: var(--ink-soft); border-bottom: 1px dashed var(--rule); }
+.prose .ltx-cites { font-family: var(--f-measure); }
+.prose .ltx-unsupported {
+  font-size: var(--t-data);
+  color: var(--ink-soft);
+  border-bottom: 1px dashed var(--rule);
+}
+
+/* 图片与表格（figure / table / tabular） */
+.prose .ltx-figure img { margin-inline: auto; }
+.prose .ltx-table { overflow-x: auto; }
+.prose .ltx-table figcaption { text-align: left; }
+.prose .ltx-caption__no { margin-right: 0.5em; font-family: var(--f-measure); color: var(--miku-deep); }
+.prose .ltx-caption { font-size: var(--t-data); color: var(--ink-soft); }
+/* tabular 的线只画 \hline / \toprule 让画的那几条：默认一条都不画 */
+.prose .ltx-tabular th,
+.prose .ltx-tabular td { border-bottom: 0; }
+.prose .ltx-tabular tr.ltx-rl > td { border-top: 1px solid var(--rule); }
+.prose .ltx-tabular tr.ltx-rb > td { border-bottom: 1px solid var(--rule); }
+.prose .ltx-tabular.ltx-vlines td + td { border-left: 1px solid var(--rule); }
+
+/* 脚注与参考文献 */
+.prose .ltx-footnotes,
+.prose .ltx-bib {
+  margin-top: var(--s-7);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--rule);
+  font-size: 0.9375rem;
+  line-height: 1.85;
+}
+.prose .ltx-footnotes__head,
+.prose .ltx-bib__head {
+  margin-top: 0;
+  padding-left: 0;
+  border-left: 0;
+  font-size: 0.875rem;
+  letter-spacing: 0.2em;
+  color: var(--ink-soft);
+}
+.prose .ltx-footnotes__list,
+.prose .ltx-bib__list { margin-top: var(--s-3); }
+.prose .ltx-fn__back { margin-left: 0.4em; border-bottom: 0; color: var(--ink-soft); }
+.prose .ltx-bib__no { margin-right: 0.35em; font-family: var(--f-measure); color: var(--miku-deep); }
+.prose .ltx-fn a { border-bottom: 0; font-family: var(--f-measure); }
+
+/* 列表里的自定义标签、描述列表 */
+.prose .ltx-item-label { margin-right: 0.3em; font-family: var(--f-measure); color: var(--miku-deep); }
+.prose .ltx-description dt { font-weight: 700; }
+.prose .ltx-description dd { margin-top: 0.2em; margin-left: 1.5em; }
+.prose .ltx-description dd + dt { margin-top: 0.8em; }
+
+/* 版面块与空白 */
+.prose .ltx-center { text-align: center; }
+.prose .ltx-flushleft { text-align: left; }
+.prose .ltx-flushright { text-align: right; }
+.prose .ltx-minipage { display: inline-block; vertical-align: top; }
+.prose .ltx-pagebreak { margin-block: var(--s-6); }
+.prose .ltx-skip--big { height: 1.6em; }
+.prose .ltx-skip--med { height: 0.9em; }
+.prose .ltx-skip--small { height: 0.45em; }
+.prose .ltx-hspace { display: inline-block; }
+.prose .ltx-rule { display: inline-block; vertical-align: middle; background: currentColor; }
+.prose .ltx-fbox {
+  padding: 0.08em 0.35em;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+}
+.prose .ltx-colorbox { padding: 0.05em 0.3em; border-radius: 2px; }
+.prose .ltx-note,
+.prose .ltx-thanks { font-size: var(--t-data); color: var(--ink-soft); }
+.prose .ltx-env { margin-block: var(--s-4); }
+
+/* 文字样式与字号（LaTeX 那十档） */
+.prose .ltx-underline { text-decoration: underline; text-underline-offset: 0.22em; }
+.prose .ltx-sl { font-style: oblique; }
+.prose .ltx-sc { font-variant: small-caps; }
+.prose .ltx-sf { font-family: var(--f-ui); }
+.prose .ltx-rm { font-family: var(--f-read); }
+.prose .ltx-up { font-style: normal; }
+.prose .ltx-md { font-weight: 400; }
+.prose .ltx-xout { text-decoration: line-through; opacity: 0.6; }
+.prose .ltx-sz--tiny { font-size: 0.6em; }
+.prose .ltx-sz--scriptsize { font-size: 0.72em; }
+.prose .ltx-sz--footnotesize { font-size: 0.82em; }
+.prose .ltx-sz--small { font-size: 0.9em; }
+.prose .ltx-sz--normal { font-size: 1em; }
+.prose .ltx-sz--large { font-size: 1.12em; }
+.prose .ltx-sz--Large { font-size: 1.25em; }
+.prose .ltx-sz--LARGE { font-size: 1.4em; }
+.prose .ltx-sz--huge { font-size: 1.6em; }
+.prose .ltx-sz--Huge { font-size: 1.85em; }
+
 .pager {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

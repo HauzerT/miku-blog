@@ -21,7 +21,7 @@
 
 - [站长右键：重编辑 / 改名 / 撤下](#站长右键重编辑--改名--撤下) —— 含[页面上直接改字](#页面上直接改字像-word-那样)
 - [全局编辑模式（页顶那颗按钮）](#全局编辑模式页顶那颗按钮)
-- [Markdown · 公式 · emoji](#markdown--公式--emoji)
+- [Markdown · LaTeX · 公式 · emoji](#markdown--latex--公式--emoji)
 - [改内容](#改内容) —— 改 `content/posts.mjs` 就行，没有生成步骤（成品要重新构建）
 - [页顶「每日一句」](#页顶每日一句)
 
@@ -91,7 +91,8 @@
 | `server/api/**` | Nitro 接口，一个方法一个文件：鉴权、内容、上传、渲染、音乐、状态 |
 | `server/utils/**` | 数据层与内容装配：`store`（五个 JSON）/ `paths` / `briefs` / `auth` / `content` / `media-store` / `http` / `text` |
 | `server/middleware/` | `gate.ts` 是门厅这道门；`legacy-urls.ts` 是上面那张跳转表 |
-| `server/lib/markdown.mjs` | 正文管线：marked（GFM）→ emoji 短代码 → KaTeX；`decorateBody` 给 HTML 用（**Nuxt 服务端直接 import 它**，不是遗留物） |
+| `server/lib/markdown.mjs` | 正文管线：LaTeX 文字层 → marked（GFM）→ emoji 短代码 → KaTeX；`decorateBody` 给 HTML 用（**Nuxt 服务端直接 import 它**，不是遗留物） |
+| `server/lib/latex.mjs` | LaTeX 文字层：整篇 `.tex` 或 Markdown 里混的命令/环境 → HTML（章节、列表、图表、脚注、交叉引用、文献、公式编号） |
 | `server/lib/emoji.mjs` | 常用 emoji 短代码表 + 只在文本节点上换的 `decorateEmoji` |
 | `server/lib/htmltext.mjs` | 把 HTML 拆成标签与文本（code/pre 里不动），emoji 与公式共用 |
 | `server/lib/authlimit.mjs` | `/api/auth` 的试错退避（纯逻辑、无 import，`server/utils/auth.ts` 装配它） |
@@ -110,7 +111,9 @@
 | `node tools/check-qr.mjs` | 二维码编码器的实扫验证（需要 python + opencv） |
 | `node tools/nuxt-check.mjs http://127.0.0.1:3987` | 应用级浏览器自检（21 项）：一页一页看控制台、该有的元素、主题按钮、卷帘扫光、每日一句、门厅两颗键；零依赖（Node 自带 WebSocket 直接跟无头 Chrome 说话），`--shot` 顺带截图 |
 | `node tools/nuxt-studio-check.mjs http://127.0.0.1:3987` | 悬浮球工作流自检（42 项）：两颗球、自动播放被拦与解禁、口令框、站长工具箱、建板块、传 / 换 / 改名 / 删歌，全程对着真文件 |
-| `node tools/nuxt-edit-check.mjs http://127.0.0.1:3987` | 编辑与右键自检（94 项）：访客看不到按钮、点字即改、改名 / 撤下 / 恢复 / 410、整篇重编辑回编辑页、富文本正文覆盖层、Esc 语义 |
+| `node tools/nuxt-edit-check.mjs http://127.0.0.1:3987` | 编辑与右键自检（96 项）：访客看不到按钮、点字即改、改名 / 撤下 / 恢复 / 410、整篇重编辑回编辑页、富文本正文覆盖层、Esc 语义 |
+| `node tools/markdown-check.mjs` | 正文管线自检（25 项）：换行（`breaks`）、代码块与表格里的换行是结构、公式不被 `breaks` 动、emoji 与裸链接的老规矩 |
+| `node tools/latex-check.mjs` | LaTeX 文字层自检（81 项）：整篇 `.tex` 的骨架、章节编号、列表与定理、图表与表格线、公式编号与 `\ref`、脚注与文献、引言区宏、Markdown 混排互不打扰（见 [LaTeX 一节](#latex文字层也认)） |
 | `node tools/authlimit-check.mjs` | 试错限速自检：19 项纯逻辑；接上服务再多 5 项真接口（共 24 项） |
 | `node tools/preflight-check.mjs` | 公网部署前自检：口令强度、门厅、哪些文件真的能被人读到、写接口有没有漏（见[发布](#发布)） |
 | `node tools/secret-scan.mjs` | 提交前扫密钥：通用凭据规则 + 「本机实况有没有漏回仓库」（见[提交前扫一遍](#提交前扫一遍)） |
@@ -290,12 +293,14 @@ PasswordCredential，Firefox 靠属性自己提示）。第一次登录后在「
 > 引用             可以套一层
 **粗体** *斜体* ~~划掉~~ `代码` [文字](链接) ![说明](/media/images/xxx.jpg)
 三个反引号包代码块（带上语言名会加 class）；一行以 < 开头就整块原样放行（视频、音频靠它插进去）
-公式：$行内$ 与独立一行的 $$…$$（也认 \(…\) 与 \[…\]）；emoji 直接打，或写 :smile: 这样的短代码
+换行：敲一下回车就断行，空一行才是新段落（行尾两个空格那种老写法也认）
+公式：$行内$（内侧别留空格）与独立一行的 $$…$$（也认 \(…\) 与 \[…\]）；emoji 直接打，或写 :smile: 这样的短代码
+LaTeX：整篇 .tex 可以直接贴（\documentclass / \begin{document} 那套），章节·列表·图表·定理·脚注·文献·公式编号都排；Markdown 里混 \textbf、\begin{itemize} 也认
 ```
 
 公式是 **KaTeX** 排的（服务端编译成 HTML + MathML，页面只加载本地 CSS 与字体，
 不跑 JS、不联网），emoji 用的是系统彩色字体 + 一张常用的短代码表。细节见
-下面「Markdown · 公式 · emoji」一节。
+下面「Markdown · LaTeX · 公式 · emoji」一节。
 
 图片 / 视频 / 音乐点按钮选、拖进正文框、或者 `Ctrl+V` 粘截图，都能传——
 传完自动把插入语法塞到光标处，右栏实时预览。保存进 `data/articles.json`，
@@ -337,7 +342,7 @@ pnpm build
 $env:PORT='3987'; node .output/server/index.mjs   # 另开一个窗口把它跑着
 node tools/nuxt-check.mjs        http://127.0.0.1:3987   # 21 项：每类页面控制台干不干净、元素在不在
 node tools/nuxt-studio-check.mjs http://127.0.0.1:3987   # 42 项：两颗球、自动播放、口令框、建板块、传歌
-node tools/nuxt-edit-check.mjs   http://127.0.0.1:3987   # 94 项：点字即改、右键重编辑 / 改名 / 撤下 / 恢复、富文本正文
+node tools/nuxt-edit-check.mjs   http://127.0.0.1:3987   # 96 项：点字即改、右键重编辑 / 改名 / 撤下 / 恢复、富文本正文
 ```
 
 后两个要口令，从 `$env:CV01_KEY` 读（不会打印）：
@@ -522,7 +527,7 @@ node tools/nuxt-check.mjs http://127.0.0.1:3987       # 门厅两颗键、颜色
 
 ```powershell
 $env:PORT=3987; node .output/server/index.mjs
-node tools/nuxt-edit-check.mjs http://127.0.0.1:3987   # 94 项：访客看不到 · 重编辑 · 改名 · 撤下 · 恢复 · 410 ·
+node tools/nuxt-edit-check.mjs http://127.0.0.1:3987   # 96 项：访客看不到 · 重编辑 · 改名 · 撤下 · 恢复 · 410 ·
                                                        #        直接改字（加粗 / 青下划线 / 划掉 / 一级 / 注释 / 保存 / 恢复）
 ```
 
@@ -570,22 +575,32 @@ node tools/nuxt-edit-check.mjs http://127.0.0.1:3987   # 它量的是同一套�
                                                        # 空简介 / 导语就地新建 · 标题内联改 · Esc 语义
 ```
 
-## Markdown · 公式 · emoji
+## Markdown · LaTeX · 公式 · emoji
 
-三件事，一条管线（`server/lib/markdown.mjs`）：
+四件事，一条管线（`server/lib/markdown.mjs` + `server/lib/latex.mjs`）：
 
 ```
-Markdown 源 ──► 抠出公式（保护起来）──► marked（GFM）──► emoji 短代码 ──► 公式装回去
-posts.mjs 里的 HTML ────────────────────────────────► emoji 短代码 ──► 公式（字符串版）
+Markdown 源 ──► 摘走代码 ──► LaTeX 文字层 ──► 代码装回 ──► marked（GFM）
+                                                                  │
+整篇 .tex   ──────────────► LaTeX 文字层（不过 marked）────────────┤
+                                                                  ▼
+                              emoji 短代码 ──► 公式装回（KaTeX）──► 中文标点剪断
+posts.mjs 里的 HTML ──────────────────────────► emoji 短代码 ──► 公式（字符串版）
 ```
 
 ### Markdown：GFM 全量
 
 用的是 **marked 18.0.13**（本地文件，见 `assets/vendor/README.md`），所以该有的都有：
-六档 ATX 标题与下划线式标题、段落与硬换行、粗/斜/粗斜、删除线、行内代码与围栏代码（带语言名）、
+六档 ATX 标题与下划线式标题、段落与换行、粗/斜/粗斜、删除线、行内代码与围栏代码（带语言名）、
 缩进代码块、有序/无序/嵌套列表、任务列表、表格与对齐、引用（可嵌套）、分隔线、
 链接（带 title）、自动链接、图片、行内 HTML 与整块 HTML。
 编辑页的右栏预览走 `/api/render`，与最终页面**同一个渲染器**，所见即所得。
+
+**换行怎么算**：正文里**敲一下回车就是换行**（渲染器开着 `breaks`）——预览里断行，
+发出去之后页面上也断行，不用在行尾补两个空格。**空一行**才是新段落（段间距更大）。
+CommonMark 原本那两种硬换行（行尾两个空格、行尾反斜杠）照旧认，写惯了的人不受影响；
+代码块、缩进代码与表格里的换行是结构，不会被当成换行符处理。
+这条规矩由 `node tools/markdown-check.mjs` 钉着（25 项）。
 
 两个地方与「教科书 Markdown」不同，都是为了中文：
 
@@ -593,6 +608,39 @@ posts.mjs 里的 HTML ───────────────────�
 |---|---|
 | 裸链接后面跟着中文标点：`https://a.b，然后……` | GFM 会把「，然后」一起吞进链接里。这里在**第一个中文标点处剪断**，标点与后文还给正文；手写的 `[文字](地址)` 一律不碰。中文**汉字**不剪——`/wiki/中文` 是真的地址 |
 | HTML | **原样放行**（以前只放行整块以 `<` 开头的）。正文是站长自己写的，不做转义或白名单；「页面上直接改字」那条路仍然过 `sanitizeHtml` 轻清洗 |
+
+### LaTeX：文字层也认
+
+**整篇 `.tex` 可以直接贴进正文框**（`/editor` 的 Markdown 那一栏）。认法有两条：
+写没写 `\documentclass` 都一样——只要有 `\begin{document}`（或 `\documentclass`）就当整篇文档；
+想避开这个判断，把整篇包在 ` ```latex ` … ` ``` ` 里也行。没有这两样的，就按
+「Markdown 里混着 LaTeX」处理：`\textbf`、`\begin{itemize}` 这些照排，Markdown 语法照旧。
+
+| 那一类 | 认的写法 |
+|---|---|
+| 文档骨架 | `\documentclass`、`\usepackage`（丢掉）；`\title` / `\author` / `\date` + `\maketitle`；`\tableofcontents`；`abstract` 环境；`\keywords`；`\appendix` |
+| 章节 | `\part` `\chapter` `\section` `\subsection` `\subsubsection` `\paragraph` `\subparagraph`，带星号的不编号；编号自动算（`1` / `1.1` / `1.1.1`），`\appendix` 之后换成 `A` / `A.1` |
+| 文字 | `\textbf \textit \emph \textsc \texttt \textrm \textsf \underline \sout \textsuperscript \textsubscript \textcolor \colorbox \fbox \verb`；`{\bfseries …}` `{\small …}` 这种组内声明；`\tiny`…`\Huge` 十档字号 |
+| 环境 | `itemize` / `enumerate`（含 `[(a)]` 这种标签）/ `description`（含嵌套）、`quote` `verse` `center` `flushleft/right`、`verbatim` `lstlisting` `minted`、`minipage` `\parbox` |
+| 定理 | `theorem` `lemma` `corollary` `proposition` `definition` `remark` `example` `proof`（自带 ∎）…；`\newtheorem{env}{标题}` 能加自己的、也能带 `[计数器]` 与 `[section]` |
+| 图表 | `figure` / `table`（`\caption` 自动编号成「图 1」「表 1」）、`\label` `\ref`；`tabular` / `tabularx` / `longtable`（列对齐 `lcrp{}`、`|` 竖线、`\hline` 与 `booktabs` 那几条横线、`\multicolumn`）；`\includegraphics[width=0.5\textwidth]{}`（宽度按 `\textwidth` 折算，裸文件名补成 `/media/images/`） |
+| 引用 | `\label` `\ref` `\eqref` `\pageref` `\autoref` `\cref` `\hyperref`；**往前指也能解析**（`\ref` 写在图表之前没关系） |
+| 脚注文献 | `\footnote`（末尾收成一张脚注表）、`\footnotemark` / `\footnotetext`；`\cite` + `thebibliography` / `\bibitem`（`\cite` 排成 `[1]` 链到文献表） |
+| 公式编号 | `equation` / `align` / `gather` / `alignat` 这些自动编号（`\tag` 排在右边），带星号或整块 `\notag` 的不编号；`multline` `eqnarray` `flalign` 用等价写法排 |
+| 宏 | 引言区的 `\newcommand` / `\renewcommand` / `\def` / `\DeclareMathOperator`：**数学里生效**（进 KaTeX 的宏表），**文字里也能展开** |
+
+几个刻意的取舍：
+
+- **KaTeX 只排数学**。siunitx 与 physics 那几件常用的（`\SI \qty \si \abs \norm \bra \ket \dv \pdv \grad \tr \order \comm \eval`…）
+  由 `server/lib/latex.mjs` 顶上的 `LATEX_MATH_MACROS` 补成等价写法，**你自己在引言区定义的宏优先**。
+  没装的真宏包（`\ce` 化学式那种）只在数学里留一行 KaTeX 的红字，正文照常排。
+- **TikZ、`\input` 外部文件、PDF 专有的分页**不认：TikZ 明确标一句「排不出来」，
+  `\input{chapter1}` 标一句「未包含」——不静默吞掉。
+- **中文之间的换行不补空格**（LaTeX 那边靠 xeCJK 干这件事），不然中文段落里会多出一堆空隙。
+- 换行/空行的规矩与 Markdown 那条一致：单个换行是换行（文档模式里是空格），空一行才是新段落。
+- 样式都在 `assets/css/page.css` 的 `.prose` 里（`ltx-` 前缀那一段），编辑页右栏预览与文章页同一套。
+
+自检：`node tools/latex-check.mjs`（81 项）。老规矩由 `node tools/markdown-check.mjs` 钉着（25 项），两条都跑一遍最稳。
 
 ### 公式：KaTeX，服务端编译
 
@@ -606,6 +654,9 @@ posts.mjs 里的 HTML ───────────────────�
   编辑页保存、页面上直接改字保存这两处都会走到，所以不用手工做别的。
 - 公式**先于** Markdown 被抠出来保护，所以 `$x_1 + x_2$` 里的下划线不会被当成强调，
   `\(…\)` 也不会被 Markdown 当转义吃掉；反过来，**代码块与行内代码里的 `$` 与 `:smile:` 保持原样**。
+- 行内那种 `$…$` **美元号内侧不留空格才算公式**：`$a+b$` 算，`$5 到 $10` 不算——
+  这条是 pandoc 与 KaTeX auto-render 的通行规矩，为的是让「花了 $5 到 $10」这类句子
+  留在正文里。`$$…$$` 与 `\[…\]` 那两种独立公式不受这条限制（它们本来就常写成跨行的）。
 - 写坏的公式（`$\frac{a}{$`）不会把正文吃掉：KaTeX 把它标成红字，页面照常。
 - 只有真出现公式的页面才加载 `katex.min.css`；字体（20 个 woff2，共 254 KB）由浏览器按需懒加载。
   「页面上直接改字」存下来的正文里若有公式，编辑器会自己把那张样式表补上。
